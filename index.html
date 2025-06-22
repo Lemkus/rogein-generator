@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Генератор точек на тропах OSM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+  <style>
+    #map { height: 80vh; width: 100%; }
+    .controls { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h2>Генератор контрольных точек на тропах (OSM)</h2>
+  <div class="controls">
+    <label>Количество точек: <input type="number" id="pointsCount" min="1" value="10"></label>
+    <label style="margin-left:20px;">Мин. расстояние (% от площади): <input type="number" id="minDistPercent" min="0.1" max="20" step="0.1" value="2"></label>
+    <button id="generateBtn">Сгенерировать точки</button>
+    <button id="cancelBtn" style="display:none;">Отмена</button>
+    <button id="downloadGpxBtn">Скачать точки для Garmin (GPX)</button>
+    <span id="status"></span>
+  </div>
+  <div class="controls" style="border-top: 2px solid #ccc; padding-top: 10px;">
+    <h3>🎯 Вибро-навигация "Горячо-Холодно"</h3>
+    <label>Целевая точка: 
+      <select id="targetPointSelect" disabled>
+        <option value="">Сначала сгенерируйте точки</option>
+      </select>
+    </label>
+    <button id="vibroNavBtn" disabled>🎯 Начать навигацию</button>
+    <button id="stopNavBtn" style="display:none;">⏹️ Остановить</button>
+    <span id="navStatus" style="margin-left: 10px; font-weight: bold;"></span>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html> 
