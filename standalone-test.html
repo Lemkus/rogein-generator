@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Автономный тест модулей</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    .success { background: #d4edda; border-color: #c3e6cb; }
+    .error { background: #f8d7da; border-color: #f5c6cb; }
+    .info { background: #d1ecf1; border-color: #bee5eb; }
+    pre { background: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; overflow-x: auto; font-size: 11px; }
+    .file-content { max-height: 300px; overflow-y: auto; }
+    .module-info { background: #fff3cd; border-color: #ffeaa7; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Автономный тест модулей (без сервера)</h1>
+  
+  <div id="results"></div>
+  
+  <script>
+    const results = document.getElementById('results');
+    
+    function addResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `test ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      results.appendChild(div);
+      console.log(message);
+    }
+    
+    function addFileContent(title, content, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `test ${type}`;
+      div.innerHTML = `<strong>${title}</strong><pre class="file-content">${content}</pre>`;
+      results.appendChild(div);
+    }
+    
+    function addModuleInfo(title, info, type = 'module-info') {
+      const div = document.createElement('div');
+      div.className = `test ${type}`;
+      div.innerHTML = `<strong>${title}</strong><pre>${info}</pre>`;
+      results.appendChild(div);
+    }
+    
+    addResult('Начинаю автономное тестирование модулей...', 'info');
+    
+    // Тест 1: Проверка ES6 модулей
+    try {
+      addResult('✅ ES6 модули поддерживаются', 'success');
+    } catch (error) {
+      addResult(`❌ ES6 модули не поддерживаются: ${error.message}`, 'error');
+    }
+    
+    // Тест 2: Анализ структуры проекта
+    addResult('Анализирую структуру проекта...', 'info');
+    
+    // Проверяем основные файлы проекта
+    const projectFiles = [
+      'index.html',
+      'debug-index.html',
+      'simple-test.html',
+      'direct-test.html',
+      'offline-test.html'
+    ];
+    
+    projectFiles.forEach(file => {
+      fetch(file)
+        .then(response => {
+          if (response.ok) {
+            addResult(`✅ ${file} доступен`, 'success');
+          } else {
+            addResult(`❌ ${file} недоступен: ${response.status}`, 'error');
+          }
+        })
+        .catch(error => {
+          addResult(`❌ Ошибка чтения ${file}: ${error.message}`, 'error');
+        });
+    });
+    
+    // Тест 3: Проверка модулей
+    addResult('Проверяю модули...', 'info');
+    
+    const modules = [
+      { name: 'app.js', path: './src/app.js' },
+      { name: 'mapModule.js', path: './src/modules/mapModule.js' },
+      { name: 'navigation.js', path: './src/modules/navigation.js' },
+      { name: 'pointGeneration.js', path: './src/modules/pointGeneration.js' },
+      { name: 'algorithms.js', path: './src/modules/algorithms.js' },
+      { name: 'utils.js', path: './src/modules/utils.js' },
+      { name: 'overpassAPI.js', path: './src/modules/overpassAPI.js' }
+    ];
+    
+    // Функция для анализа модуля
+    async function analyzeModule(module) {
+      try {
+        const response = await fetch(module.path);
+        if (response.ok) {
+          const content = await response.text();
+          addResult(`✅ ${module.name} доступен (${content.length} символов)`, 'success');
+          
+          // Анализируем содержимое
+          const lines = content.split('\n');
+          const imports = lines.filter(line => line.trim().startsWith('import'));
+          const exports = lines.filter(line => line.trim().startsWith('export'));
+          const functions = lines.filter(line => line.trim().startsWith('function') || line.trim().includes('function'));
+          
+          const analysis = `Размер: ${content.length} символов
+Строк: ${lines.length}
+Импорты: ${imports.length}
+Экспорты: ${exports.length}
+Функции: ${functions.length}
+
+Импорты:
+${imports.slice(0, 5).join('\n')}
+
+Экспорты:
+${exports.slice(0, 5).join('\n')}
+
+Первые 400 символов:
+${content.substring(0, 400)}...`;
+          
+          addModuleInfo(`Анализ ${module.name}:`, analysis);
+          
+        } else {
+          addResult(`❌ ${module.name} недоступен: ${response.status} ${response.statusText}`, 'error');
+        }
+      } catch (error) {
+        addResult(`❌ Ошибка чтения ${module.name}: ${error.message}`, 'error');
+      }
+    }
+    
+    // Анализируем все модули
+    modules.forEach(module => {
+      analyzeModule(module);
+    });
+    
+    // Тест 4: Попытка загрузки модуля
+    setTimeout(() => {
+      addResult('Пробую загрузить модуль app.js...', 'info');
+      
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.textContent = `
+        try {
+          import('./src/app.js')
+            .then(module => {
+              console.log('✅ app.js загружен успешно!');
+              console.log('Доступные функции:', Object.keys(module));
+              
+              if (typeof module.initApp === 'function') {
+                console.log('✅ Функция initApp найдена');
+                // Пробуем инициализировать
+                try {
+                  module.initApp();
+                  console.log('✅ Приложение инициализировано');
+                } catch (error) {
+                  console.error('❌ Ошибка инициализации:', error);
+                }
+              } else {
+                console.error('❌ Функция initApp не найдена');
+              }
+            })
+            .catch(error => {
+              console.error('❌ Ошибка загрузки app.js:', error);
+              console.error('Детали ошибки:', error);
+            });
+        } catch (error) {
+          console.error('❌ Ошибка импорта app.js:', error);
+        }
+      `;
+      
+      document.head.appendChild(script);
+    }, 3000);
+    
+    // Тест 5: Диагностика проблем
+    addResult('Диагностика возможных проблем...', 'info');
+    
+    setTimeout(() => {
+      addResult('📋 Возможные причины проблем:', 'info');
+      addResult('1. CORS ошибки - модули блокируются браузером', 'info');
+      addResult('2. Неправильные пути к файлам', 'info');
+      addResult('3. Ошибки синтаксиса в модулях', 'info');
+      addResult('4. Отсутствие веб-сервера', 'info');
+      addResult('5. Проблемы с кодировкой файлов', 'info');
+      
+      addResult('🔧 Решения:', 'info');
+      addResult('1. Запустить веб-сервер (python -m http.server 8000)', 'info');
+      addResult('2. Проверить синтаксис модулей', 'info');
+      addResult('3. Использовать относительные пути', 'info');
+      addResult('4. Проверить консоль браузера (F12)', 'info');
+    }, 5000);
+    
+    // Тест 6: Проверка консоли
+    addResult('📱 Откройте консоль браузера (F12 → Console) для детальных результатов', 'info');
+    addResult('Все ошибки загрузки модулей будут показаны в консоли', 'info');
+  </script>
+</body>
+</html>
+

@@ -25,6 +25,12 @@ export function initApp() {
   // Проверяем наличие всех элементов
   if (!generateBtn || !pointsInput || !status || !minDistPercentInput || !cancelBtn || !downloadGpxBtn) {
     console.error('Не найдены необходимые DOM элементы');
+    console.error('generateBtn:', !!generateBtn);
+    console.error('pointsInput:', !!pointsInput);
+    console.error('status:', !!status);
+    console.error('minDistPercentInput:', !!minDistPercentInput);
+    console.error('cancelBtn:', !!cancelBtn);
+    console.error('downloadGpxBtn:', !!downloadGpxBtn);
     return;
   }
   

@@ -94,6 +94,16 @@ function navigationStep() {
     vibratePattern([200, 100, 200, 100, 200]); // Сигнал "цель достигнута"
     navStatus.textContent = '🎯 Цель достигнута!';
     navStatus.style.color = 'green';
+    
+    // Показываем уведомление
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Рогейн', {
+        body: 'Цель достигнута! 🎯',
+        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM0Q0FGNTAiLz4KPHBhdGggZD0iTTk2IDQ4TDEwOCA2NEwxMjggNzJMMTA4IDgwTDk2IDk2TDg0IDgwTDY0IDcyTDg0IDY0TDk2IDQ4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==',
+        vibrate: [200, 100, 200, 100, 200]
+      });
+    }
+    
     setTimeout(() => {
       navStatus.style.color = 'black';
     }, 3000);
@@ -172,6 +182,15 @@ function startNavigation() {
   currentTarget = target;
   isNavigating = true;
   lastDistance = null;
+  
+  // Предотвращаем засыпание экрана
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(lock => {
+      console.log('Экран не будет засыпать во время навигации');
+    }).catch(err => {
+      console.log('Не удалось предотвратить засыпание экрана:', err);
+    });
+  }
   
   // Запрашиваем геолокацию
   if ('geolocation' in navigator) {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Модуль генерации контрольных точек на тропах
  * Основная логика генерации точек с учётом запретных зон и минимальных расстояний
  */
@@ -225,22 +225,15 @@ export function downloadGPX() {
   }
 
   let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="OSM Trail Points Generator" 
-     xmlns="http://www.topografix.com/GPX/1/1" 
-     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
-  <metadata>
-    <name>Контрольные точки на тропах</name>
-    <desc>Сгенерированные точки для навигации</desc>
-  </metadata>
+<gpx version="1.1" creator="TrailPointsGenerator" xmlns="http://www.topografix.com/GPX/1/1">
 `;
 
   // Добавляем стартовую точку, если есть
   if (startPoint) {
-    gpxContent += `  <wpt lat="${startPoint.lat}" lon="${startPoint.lng}">
-    <name>СТАРТ</name>
-    <desc>Точка старта</desc>
-    <sym>Flag, Red</sym>
+    gpxContent += `  <wpt lat="${startPoint.lat.toFixed(14)}" lon="${startPoint.lng.toFixed(14)}">
+    <ele>0.0</ele>
+    <name>START</name>
+    <type>MILE MARKER</type>
   </wpt>
 `;
   }
@@ -248,15 +241,42 @@ export function downloadGPX() {
   // Добавляем все точки
   pointMarkers.forEach((marker, i) => {
     const latlng = marker.getLatLng();
-    gpxContent += `  <wpt lat="${latlng.lat}" lon="${latlng.lng}">
-    <name>КТ${i + 1}</name>
-    <desc>Контрольная точка ${i + 1}</desc>
-    <sym>Waypoint</sym>
+    const pointNumber = (i + 1).toString().padStart(2, '0');
+    gpxContent += `  <wpt lat="${latlng.lat.toFixed(14)}" lon="${latlng.lng.toFixed(14)}">
+    <ele>0.0</ele>
+    <name>CP${pointNumber}</name>
+    <type>MILE MARKER</type>
   </wpt>
 `;
   });
 
-  gpxContent += '</gpx>';
+  // Добавляем трек между всеми точками для Garmin
+  gpxContent += `
+  <trk>
+    <name>Trail Route</name>
+    <trkseg>`;
+  
+  // Добавляем стартовую точку в трек
+  if (startPoint) {
+    gpxContent += `
+      <trkpt lat="${startPoint.lat.toFixed(14)}" lon="${startPoint.lng.toFixed(14)}">
+        <ele>0.0</ele>
+      </trkpt>`;
+  }
+  
+  // Добавляем все контрольные точки в трек
+  pointMarkers.forEach((marker, i) => {
+    const latlng = marker.getLatLng();
+    gpxContent += `
+      <trkpt lat="${latlng.lat.toFixed(14)}" lon="${latlng.lng.toFixed(14)}">
+        <ele>0.0</ele>
+      </trkpt>`;
+  });
+  
+  gpxContent += `
+    </trkseg>
+  </trk>
+</gpx>`;
 
   // Создаём и скачиваем файл
   const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
@@ -269,3 +289,5 @@ export function downloadGPX() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 } 
+
+

@@ -1,0 +1,268 @@
+﻿/**
+ * Модуль генерации контрольных точек на тропах
+ * Основная логика генерации точек с учётом запретных зон и минимальных расстояний
+ */
+
+import { haversine, rectangleArea, extractPolygons, pointInPolygon, getRandomPointOnLine } from './utils.js';
+import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths } from './overpassAPI.js';
+import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, pointMarkers, getStartPoint, showGraphDebug, clearGraphDebugLayers } from './mapModule.js';
+import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
+import { updateTargetPointsList } from './navigation.js';
+
+// РџРµСЂРµРјРµРЅРЅС‹Рµ РґР»СЏ РѕС‚РјРµРЅС‹ РіРµРЅРµСЂР°С†РёРё
+let cancelGeneration = false;
+
+// РћСЃРЅРѕРІРЅР°СЏ С„СѓРЅРєС†РёСЏ РіРµРЅРµСЂР°С†РёРё С‚РѕС‡РµРє
+export async function generatePoints(selectedBounds, startPoint, count, percent, statusCallback, buttonCallback, cancelCallback) {
+  if (!selectedBounds) {
+    statusCallback('РЎРЅР°С‡Р°Р»Р° РІС‹РґРµР»РёС‚Рµ РѕР±Р»Р°СЃС‚СЊ РЅР° РєР°СЂС‚Рµ!');
+    return;
+  }
+  if (!startPoint) {
+    statusCallback('РЎРЅР°С‡Р°Р»Р° СѓСЃС‚Р°РЅРѕРІРёС‚Рµ С‚РѕС‡РєСѓ СЃС‚Р°СЂС‚Р° РЅР° РєР°СЂС‚Рµ!');
+    return;
+  }
+  if (isNaN(count) || count < 1) {
+    statusCallback('Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµРє!');
+    return;
+  }
+  if (isNaN(percent) || percent <= 0) {
+    statusCallback('Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ РїСЂРѕС†РµРЅС‚ РґР»СЏ РјРёРЅ. СЂР°СЃСЃС‚РѕСЏРЅРёСЏ!');
+    return;
+  }
+
+  buttonCallback(true); // РћС‚РєР»СЋС‡Р°РµРј РєРЅРѕРїРєСѓ РіРµРЅРµСЂР°С†РёРё
+  cancelCallback(true); // РџРѕРєР°Р·С‹РІР°РµРј РєРЅРѕРїРєСѓ РѕС‚РјРµРЅС‹
+  cancelGeneration = false; // РЎР±СЂР°СЃС‹РІР°РµРј С„Р»Р°Рі РѕС‚РјРµРЅС‹
+
+  statusCallback('Р—Р°РіСЂСѓР·РєР° РґР°РЅРЅС‹С… OSM...');
+
+  const sw = selectedBounds.getSouthWest();
+  const ne = selectedBounds.getNorthEast();
+
+  // Р’С‹С‡РёСЃР»СЏРµРј РїР»РѕС‰Р°РґСЊ РѕР±Р»Р°СЃС‚Рё Рё РјРёРЅРёРјР°Р»СЊРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ
+  const area = rectangleArea(selectedBounds); // РІ Рј^2
+  const circleArea = area * (percent / 100);
+  const minDist = Math.sqrt(circleArea / Math.PI);
+  console.log(`РџР»РѕС‰Р°РґСЊ РѕР±Р»Р°СЃС‚Рё: ${area.toFixed(0)} РјВІ, РјРёРЅ. СЂР°СЃСЃС‚РѕСЏРЅРёРµ: ${minDist.toFixed(1)} Рј`);
+
+  // РћС†РµРЅРєР° РјР°РєСЃРёРјР°Р»СЊРЅРѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° С‚РѕС‡РµРє
+  const Nmax = Math.floor(area / (circleArea * 1.2)); // РќРµР±РѕР»СЊС€РѕР№ Р·Р°РїР°СЃ, С‚.Рє. РЅРµ РІСЃРµ 100% РїР»РѕС‰Р°РґРё Р±СѓРґСѓС‚ РёСЃРїРѕР»СЊР·РѕРІР°РЅС‹
+  if (count > Nmax) {
+    statusCallback(`РЎР»РёС€РєРѕРј РјРЅРѕРіРѕ С‚РѕС‡РµРє (${count}) РёР»Рё СЃР»РёС€РєРѕРј Р±РѕР»СЊС€РѕР№ РїСЂРѕС†РµРЅС‚ (${percent}%) РґР»СЏ РґР°РЅРЅРѕР№ РѕР±Р»Р°СЃС‚Рё! РњР°РєСЃРёРјСѓРј: ${Nmax}. РџРѕРїСЂРѕР±СѓР№С‚Рµ СѓРјРµРЅСЊС€РёС‚СЊ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµРє РёР»Рё РїСЂРѕС†РµРЅС‚, РёР»Рё СѓРІРµР»РёС‡РёС‚СЊ РѕР±Р»Р°СЃС‚СЊ.`);
+    buttonCallback(false);
+    cancelCallback(false);
+    return;
+  }
+
+  try {
+    // Р—Р°РіСЂСѓР¶Р°РµРј РґР°РЅРЅС‹Рµ РїР°СЂР°Р»Р»РµР»СЊРЅРѕ
+    statusCallback('Р—Р°РіСЂСѓР·РєР° Р·Р°РєСЂС‹С‚С‹С… Р·РѕРЅ...');
+    const [closedAreasData, waterAreasData, barriersData, pathsData] = await Promise.all([
+      fetchClosedAreas(selectedBounds),
+      fetchWaterAreas(selectedBounds),
+      fetchBarriers(selectedBounds),
+      fetchPaths(selectedBounds)
+    ]);
+
+    if (cancelGeneration) {
+      statusCallback('РћС‚РјРµРЅРµРЅРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј.');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+
+    // РћС‚РѕР±СЂР°Р¶Р°РµРј РЅР° РєР°СЂС‚Рµ
+    showClosedAreasOnMap(closedAreasData);
+    showWaterAreasOnMap(waterAreasData);
+    showBarriersOnMap(barriersData);
+
+    statusCallback('РџРѕСЃС‚СЂРѕРµРЅРёРµ РіСЂР°С„Р° С‚СЂРѕРї...');
+    
+    // РћС‡РёС‰Р°РµРј СЃС‚Р°СЂС‹Рµ РѕС‚Р»Р°РґРѕС‡РЅС‹Рµ СЃР»РѕРё РџР•Р Р•Р” РїРѕСЃС‚СЂРѕРµРЅРёРµРј РЅРѕРІРѕРіРѕ РіСЂР°С„Р°
+    clearGraphDebugLayers();
+    
+    await new Promise(resolve => setTimeout(resolve, 100)); // Р”Р°С‘Рј РІСЂРµРјСЏ UI РѕР±РЅРѕРІРёС‚СЃСЏ
+
+    // РџРѕР»СѓС‡Р°РµРј РІСЃРµ Р·Р°РїСЂРµС‰С‘РЅРЅС‹Рµ РїРѕР»РёРіРѕРЅС‹
+    const allForbiddenAreas = [...closedAreasData, ...waterAreasData];
+    const forbiddenPolygons = extractPolygons(allForbiddenAreas);
+    console.log(`РќР°Р№РґРµРЅРѕ ${forbiddenPolygons.length} Р·Р°РїСЂРµС‰С‘РЅРЅС‹С… РїРѕР»РёРіРѕРЅРѕРІ`);
+
+    // РЎС‚СЂРѕРёРј РіСЂР°С„ С‚СЂРѕРї
+    const graphResult = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
+    const graph = { nodes: graphResult.nodes, adj: graphResult.adj };
+    console.log(`Р“СЂР°С„ РїРѕСЃС‚СЂРѕРµРЅ: ${graph.nodes.length} СѓР·Р»РѕРІ, ${graph.adj.reduce((sum, adj) => sum + adj.length, 0) / 2} СЂС‘Р±РµСЂ`);
+
+    if (graphResult.excludedSegments.length > 0) {
+      console.log(`РСЃРєР»СЋС‡РµРЅРѕ ${graphResult.excludedSegments.length} СЃРµРіРјРµРЅС‚РѕРІ:`, graphResult.excludedSegments);
+    }
+
+    // --- РћС‚Р»Р°РґРѕС‡РЅР°СЏ РІРёР·СѓР°Р»РёР·Р°С†РёСЏ РіСЂР°С„Р° С‚СЂРѕРї ---
+    statusCallback('РћС‚РѕР±СЂР°Р¶РµРЅРёРµ РѕС‚Р»Р°РґРѕС‡РЅРѕР№ РІРёР·СѓР°Р»РёР·Р°С†РёРё РіСЂР°С„Р°...');
+    showGraphDebug(graph);
+    console.log('РћС‚Р»Р°РґРѕС‡РЅР°СЏ РІРёР·СѓР°Р»РёР·Р°С†РёСЏ РіСЂР°С„Р° С‚СЂРѕРї РІРєР»СЋС‡РµРЅР° (С„РёРѕР»РµС‚РѕРІС‹Рµ СѓР·Р»С‹ Рё СЂС‘Р±СЂР°)');
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // РџСЂРѕРІРµСЂСЏРµРј СЃРІСЏР·РЅРѕСЃС‚СЊ СЃ РЅР°С‡Р°Р»СЊРЅРѕР№ С‚РѕС‡РєРѕР№
+    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
+    if (startNodeIdx === -1) {
+      statusCallback('РќРµ РЅР°Р№РґРµРЅС‹ С‚СЂРѕРїС‹ СЂСЏРґРѕРј СЃ С‚РѕС‡РєРѕР№ СЃС‚Р°СЂС‚Р°! РџРµСЂРµРјРµСЃС‚РёС‚Рµ С‚РѕС‡РєСѓ СЃС‚Р°СЂС‚Р° Р±Р»РёР¶Рµ Рє С‚СЂРѕРїР°Рј.');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+
+    statusCallback(`Р“РµРЅРµСЂР°С†РёСЏ ${count} С‚РѕС‡РµРє...`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // РћС‡РёС‰Р°РµРј СЃС‚Р°СЂС‹Рµ РјР°СЂРєРµСЂС‹ (РќРћ РќР• РѕС‚Р»Р°РґРѕС‡РЅС‹Рµ СЃР»РѕРё РіСЂР°С„Р°!)
+    clearPointMarkers();
+    clearFailedAttemptMarkers();
+
+    const generatedPoints = [];
+    let attempts = 0;
+    const maxAttempts = count * 50;
+
+    while (generatedPoints.length < count && attempts < maxAttempts) {
+      if (cancelGeneration) {
+        statusCallback('РћС‚РјРµРЅРµРЅРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј.');
+        buttonCallback(false);
+        cancelCallback(false);
+        return;
+      }
+
+      attempts++;
+
+      // Выбираем случайную тропу
+      const randomPath = pathsData[Math.floor(Math.random() * pathsData.length)];
+      if (!randomPath.geometry || randomPath.geometry.length < 2) continue;
+
+      // РџРѕР»СѓС‡Р°РµРј СЃР»СѓС‡Р°Р№РЅСѓСЋ С‚РѕС‡РєСѓ РЅР° СЌС‚РѕР№ С‚СЂРѕРїРµ
+      const [lat, lon] = getRandomPointOnLine(randomPath.geometry);
+
+      // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ С‚РѕС‡РєР° РЅР°С…РѕРґРёС‚СЃСЏ РІ РІС‹Р±СЂР°РЅРЅРѕР№ РѕР±Р»Р°СЃС‚Рё
+      if (lat < sw.lat || lat > ne.lat || lon < sw.lng || lon > ne.lng) continue;
+
+      // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ С‚РѕС‡РєР° РЅРµ РІ Р·Р°РїСЂРµС‰С‘РЅРЅРѕР№ Р·РѕРЅРµ
+      let inForbiddenArea = false;
+      for (const poly of forbiddenPolygons) {
+        if (pointInPolygon(lat, lon, poly)) {
+          inForbiddenArea = true;
+          break;
+        }
+      }
+      if (inForbiddenArea) {
+        addFailedAttemptMarker(lat, lon);
+        continue;
+      }
+
+      // РџСЂРѕРІРµСЂСЏРµРј РјРёРЅРёРјР°Р»СЊРЅРѕРµ СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ СѓР¶Рµ СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅРЅС‹С… С‚РѕС‡РµРє
+      let tooClose = false;
+      for (const existingPoint of generatedPoints) {
+        if (haversine(lat, lon, existingPoint[0], existingPoint[1]) < minDist) {
+          tooClose = true;
+          break;
+        }
+      }
+
+      // РџСЂРѕРІРµСЂСЏРµРј СЂР°СЃСЃС‚РѕСЏРЅРёРµ РґРѕ СЃС‚Р°СЂС‚РѕРІРѕР№ С‚РѕС‡РєРё
+      if (haversine(lat, lon, startPoint.lat, startPoint.lng) < minDist) {
+        tooClose = true;
+      }
+
+      if (tooClose) {
+        addFailedAttemptMarker(lat, lon);
+        continue;
+      }
+
+      // РџСЂРѕРІРµСЂСЏРµРј РґРѕСЃС‚РёР¶РёРјРѕСЃС‚СЊ РѕС‚ СЃС‚Р°СЂС‚РѕРІРѕР№ С‚РѕС‡РєРё
+      const pointNodeIdx = findNearestNodeIdx(lat, lon, graph.nodes);
+      if (pointNodeIdx === -1 || !isReachable(graph, startNodeIdx, pointNodeIdx)) {
+        addFailedAttemptMarker(lat, lon);
+        continue;
+      }
+
+      // РўРѕС‡РєР° РїРѕРґС…РѕРґРёС‚!
+      generatedPoints.push([lat, lon]);
+      addPointMarker(lat, lon, generatedPoints.length);
+
+      statusCallback(`РЎРіРµРЅРµСЂРёСЂРѕРІР°РЅРѕ ${generatedPoints.length}/${count} С‚РѕС‡РµРє (РїРѕРїС‹С‚РѕРє: ${attempts})`);
+      await new Promise(resolve => setTimeout(resolve, 10)); // РќРµР±РѕР»СЊС€Р°СЏ РїР°СѓР·Р° РґР»СЏ UI
+    }
+
+    // Р¤РёРЅР°Р»СЊРЅС‹Р№ СЃС‚Р°С‚СѓСЃ
+    if (generatedPoints.length === count) {
+      statusCallback(`вњ… РЈСЃРїРµС€РЅРѕ СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅРѕ ${count} С‚РѕС‡РµРє Р·Р° ${attempts} РїРѕРїС‹С‚РѕРє!`);
+    } else {
+      statusCallback(`вљ пёЏ РЎРіРµРЅРµСЂРёСЂРѕРІР°РЅРѕ С‚РѕР»СЊРєРѕ ${generatedPoints.length}/${count} С‚РѕС‡РµРє Р·Р° ${attempts} РїРѕРїС‹С‚РѕРє. РџРѕРїСЂРѕР±СѓР№С‚Рµ СѓРјРµРЅСЊС€РёС‚СЊ РїСЂРѕС†РµРЅС‚ РёР»Рё РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµРє.`);
+    }
+
+    // РћР±РЅРѕРІР»СЏРµРј СЃРїРёСЃРѕРє С‚РѕС‡РµРє РґР»СЏ РЅР°РІРёРіР°С†РёРё
+    updateTargetPointsList();
+
+  } catch (error) {
+    console.error('РћС€РёР±РєР° РїСЂРё РіРµРЅРµСЂР°С†РёРё С‚РѕС‡РµРє:', error);
+    statusCallback(`РћС€РёР±РєР°: ${error.message}`);
+  } finally {
+    buttonCallback(false); // Р’РєР»СЋС‡Р°РµРј РєРЅРѕРїРєСѓ РіРµРЅРµСЂР°С†РёРё
+    cancelCallback(false); // РЎРєСЂС‹РІР°РµРј РєРЅРѕРїРєСѓ РѕС‚РјРµРЅС‹
+  }
+}
+
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ РѕС‚РјРµРЅС‹ РіРµРЅРµСЂР°С†РёРё
+export function cancelPointGeneration() {
+  cancelGeneration = true;
+}
+
+// Р¤СѓРЅРєС†РёСЏ РґР»СЏ СЃРєР°С‡РёРІР°РЅРёСЏ GPX С„Р°Р№Р»Р° (СЃРѕРІРјРµСЃС‚РёРјРѕРіРѕ СЃ Garmin)
+export function downloadGPX() {
+  const startPoint = getStartPoint();
+  
+  if (pointMarkers.length === 0) {
+    alert('РЎРЅР°С‡Р°Р»Р° СЃРіРµРЅРµСЂРёСЂСѓР№С‚Рµ С‚РѕС‡РєРё!');
+    return;
+  }
+
+  // РЎРѕР·РґР°С‘Рј РїСЂР°РІРёР»СЊРЅС‹Р№ СЃРѕРІРјРµСЃС‚РёРјС‹Р№ СЃ Garmin GPX СЃ РїСЂР°РІРёР»СЊРЅС‹РјРё С‚РµРіР°РјРё
+  let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrailPointsGenerator" xmlns="http://www.topografix.com/GPX/1/1">
+`;
+
+  // Р”РѕР±Р°РІР»СЏРµРј СЃС‚Р°СЂС‚РѕРІСѓСЋ С‚РѕС‡РєСѓ, РµСЃР»Рё РµСЃС‚СЊ
+  if (startPoint) {
+    gpxContent += `  <wpt lat="${startPoint.lat.toFixed(6)}" lon="${startPoint.lng.toFixed(6)}">
+    <ele>0.0</ele>
+    <name>START</name>
+    <type>MILE MARKER</type>
+  </wpt>
+`;
+  }
+
+  // Р”РѕР±Р°РІР»СЏРµРј РІСЃРµ РєРѕРЅС‚СЂРѕР»СЊРЅС‹Рµ С‚РѕС‡РєРё СЃ РїСЂР°РІРёР»СЊРЅС‹РјРё С‚РµРіР°РјРё РґР»СЏ Garmin
+  pointMarkers.forEach((marker, i) => {
+    const latlng = marker.getLatLng();
+    const pointNumber = (i + 1).toString().padStart(2, '0');
+    gpxContent += `  <wpt lat="${latlng.lat.toFixed(6)}" lon="${latlng.lng.toFixed(6)}">
+    <ele>0.0</ele>
+    <name>CP${pointNumber}</name>
+    <type>MILE MARKER</type>
+  </wpt>
+`;
+  });
+
+  gpxContent += '</gpx>';
+
+  // РЎРѕР·РґР°С‘Рј Рё СЃРєР°С‡РёРІР°РµРј С„Р°Р№Р»
+  const blob = new Blob([gpxContent], { type: 'application/gpx+xml; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'garmin_waypoints.gpx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+} 
+
+

@@ -31,6 +31,14 @@ export function initMap() {
   }
 
   try {
+    // Проверяем, существует ли уже карта
+    const existingMap = document.querySelector('#map');
+    if (existingMap && existingMap._leaflet_id) {
+      console.log('Карта уже существует, пропускаем инициализацию');
+      return true; // Карта уже инициализирована, ничего не делаем
+    }
+
+    // Создаем новую карту
     map = L.map('map').setView([60.1105, 30.3705], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

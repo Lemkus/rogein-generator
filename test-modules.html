@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тест модулей</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+    .success { background: #d4edda; border-color: #c3e6cb; }
+    .error { background: #f8d7da; border-color: #f5c6cb; }
+    .info { background: #d1ecf1; border-color: #bee5eb; }
+  </style>
+</head>
+<body>
+  <h1>Тест загрузки модулей</h1>
+  
+  <div id="results"></div>
+  
+  <script>
+    const results = document.getElementById('results');
+    
+    function addResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `test ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      results.appendChild(div);
+      console.log(message);
+    }
+    
+    addResult('Начинаю тестирование модулей...', 'info');
+    
+    // Тест 1: Проверка ES6 модулей
+    try {
+      addResult('✅ ES6 модули поддерживаются', 'success');
+    } catch (error) {
+      addResult(`❌ ES6 модули не поддерживаются: ${error.message}`, 'error');
+    }
+    
+    // Тест 2: Загрузка app.js
+    import('./src/app.js')
+      .then(module => {
+        addResult('✅ app.js загружен успешно', 'success');
+        addResult(`Функции в модуле: ${Object.keys(module).join(', ')}`, 'info');
+        
+        if (typeof module.initApp === 'function') {
+          addResult('✅ Функция initApp найдена', 'success');
+        } else {
+          addResult('❌ Функция initApp не найдена', 'error');
+        }
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки app.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 3: Загрузка mapModule.js
+    import('./src/modules/mapModule.js')
+      .then(module => {
+        addResult('✅ mapModule.js загружен успешно', 'success');
+        addResult(`Функции в mapModule: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки mapModule.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 4: Загрузка navigation.js
+    import('./src/modules/navigation.js')
+      .then(module => {
+        addResult('✅ navigation.js загружен успешно', 'success');
+        addResult(`Функции в navigation: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки navigation.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 5: Загрузка pointGeneration.js
+    import('./src/modules/pointGeneration.js')
+      .then(module => {
+        addResult('✅ pointGeneration.js загружен успешно', 'success');
+        addResult(`Функции в pointGeneration: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки pointGeneration.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 6: Загрузка algorithms.js
+    import('./src/modules/algorithms.js')
+      .then(module => {
+        addResult('✅ algorithms.js загружен успешно', 'success');
+        addResult(`Функции в algorithms: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки algorithms.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 7: Загрузка utils.js
+    import('./src/modules/utils.js')
+      .then(module => {
+        addResult('✅ utils.js загружен успешно', 'success');
+        addResult(`Функции в utils: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки utils.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+    
+    // Тест 8: Загрузка overpassAPI.js
+    import('./src/modules/overpassAPI.js')
+      .then(module => {
+        addResult('✅ overpassAPI.js загружен успешно', 'success');
+        addResult(`Функции в overpassAPI: ${Object.keys(module).join(', ')}`, 'info');
+      })
+      .catch(error => {
+        addResult(`❌ Ошибка загрузки overpassAPI.js: ${error.message}`, 'error');
+        console.error('Детали ошибки:', error);
+      });
+  </script>
+</body>
+</html>
+

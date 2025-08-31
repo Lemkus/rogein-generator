@@ -73,7 +73,7 @@ export async function fetchWaterAreas(bounds) {
   return executeOverpassQuery(query, 'Водоёмы');
 }
 
-// Загрузка барьеров (заборы, шлагбаумы, ворота)
+// Загрузка барьеров - только ЯВНО ЗАПРЕЩЁННЫЕ
 export async function fetchBarriers(bounds) {
   const s = bounds.getSouth();
   const w = bounds.getWest();
@@ -84,26 +84,19 @@ export async function fetchBarriers(bounds) {
   const query = `[
     out:json][timeout:${TIMEOUT}];
     (
-      way["barrier"="fence"](${bbox});
-      way["barrier"="wall"](${bbox});
-      way["barrier"="hedge"](${bbox});
-      way["barrier"="gate"](${bbox});
-      way["barrier"="bollard"](${bbox});
-      way["barrier"="cycle_barrier"](${bbox});
-      way["barrier"="stile"](${bbox});
-      way["barrier"="block"](${bbox});
+      // ТОЛЬКО элементы с ЯВНЫМ запретом доступа
       way["access"="no"](${bbox});
       way["access"="private"](${bbox});
-      node["barrier"="gate"](${bbox});
-      node["barrier"="bollard"](${bbox});
-      node["barrier"="cycle_barrier"](${bbox});
-      node["barrier"="stile"](${bbox});
-      node["barrier"="lift_gate"](${bbox});
-      node["barrier"="swing_gate"](${bbox});
-      node["barrier"="barrier"](${bbox});
-      way["barrier"="lift_gate"](${bbox});
-      way["barrier"="swing_gate"](${bbox});
-      way["barrier"="barrier"](${bbox});
+      way["foot"="no"](${bbox});
+      node["access"="no"](${bbox});
+      node["access"="private"](${bbox});
+      node["foot"="no"](${bbox});
+      relation["access"="no"](${bbox});
+      relation["access"="private"](${bbox});
+      relation["foot"="no"](${bbox});
+      
+      // Стены - обычно непроходимы по определению
+      way["barrier"="wall"](${bbox});
     );
     out geom;`;
 
