@@ -1,7 +1,7 @@
 {
   "name": "Генератор точек на тропах OSM",
   "short_name": "Рогейн",
-  "description": "Генератор контрольных точек на тропах OpenStreetMap с вибро-навигацией",
+  "description": "Генератор контрольных точек на тропах OpenStreetMap с звуковой навигацией",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

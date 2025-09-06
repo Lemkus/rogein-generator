@@ -1,6 +1,6 @@
 # 🗺️ Генератор точек на тропах OSM
 
-**Генератор контрольных точек на тропах OpenStreetMap с вибро-навигацией для рогейна**
+**Генератор контрольных точек на тропах OpenStreetMap с звуковой навигацией для рогейна**
 
 [![Deploy to GitHub Pages](https://github.com/[USERNAME]/rogein-generator/actions/workflows/deploy.yml/badge.svg)](https://github.com/[USERNAME]/rogein-generator/actions/workflows/deploy.yml)
 

@@ -17,7 +17,7 @@ project/
 │       ├── utils.js (утилиты и геометрия)
 │       ├── mapModule.js (карта и визуализация)
 │       ├── algorithms.js (алгоритмы и графы)
-│       ├── navigation.js (вибро-навигация)
+│       ├── navigation.js (звуковая навигация)
 │       └── pointGeneration.js (генерация точек)
 ```
 
