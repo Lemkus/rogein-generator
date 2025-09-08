@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простой тест звуков</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔊 Простой тест звуков</h1>
+        
+        <div class="status">
+            Нажмите кнопки и проверьте консоль браузера (F12) для отладочной информации.
+        </div>
+        
+        <div>
+            <h3>Базовые тесты:</h3>
+            <button onclick="testBasicSound(200, 'Низкий тон')">🔊 Низкий тон (200 Гц)</button>
+            <button onclick="testBasicSound(600, 'Средний тон')">🔊 Средний тон (600 Гц)</button>
+            <button onclick="testBasicSound(1000, 'Высокий тон')">🔊 Высокий тон (1000 Гц)</button>
+        </div>
+        
+        <div>
+            <h3>Тесты направления:</h3>
+            <button onclick="testDirection('approaching')">↗️ Приближение</button>
+            <button onclick="testDirection('moving_away')">↘️ Удаление</button>
+            <button onclick="testDirection('neutral')">➡️ Нейтрально</button>
+        </div>
+        
+        <div>
+            <h3>Тесты с расстоянием:</h3>
+            <button onclick="testWithDistance(1000, 'moving_away')">↘️ Удаление (1000м)</button>
+            <button onclick="testWithDistance(500, 'neutral')">➡️ Нейтрально (500м)</button>
+            <button onclick="testWithDistance(100, 'approaching')">↗️ Приближение (100м)</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { playSoundPattern, playDirectionSound, toggleAudio, isAudioOn } from './src/modules/audioModule.js';
+        
+        // Простой тест базового звука
+        window.testBasicSound = function(frequency, name) {
+            console.log(`🔊 Тестируем базовый звук: ${name} (${frequency} Гц)`);
+            
+            // Создаём простой тон напрямую
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+            
+            showStatus(`🔊 Воспроизведён ${name}`);
+        };
+        
+        // Тест направления
+        window.testDirection = function(direction) {
+            console.log(`🎵 Тестируем направление: ${direction}`);
+            playDirectionSound(direction);
+            showStatus(`🎵 Тест направления: ${direction}`);
+        };
+        
+        // Тест с расстоянием
+        window.testWithDistance = function(distance, direction) {
+            console.log(`🔊 Тестируем с расстоянием: ${distance}м, направление: ${direction}`);
+            playSoundPattern([150], direction, distance);
+            showStatus(`🔊 Тест: ${distance}м, ${direction}`);
+        };
+        
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            setTimeout(() => {
+                status.textContent = 'Готов к тестированию';
+            }, 3000);
+        }
+        
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            showStatus('Готов к тестированию');
+        });
+    </script>
+</body>
+</html>

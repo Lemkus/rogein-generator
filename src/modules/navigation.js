@@ -5,7 +5,7 @@
 
 import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
-import { playSoundPattern, playDirectionSound, toggleAudio, isAudioOn } from './audioModule.js';
+import { playSoundPattern, playDirectionSound, toggleAudio, isAudioOn } from './audioModuleImproved.js';
 
 // Переменные навигации
 let isNavigating = false;
@@ -88,10 +88,10 @@ export function updateTargetPointsList() {
   audioNavBtn.disabled = false;
 }
 
-// Функция воспроизведения звуковых сигналов с учётом направления
-function playNavigationSound(pattern, direction = 'neutral') {
+// Функция воспроизведения звуковых сигналов с учётом направления и расстояния
+function playNavigationSound(pattern, direction = 'neutral', distance = null) {
   if (isAudioOn()) {
-    playSoundPattern(pattern, direction);
+    playSoundPattern(pattern, direction, distance);
     
     // Дополнительно воспроизводим звук направления, если оно изменилось
     if (direction !== 'neutral') {
@@ -144,7 +144,7 @@ function navigationStep() {
   
   // Проверяем достижение цели
   if (distance < 5) {
-    playNavigationSound([200, 100, 200, 100, 200], 'neutral'); // Сигнал "цель достигнута"
+    playNavigationSound([200, 100, 200, 100, 200], 'neutral', 0); // Сигнал "цель достигнута"
     navStatus.textContent = '🎯 Цель достигнута!';
     navStatus.style.color = 'green';
     
@@ -192,16 +192,23 @@ function navigationStep() {
     soundDelay = 10000;
   }
   
-  // Дополнительная логика: если отдаляемся, делаем звук длиннее и реже
+  // Прогрессивное изменение интервалов в зависимости от расстояния
+  const step = Math.max(distance / 10, 10); // Шаг изменения (расстояние / 10)
+  const steps = Math.floor(distance / step);
+  
+  // Чем ближе к цели, тем чаще сигналы (уменьшаем интервал)
+  soundDelay = Math.max(soundDelay - (steps * 200), 300); // Минимум 300мс
+  
+  // Дополнительная логика для направления движения
   if (direction === 'moving_away') {
     pattern = [300]; // Длинный звуковой сигнал при отдалении
-    soundDelay = Math.min(soundDelay * 1.5, 15000);
+    soundDelay = Math.min(soundDelay * 2, 15000); // Удваиваем интервал при удалении
   } else if (direction === 'approaching') {
-    // При приближении делаем сигналы чаще
-    soundDelay = Math.max(soundDelay * 0.7, 300);
+    // При приближении делаем сигналы ещё чаще
+    soundDelay = Math.max(soundDelay * 0.5, 200); // Минимум 200мс
   }
   
-  playNavigationSound(pattern, direction);
+  playNavigationSound(pattern, direction, distance);
   lastDistance = distance;
   
   // Планируем следующую проверку
@@ -267,7 +274,7 @@ function startNavigation() {
     stopNavBtn.style.display = 'inline-block';
     
     // Приветственный звуковой сигнал
-    playNavigationSound([100, 100, 100], 'neutral');
+    playNavigationSound([100, 100, 100], 'neutral', null);
   } else {
     alert('Геолокация не поддерживается вашим браузером!');
   }
@@ -292,7 +299,7 @@ function stopNavigation() {
   stopNavBtn.style.display = 'none';
   
   // Финальный звуковой сигнал
-  playNavigationSound([200], 'neutral');
+  playNavigationSound([200], 'neutral', null);
 }
 
 // Экспорт функций для внешнего использования

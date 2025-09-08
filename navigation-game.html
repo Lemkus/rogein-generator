@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра-симулятор навигации</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .game-title {
+            font-size: 2.5em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .game-subtitle {
+            font-size: 1.2em;
+            opacity: 0.8;
+            margin: 10px 0;
+        }
+        
+        .game-area {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .runner-view {
+            flex: 2;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .controls {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .runner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            border: 3px solid white;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .trail {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+        
+        .trail.horizontal {
+            height: 6px;
+        }
+        
+        .trail.vertical {
+            width: 6px;
+        }
+        
+        .trail.diagonal {
+            width: 6px;
+            transform-origin: left center;
+        }
+        
+        .target-point {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #4ecdc4;
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+        }
+        
+        .target-point.reached {
+            background: #45b7aa;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .path-choice {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .path-choice:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #4ecdc4;
+        }
+        
+        .path-choice.selected {
+            background: rgba(78, 205, 196, 0.3);
+            border-color: #4ecdc4;
+        }
+        
+        .path-choice.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .game-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .audio-controls {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .audio-toggle {
+            background: #ff6b6b;
+        }
+        
+        .audio-toggle.active {
+            background: #4ecdc4;
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .navigation-status {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .navigation-status.navigating {
+            background: rgba(78, 205, 196, 0.3);
+        }
+        
+        .navigation-status.reached {
+            background: rgba(45, 183, 170, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">🏃‍♂️ Симулятор навигации</h1>
+            <p class="game-subtitle">Слушайте звуковые сигналы и выбирайте правильные тропы!</p>
+        </div>
+        
+        <div class="game-stats">
+            <div class="stat">
+                <div class="stat-value" id="currentDistance">--</div>
+                <div class="stat-label">Расстояние до цели</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="currentSpeed">5</div>
+                <div class="stat-label">Скорость (км/ч)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="pointsReached">0</div>
+                <div class="stat-label">Точек достигнуто</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="gameTime">00:00</div>
+                <div class="stat-label">Время игры</div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <div class="runner-view" id="runnerView">
+                <!-- Бегун и тропы будут добавлены динамически -->
+            </div>
+            
+            <div class="controls">
+                <div class="audio-controls">
+                    <button id="audioToggle" class="audio-toggle">🔇 Включить звук</button>
+                    <div class="navigation-status" id="navStatus">Готов к старту</div>
+                </div>
+                
+                <div id="pathChoices">
+                    <!-- Выборы троп будут добавлены динамически -->
+                </div>
+                
+                <div class="game-controls">
+                    <button id="startGame" disabled>🎯 Начать игру</button>
+                    <button id="pauseGame" disabled>⏸️ Пауза</button>
+                    <button id="resetGame">🔄 Новая игра</button>
+                </div>
+                
+                <div class="instructions">
+                    <h4>🎮 Как играть:</h4>
+                    <ol>
+                        <li>Нажмите "Начать игру"</li>
+                        <li>Слушайте звуковые сигналы навигации</li>
+                        <li>Выбирайте тропы, которые ведут к цели</li>
+                        <li>Достигайте контрольных точек!</li>
+                    </ol>
+                    
+                    <h4>🔊 Звуки навигации:</h4>
+                    <ul>
+                        <li><strong>Высокий тон:</strong> Близко к цели</li>
+                        <li><strong>Низкий тон:</strong> Далеко от цели</li>
+                        <li><strong>Восходящий:</strong> Приближаетесь</li>
+                        <li><strong>Нисходящий:</strong> Удаляетесь</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { playSoundPattern, playDirectionSound, toggleAudio, isAudioOn } from './src/modules/audioModuleImproved.js';
+        
+        // Игровые переменные
+        let gameState = {
+            isRunning: false,
+            isPaused: false,
+            currentTarget: null,
+            runnerPosition: { x: 50, y: 200 },
+            trails: [],
+            targetPoints: [],
+            pointsReached: 0,
+            startTime: null,
+            gameTime: 0,
+            lastDistance: null,
+            navigationActive: false
+        };
+        
+        // DOM элементы
+        const runnerView = document.getElementById('runnerView');
+        const pathChoices = document.getElementById('pathChoices');
+        const audioToggle = document.getElementById('audioToggle');
+        const navStatus = document.getElementById('navStatus');
+        const startGame = document.getElementById('startGame');
+        const pauseGame = document.getElementById('pauseGame');
+        const resetGame = document.getElementById('resetGame');
+        
+        // Статистика
+        const currentDistance = document.getElementById('currentDistance');
+        const currentSpeed = document.getElementById('currentSpeed');
+        const pointsReached = document.getElementById('pointsReached');
+        const gameTime = document.getElementById('gameTime');
+        
+        // Инициализация игры
+        function initGame() {
+            createTrails();
+            createTargetPoints();
+            updateRunnerPosition();
+            updatePathChoices();
+            updateStats();
+            
+            startGame.disabled = false;
+            console.log('🎮 Игра инициализирована');
+        }
+        
+        // Создание троп
+        function createTrails() {
+            gameState.trails = [
+                { id: 1, start: { x: 50, y: 200 }, end: { x: 150, y: 150 }, direction: 'northeast' },
+                { id: 2, start: { x: 50, y: 200 }, end: { x: 150, y: 250 }, direction: 'southeast' },
+                { id: 3, start: { x: 50, y: 200 }, end: { x: 200, y: 200 }, direction: 'east' },
+                { id: 4, start: { x: 150, y: 150 }, end: { x: 250, y: 100 }, direction: 'northeast' },
+                { id: 5, start: { x: 150, y: 150 }, end: { x: 250, y: 200 }, direction: 'east' },
+                { id: 6, start: { x: 150, y: 250 }, end: { x: 250, y: 200 }, direction: 'northeast' },
+                { id: 7, start: { x: 150, y: 250 }, end: { x: 250, y: 300 }, direction: 'southeast' },
+                { id: 8, start: { x: 200, y: 200 }, end: { x: 300, y: 150 }, direction: 'northeast' },
+                { id: 9, start: { x: 200, y: 200 }, end: { x: 300, y: 250 }, direction: 'southeast' }
+            ];
+            
+            renderTrails();
+        }
+        
+        // Создание целевых точек
+        function createTargetPoints() {
+            gameState.targetPoints = [
+                { id: 1, x: 250, y: 100, reached: false },
+                { id: 2, x: 300, y: 150, reached: false },
+                { id: 3, x: 250, y: 300, reached: false }
+            ];
+            
+            // Выбираем случайную целевую точку
+            gameState.currentTarget = gameState.targetPoints[Math.floor(Math.random() * gameState.targetPoints.length)];
+            renderTargetPoints();
+        }
+        
+        // Отрисовка троп
+        function renderTrails() {
+            const trailsHtml = gameState.trails.map(trail => {
+                const length = Math.sqrt(Math.pow(trail.end.x - trail.start.x, 2) + Math.pow(trail.end.y - trail.start.y, 2));
+                const angle = Math.atan2(trail.end.y - trail.start.y, trail.end.x - trail.start.x) * 180 / Math.PI;
+                
+                return `
+                    <div class="trail diagonal" 
+                         style="left: ${trail.start.x}px; top: ${trail.start.y}px; 
+                                width: ${length}px; transform: rotate(${angle}deg);">
+                    </div>
+                `;
+            }).join('');
+            
+            runnerView.innerHTML = trailsHtml;
+        }
+        
+        // Отрисовка целевых точек
+        function renderTargetPoints() {
+            const pointsHtml = gameState.targetPoints.map(point => {
+                const isCurrent = point.id === gameState.currentTarget.id;
+                return `
+                    <div class="target-point ${point.reached ? 'reached' : ''}" 
+                         style="left: ${point.x}px; top: ${point.y}px;
+                                ${isCurrent ? 'border-color: #ff6b6b; border-width: 3px;' : ''}">
+                    </div>
+                `;
+            }).join('');
+            
+            runnerView.innerHTML += pointsHtml;
+        }
+        
+        // Обновление позиции бегуна
+        function updateRunnerPosition() {
+            let runnerHtml = runnerView.querySelector('.runner');
+            if (!runnerHtml) {
+                runnerHtml = document.createElement('div');
+                runnerHtml.className = 'runner';
+                runnerView.appendChild(runnerHtml);
+            }
+            
+            runnerHtml.style.left = gameState.runnerPosition.x + 'px';
+            runnerHtml.style.top = gameState.runnerPosition.y + 'px';
+        }
+        
+        // Обновление выбора троп
+        function updatePathChoices() {
+            const availableTrails = gameState.trails.filter(trail => 
+                trail.start.x === gameState.runnerPosition.x && 
+                trail.start.y === gameState.runnerPosition.y
+            );
+            
+            if (availableTrails.length === 0) {
+                pathChoices.innerHTML = '<div class="path-choice disabled">Нет доступных троп</div>';
+                return;
+            }
+            
+            const choicesHtml = availableTrails.map(trail => {
+                const directionNames = {
+                    'northeast': '↗️ Северо-восток',
+                    'southeast': '↘️ Юго-восток', 
+                    'east': '➡️ Восток'
+                };
+                
+                return `
+                    <div class="path-choice" onclick="selectPath(${trail.id})">
+                        ${directionNames[trail.direction]}
+                    </div>
+                `;
+            }).join('');
+            
+            pathChoices.innerHTML = choicesHtml;
+        }
+        
+        // Выбор тропы
+        window.selectPath = function(trailId) {
+            if (!gameState.isRunning || gameState.isPaused) return;
+            
+            const trail = gameState.trails.find(t => t.id === trailId);
+            if (!trail) return;
+            
+            // Двигаем бегуна по выбранной тропе
+            moveRunner(trail);
+        };
+        
+        // Движение бегуна
+        function moveRunner(trail) {
+            const steps = 20;
+            const stepX = (trail.end.x - trail.start.x) / steps;
+            const stepY = (trail.end.y - trail.start.y) / steps;
+            
+            let currentStep = 0;
+            
+            const moveInterval = setInterval(() => {
+                if (!gameState.isRunning || gameState.isPaused) {
+                    clearInterval(moveInterval);
+                    return;
+                }
+                
+                currentStep++;
+                gameState.runnerPosition.x = trail.start.x + (stepX * currentStep);
+                gameState.runnerPosition.y = trail.start.y + (stepY * currentStep);
+                
+                updateRunnerPosition();
+                updateNavigation();
+                
+                if (currentStep >= steps) {
+                    clearInterval(moveInterval);
+                    gameState.runnerPosition.x = trail.end.x;
+                    gameState.runnerPosition.y = trail.end.y;
+                    updateRunnerPosition();
+                    updatePathChoices();
+                    checkTargetReached();
+                }
+            }, 100);
+        }
+        
+        // Обновление навигации
+        function updateNavigation() {
+            if (!gameState.currentTarget) return;
+            
+            const distance = Math.sqrt(
+                Math.pow(gameState.currentTarget.x - gameState.runnerPosition.x, 2) + 
+                Math.pow(gameState.currentTarget.y - gameState.runnerPosition.y, 2)
+            );
+            
+            // Обновляем статистику
+            currentDistance.textContent = Math.round(distance) + 'px';
+            
+            // Определяем направление движения
+            let direction = 'neutral';
+            if (gameState.lastDistance !== null) {
+                if (distance < gameState.lastDistance - 5) {
+                    direction = 'approaching';
+                } else if (distance > gameState.lastDistance + 5) {
+                    direction = 'moving_away';
+                }
+            }
+            
+            // Воспроизводим звуки навигации
+            if (isAudioOn() && gameState.isRunning) {
+                let pattern;
+                if (distance < 30) {
+                    pattern = [100]; // Очень близко
+                } else if (distance < 60) {
+                    pattern = [150]; // Горячо
+                } else if (distance < 100) {
+                    pattern = [200]; // Тепло
+                } else if (distance < 150) {
+                    pattern = [250]; // Прохладно
+                } else {
+                    pattern = [300]; // Холодно
+                }
+                
+                playSoundPattern(pattern, direction, distance);
+                
+                if (direction !== 'neutral') {
+                    setTimeout(() => playDirectionSound(direction), 200);
+                }
+            }
+            
+            gameState.lastDistance = distance;
+            
+            // Обновляем статус навигации
+            if (distance < 30) {
+                navStatus.textContent = '🎯 Очень близко!';
+                navStatus.className = 'navigation-status navigating';
+            } else if (distance < 100) {
+                navStatus.textContent = `📍 ${Math.round(distance)}px до цели`;
+                navStatus.className = 'navigation-status navigating';
+            } else {
+                navStatus.textContent = `📍 ${Math.round(distance)}px до цели`;
+                navStatus.className = 'navigation-status';
+            }
+        }
+        
+        // Проверка достижения цели
+        function checkTargetReached() {
+            if (!gameState.currentTarget) return;
+            
+            const distance = Math.sqrt(
+                Math.pow(gameState.currentTarget.x - gameState.runnerPosition.x, 2) + 
+                Math.pow(gameState.currentTarget.y - gameState.runnerPosition.y, 2)
+            );
+            
+            if (distance < 20) {
+                // Цель достигнута!
+                gameState.currentTarget.reached = true;
+                gameState.pointsReached++;
+                
+                // Воспроизводим звук достижения цели
+                if (isAudioOn()) {
+                    playSoundPattern([200, 100, 200, 100, 200], 'neutral', 0);
+                }
+                
+                navStatus.textContent = '🎉 Цель достигнута!';
+                navStatus.className = 'navigation-status reached';
+                
+                // Выбираем следующую цель
+                setTimeout(() => {
+                    const unreachedPoints = gameState.targetPoints.filter(p => !p.reached);
+                    if (unreachedPoints.length > 0) {
+                        gameState.currentTarget = unreachedPoints[Math.floor(Math.random() * unreachedPoints.length)];
+                        gameState.lastDistance = null;
+                        renderTargetPoints();
+                        updatePathChoices();
+                        navStatus.textContent = '🎯 Новая цель выбрана!';
+                        navStatus.className = 'navigation-status navigating';
+                    } else {
+                        // Все цели достигнуты!
+                        endGame();
+                    }
+                }, 2000);
+            }
+        }
+        
+        // Обновление статистики
+        function updateStats() {
+            pointsReached.textContent = gameState.pointsReached;
+            
+            if (gameState.startTime) {
+                gameState.gameTime = Math.floor((Date.now() - gameState.startTime) / 1000);
+                const minutes = Math.floor(gameState.gameTime / 60);
+                const seconds = gameState.gameTime % 60;
+                gameTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        // Завершение игры
+        function endGame() {
+            gameState.isRunning = false;
+            startGame.disabled = false;
+            pauseGame.disabled = true;
+            
+            navStatus.textContent = '🏆 Все цели достигнуты!';
+            navStatus.className = 'navigation-status reached';
+            
+            alert(`🎉 Поздравляем! Вы достигли всех целей за ${gameTime.textContent}!`);
+        }
+        
+        // Обработчики событий
+        audioToggle.addEventListener('click', () => {
+            const isOn = toggleAudio();
+            audioToggle.textContent = isOn ? '🔊 Отключить звук' : '🔇 Включить звук';
+            audioToggle.className = `audio-toggle ${isOn ? 'active' : ''}`;
+        });
+        
+        startGame.addEventListener('click', () => {
+            gameState.isRunning = true;
+            gameState.isPaused = false;
+            gameState.startTime = Date.now();
+            gameState.lastDistance = null;
+            
+            startGame.disabled = true;
+            pauseGame.disabled = false;
+            
+            navStatus.textContent = '🏃‍♂️ Игра началась!';
+            navStatus.className = 'navigation-status navigating';
+            
+            updatePathChoices();
+            updateNavigation();
+            
+            // Запускаем обновление статистики
+            const statsInterval = setInterval(() => {
+                if (!gameState.isRunning) {
+                    clearInterval(statsInterval);
+                    return;
+                }
+                updateStats();
+            }, 1000);
+        });
+        
+        pauseGame.addEventListener('click', () => {
+            gameState.isPaused = !gameState.isPaused;
+            pauseGame.textContent = gameState.isPaused ? '▶️ Продолжить' : '⏸️ Пауза';
+            navStatus.textContent = gameState.isPaused ? '⏸️ Игра на паузе' : '🏃‍♂️ Игра продолжается';
+        });
+        
+        resetGame.addEventListener('click', () => {
+            gameState = {
+                isRunning: false,
+                isPaused: false,
+                currentTarget: null,
+                runnerPosition: { x: 50, y: 200 },
+                trails: [],
+                targetPoints: [],
+                pointsReached: 0,
+                startTime: null,
+                gameTime: 0,
+                lastDistance: null,
+                navigationActive: false
+            };
+            
+            startGame.disabled = false;
+            pauseGame.disabled = true;
+            pauseGame.textContent = '⏸️ Пауза';
+            
+            navStatus.textContent = 'Готов к старту';
+            navStatus.className = 'navigation-status';
+            
+            initGame();
+        });
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            console.log('🎮 Игра-симулятор навигации загружена');
+        });
+    </script>
+</body>
+</html>
