@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест улучшенных звуков навигации</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .sound-info {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔊 Тест улучшенных звуков навигации</h1>
+        
+        <div class="status">
+            Теперь используются улучшенные звуки с гармониками и фильтрами!
+            <br><strong>Откройте консоль (F12) для отладочной информации.</strong>
+        </div>
+        
+        <div class="sound-info">
+            <h3>🔊 Относительные звуки (тон зависит от расстояния до цели):</h3>
+            <ul>
+                <li><strong>🔔 Очень близко (&lt;20м):</strong> Колокольчики (1200 Гц + гармоники)</li>
+                <li><strong>🎺 Горячо (20-50м):</strong> Свист (1000 Гц + гармоники)</li>
+                <li><strong>🎵 Тепло (50-100м):</strong> Двойной сигнал (800 Гц + гармоники)</li>
+                <li><strong>🎶 Прохладно (100-200м):</strong> Средние тоны (600 Гц + гармоники)</li>
+                <li><strong>🔔 Холодно (200-500м):</strong> Низкие тоны (400 Гц + гармоники)</li>
+                <li><strong>🎼 Очень холодно (&gt;500м):</strong> Гонг (300 Гц + гармоники)</li>
+                <li><strong>🎉 Цель достигнута:</strong> Триумфальный аккорд (523-1047 Гц)</li>
+            </ul>
+            
+            <h4>🎵 Направления (модифицируют базовую частоту):</h4>
+            <ul>
+                <li><strong>↗️ Приближение:</strong> +20% к частоте, треугольная волна, громче</li>
+                <li><strong>↘️ Удаление:</strong> -20% к частоте, пилообразная волна, тише</li>
+                <li><strong>➡️ Нейтрально:</strong> Базовая частота, синусоидальная волна</li>
+            </ul>
+        </div>
+        
+        <div>
+            <h3>🔊 Тесты звуков по расстоянию:</h3>
+            <button onclick="testSound('close')">🔔 Очень близко (колокольчики)</button>
+            <button onclick="testSound('hot')">🎺 Горячо (свист)</button>
+            <button onclick="testSound('warm')">🎵 Тепло (двойной сигнал)</button>
+            <button onclick="testSound('cool')">🎶 Прохладно (низкие тоны)</button>
+            <button onclick="testSound('cold')">🔔 Холодно (гонг)</button>
+            <button onclick="testSound('target')">🎉 Цель достигнута (триумф)</button>
+        </div>
+        
+        <div>
+            <h3>🎵 Тесты направления:</h3>
+            <button onclick="testDirection('approaching')">↗️ Приближение (мажорный аккорд)</button>
+            <button onclick="testDirection('moving_away')">↘️ Удаление (минорный аккорд)</button>
+            <button onclick="testDirection('neutral')">➡️ Нейтрально</button>
+        </div>
+        
+        <div>
+            <h3>🎵 Тесты с расстоянием и направлением:</h3>
+            <button onclick="testWithDistance(1000, 'moving_away')">↘️ Удаление (1000м)</button>
+            <button onclick="testWithDistance(500, 'neutral')">➡️ Нейтрально (500м)</button>
+            <button onclick="testWithDistance(200, 'approaching')">↗️ Приближение (200м)</button>
+            <button onclick="testWithDistance(50, 'approaching')">↗️ Очень близко (50м)</button>
+        </div>
+        
+        <div>
+            <h3>🎵 Полная симуляция навигации:</h3>
+            <button onclick="testFullNavigation()">🎵 Полная симуляция (15 секунд)</button>
+        </div>
+        
+        <div>
+            <h3>🔊 Управление звуком:</h3>
+            <button id="toggleBtn" onclick="toggleAudio()">🔊 Включить звук</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { playSoundPattern, playDirectionSound, toggleAudio, isAudioOn } from './src/modules/audioModuleImproved.js';
+        
+        // Тест звука по типу с относительным расстоянием
+        window.testSound = function(soundType) {
+            console.log(`🔊 Тестируем звук: ${soundType}`);
+            
+            const patterns = {
+                'close': [100],
+                'hot': [150], 
+                'warm': [200],
+                'cool': [250],
+                'cold': [300],
+                'target': [200, 100, 200, 100, 200]
+            };
+            
+            const names = {
+                'close': 'Колокольчики',
+                'hot': 'Свист',
+                'warm': 'Двойной сигнал',
+                'cool': 'Низкие тоны',
+                'cold': 'Гонг',
+                'target': 'Триумфальный аккорд'
+            };
+            
+            // Тестируем с разными расстояниями для демонстрации относительности
+            const distances = {
+                'close': 15,    // Очень близко
+                'hot': 30,      // Горячо
+                'warm': 75,     // Тепло
+                'cool': 150,    // Прохладно
+                'cold': 350,    // Холодно
+                'target': 0     // Цель достигнута
+            };
+            
+            playSoundPattern(patterns[soundType], 'neutral', distances[soundType]);
+            showStatus(`🔊 Воспроизведён: ${names[soundType]} (${distances[soundType]}м)`);
+        };
+        
+        // Тест направления
+        window.testDirection = function(direction) {
+            console.log(`🎵 Тестируем направление: ${direction}`);
+            playDirectionSound(direction);
+            
+            const names = {
+                'approaching': 'Мажорный аккорд (радостный)',
+                'moving_away': 'Минорный аккорд (грустный)',
+                'neutral': 'Нейтрально'
+            };
+            
+            showStatus(`🎵 Направление: ${names[direction]}`);
+        };
+        
+        // Тест с расстоянием
+        window.testWithDistance = function(distance, direction) {
+            console.log(`🎵 Тестируем с расстоянием: ${distance}м, направление: ${direction}`);
+            playSoundPattern([150], direction, distance);
+            showStatus(`🎵 Тест: ${distance}м, ${direction}`);
+        };
+        
+        // Полная симуляция навигации
+        window.testFullNavigation = function() {
+            console.log('🎵 Запускаем полную симуляцию навигации');
+            
+            const simulation = [
+                { distance: 1000, direction: 'moving_away', delay: 0, name: 'Удаление (1000м) - Гонг' },
+                { distance: 800, direction: 'moving_away', delay: 2000, name: 'Удаление (800м) - Гонг' },
+                { distance: 500, direction: 'neutral', delay: 4000, name: 'Нейтрально (500м) - Низкие тоны' },
+                { distance: 300, direction: 'approaching', delay: 6000, name: 'Приближение (300м) - Двойной сигнал' },
+                { distance: 150, direction: 'approaching', delay: 8000, name: 'Приближение (150м) - Свист' },
+                { distance: 50, direction: 'approaching', delay: 10000, name: 'Очень близко (50м) - Колокольчики' },
+                { distance: 0, direction: 'neutral', delay: 12000, name: 'Цель достигнута! - Триумф' }
+            ];
+            
+            simulation.forEach(step => {
+                setTimeout(() => {
+                    if (step.distance === 0) {
+                        playSoundPattern([200, 100, 200, 100, 200], 'neutral', 0);
+                    } else {
+                        playSoundPattern([150], step.direction, step.distance);
+                    }
+                    showStatus(`🎵 ${step.name}`);
+                }, step.delay);
+            });
+            
+            showStatus('🎵 Запущена полная симуляция навигации (15 секунд)');
+        };
+        
+        // Переключение звука
+        window.toggleAudio = function() {
+            const isOn = toggleAudio();
+            const btn = document.getElementById('toggleBtn');
+            btn.textContent = isOn ? '🔇 Отключить звук' : '🔊 Включить звук';
+            showStatus(`🔊 Звук ${isOn ? 'включён' : 'отключён'}`);
+        };
+        
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            setTimeout(() => {
+                status.textContent = 'Готов к тестированию улучшенных звуков';
+            }, 3000);
+        }
+        
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            const isOn = isAudioOn();
+            const btn = document.getElementById('toggleBtn');
+            btn.textContent = isOn ? '🔇 Отключить звук' : '🔊 Включить звук';
+            showStatus('Готов к тестированию улучшенных звуков');
+        });
+    </script>
+</body>
+</html>
