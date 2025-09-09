@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отладка звуковой навигации</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .control-group {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .control-group h3 {
+            margin-top: 0;
+            color: #4ecdc4;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            gap: 15px;
+        }
+        
+        label {
+            min-width: 120px;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .value-display {
+            min-width: 80px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        button {
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #45b7aa;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .audio-toggle {
+            background: #ff6b6b;
+        }
+        
+        .audio-toggle.active {
+            background: #4ecdc4;
+        }
+        
+        .info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-panel h3 {
+            color: #4ecdc4;
+            margin-top: 0;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-label {
+            font-weight: bold;
+        }
+        
+        .info-value {
+            color: #4ecdc4;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status.approaching {
+            background: rgba(78, 205, 196, 0.3);
+            border: 2px solid #4ecdc4;
+        }
+        
+        .status.moving-away {
+            background: rgba(255, 107, 107, 0.3);
+            border: 2px solid #ff6b6b;
+        }
+        
+        .status.neutral {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #ccc;
+        }
+        
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .example-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #4ecdc4;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .example-btn:hover {
+            background: rgba(78, 205, 196, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .example-btn h4 {
+            margin: 0 0 10px 0;
+            color: #4ecdc4;
+        }
+        
+        .example-btn p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Отладка звуковой навигации</h1>
+        
+        <div class="control-group">
+            <h3>🎛️ Управление звуком</h3>
+            <div class="input-group">
+                <button id="audioToggle" class="audio-toggle">🔇 Включить звук</button>
+                <button id="playTestSound">🎵 Проиграть тест</button>
+                <button id="playVictorySound">🏆 Звук победы</button>
+                <button id="startContinuousPlay">🔄 Непрерывно</button>
+                <button id="startMovementSimulation">🏃‍♂️ Симуляция</button>
+                <button id="startAutoTest">🎯 Автотест</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>📏 Параметры навигации</h3>
+            <div class="input-group">
+                <label>Расстояние:</label>
+                <input type="range" id="distanceSlider" min="10" max="200" value="100">
+                <div class="value-display" id="distanceValue">100 м</div>
+            </div>
+            
+            <div class="input-group">
+                <label>Скорость:</label>
+                <input type="range" id="speedSlider" min="-10" max="10" value="0" step="0.5">
+                <div class="value-display" id="speedValue">0 м/с</div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>📊 Информация о звуке</h3>
+            <div class="info-item">
+                <span class="info-label">Базовая частота:</span>
+                <span class="info-value" id="frequencyValue">-- Hz</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Интервал звуков:</span>
+                <span class="info-value" id="intervalValue">-- сек</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Тип аккорда:</span>
+                <span class="info-value" id="chordType">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Направление:</span>
+                <span class="info-value" id="directionValue">--</span>
+            </div>
+        </div>
+        
+        <div class="status" id="statusDisplay">
+            Готов к тестированию
+        </div>
+        
+        <div class="info-panel" id="simulationPanel" style="display: none;">
+            <h3>🏃‍♂️ Симуляция движения</h3>
+            <div class="info-item">
+                <span class="info-label">Текущее расстояние:</span>
+                <span class="info-value" id="simDistance">-- м</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Скорость:</span>
+                <span class="info-value" id="simSpeed">-- м/с</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Время до цели:</span>
+                <span class="info-value" id="simTimeToTarget">-- сек</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Статус:</span>
+                <span class="info-value" id="simStatus">--</span>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>🎮 Как использовать</h3>
+            <ul>
+                <li><strong>🎵 Проиграть тест</strong> - проиграть звук один раз с текущими параметрами</li>
+                <li><strong>🏆 Звук победы</strong> - проиграть триумфальный аккорд (как при достижении цели)</li>
+                <li><strong>🔄 Непрерывно</strong> - проигрывать звуки постоянно с интервалами</li>
+                <li><strong>🏃‍♂️ Симуляция</strong> - реальная симуляция движения к цели с изменяющимся звуком</li>
+                <li><strong>🎯 Автотест</strong> - автоматически меняет параметры и проигрывает звуки</li>
+                <li><strong>Слайдеры</strong> - меняйте расстояние и скорость, звук будет обновляться в реальном времени</li>
+                <li><strong>Примеры</strong> - готовые кнопки для быстрого тестирования</li>
+            </ul>
+        </div>
+        
+        <div class="control-group">
+            <h3>🎯 Примеры для тестирования</h3>
+            <div class="examples">
+                <div class="example-btn" data-distance="20" data-speed="2">
+                    <h4>Близко + Приближение</h4>
+                    <p>20м, +2 м/с</p>
+                    <p>Высокий тон, мажор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="20" data-speed="-2">
+                    <h4>Близко + Удаление</h4>
+                    <p>20м, -2 м/с</p>
+                    <p>Высокий тон, минор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="100" data-speed="1">
+                    <h4>Средне + Приближение</h4>
+                    <p>100м, +1 м/с</p>
+                    <p>Средний тон, мажор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="100" data-speed="-1">
+                    <h4>Средне + Удаление</h4>
+                    <p>100м, -1 м/с</p>
+                    <p>Средний тон, минор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="180" data-speed="0.5">
+                    <h4>Далеко + Приближение</h4>
+                    <p>180м, +0.5 м/с</p>
+                    <p>Низкий тон, мажор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="180" data-speed="-0.5">
+                    <h4>Далеко + Удаление</h4>
+                    <p>180м, -0.5 м/с</p>
+                    <p>Низкий тон, минор</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>📝 Логика работы</h3>
+            <ul>
+                <li><strong>Мажорный аккорд</strong> - когда приближаемся к цели (положительная скорость)</li>
+                <li><strong>Минорный аккорд</strong> - когда удаляемся от цели (отрицательная скорость)</li>
+                <li><strong>Высота тона</strong> - чем ближе к цели, тем выше тон (200-800 Hz)</li>
+                <li><strong>Частота звуков</strong> - чем ближе к цели, тем чаще звуки (0.5-2 сек)</li>
+                <li><strong>Скорость 0</strong> - определяется по изменению расстояния</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            playTestSound, 
+            toggleAudio, 
+            isAudioOn, 
+            getBaseFrequency, 
+            getSoundInterval,
+            startMovementSimulation,
+            stopMovementSimulation,
+            getSimulationStatus,
+            createVictorySound
+        } from './src/modules/audioModuleSimple.js';
+        
+        // DOM элементы
+        const audioToggle = document.getElementById('audioToggle');
+        const playTestBtn = document.getElementById('playTestSound');
+        const playVictoryBtn = document.getElementById('playVictorySound');
+        const startAutoTestBtn = document.getElementById('startAutoTest');
+        const startMovementSimulationBtn = document.getElementById('startMovementSimulation');
+        const distanceSlider = document.getElementById('distanceSlider');
+        const speedSlider = document.getElementById('speedSlider');
+        const distanceValue = document.getElementById('distanceValue');
+        const speedValue = document.getElementById('speedValue');
+        const frequencyValue = document.getElementById('frequencyValue');
+        const intervalValue = document.getElementById('intervalValue');
+        const chordTypeValue = document.getElementById('chordType');
+        const directionValue = document.getElementById('directionValue');
+        const statusDisplay = document.getElementById('statusDisplay');
+        
+        // Элементы симуляции
+        const simulationPanel = document.getElementById('simulationPanel');
+        const simDistance = document.getElementById('simDistance');
+        const simSpeed = document.getElementById('simSpeed');
+        const simTimeToTarget = document.getElementById('simTimeToTarget');
+        const simStatus = document.getElementById('simStatus');
+        
+        // Переменные
+        let autoTestInterval = null;
+        let continuousPlayInterval = null;
+        let currentDistance = 100;
+        let currentSpeed = 0;
+        let isContinuousPlaying = false;
+        
+        // Обновление значений
+        function updateValues() {
+            currentDistance = parseFloat(distanceSlider.value);
+            currentSpeed = parseFloat(speedSlider.value);
+            
+            distanceValue.textContent = `${currentDistance} м`;
+            speedValue.textContent = `${currentSpeed} м/с`;
+            
+            // Вычисляем параметры звука
+            const frequency = getBaseFrequency(currentDistance);
+            const interval = getSoundInterval(currentDistance);
+            
+            frequencyValue.textContent = `${Math.round(frequency)} Hz`;
+            intervalValue.textContent = `${interval.toFixed(1)} сек`;
+            
+            // Определяем тип аккорда и направление
+            let chordType, direction, statusClass;
+            
+            if (currentSpeed > 0) {
+                chordType = 'Мажорный';
+                direction = 'Приближение';
+                statusClass = 'approaching';
+            } else if (currentSpeed < 0) {
+                chordType = 'Минорный';
+                direction = 'Удаление';
+                statusClass = 'moving-away';
+            } else {
+                chordType = 'Зависит от расстояния';
+                direction = 'Нейтрально';
+                statusClass = 'neutral';
+            }
+            
+            chordTypeValue.textContent = chordType;
+            directionValue.textContent = direction;
+            statusDisplay.textContent = `${direction} - ${chordType} аккорд`;
+            statusDisplay.className = `status ${statusClass}`;
+        }
+        
+        // Проигрывание тестового звука
+        function playTest() {
+            if (!isAudioOn()) {
+                alert('Включите звук для тестирования!');
+                return;
+            }
+            
+            playTestSound(currentDistance, currentSpeed);
+        }
+        
+        // Непрерывное воспроизведение
+        function startContinuousPlay() {
+            if (continuousPlayInterval) {
+                clearInterval(continuousPlayInterval);
+                continuousPlayInterval = null;
+                isContinuousPlaying = false;
+                return;
+            }
+            
+            if (!isAudioOn()) {
+                alert('Включите звук для непрерывного воспроизведения!');
+                return;
+            }
+            
+            isContinuousPlaying = true;
+            
+            // Проигрываем звук сразу
+            playTestSound(currentDistance, currentSpeed);
+            
+            // Затем проигрываем с интервалами
+            const playNext = () => {
+                if (!isContinuousPlaying) return;
+                
+                const interval = getSoundInterval(currentDistance);
+                continuousPlayInterval = setTimeout(() => {
+                    if (isContinuousPlaying) {
+                        playTestSound(currentDistance, currentSpeed);
+                        playNext(); // Рекурсивно планируем следующий звук
+                    }
+                }, interval * 1000);
+            };
+            
+            playNext();
+        }
+        
+        // Остановка непрерывного воспроизведения
+        function stopContinuousPlay() {
+            if (continuousPlayInterval) {
+                clearInterval(continuousPlayInterval);
+                continuousPlayInterval = null;
+            }
+            isContinuousPlaying = false;
+        }
+        
+        // Симуляция движения
+        function startMovementSimulationMode() {
+            if (!isAudioOn()) {
+                alert('Включите звук для симуляции!');
+                return;
+            }
+            
+            // Останавливаем все другие режимы
+            stopContinuousPlay();
+            if (autoTestInterval) {
+                clearInterval(autoTestInterval);
+                autoTestInterval = null;
+                startAutoTestBtn.textContent = '🎯 Автотест';
+            }
+            
+            const initialDistance = parseFloat(distanceSlider.value);
+            const speed = parseFloat(speedSlider.value);
+            
+            if (speed === 0) {
+                alert('Скорость не может быть 0 для симуляции!');
+                return;
+            }
+            
+            // Показываем панель симуляции
+            simulationPanel.style.display = 'block';
+            
+            // Запускаем симуляцию
+            startMovementSimulation(initialDistance, speed, (reached, distance) => {
+                if (reached) {
+                    // Достигли цели
+                    simDistance.textContent = '0 м';
+                    simTimeToTarget.textContent = '0 сек';
+                    simStatus.textContent = '🏆 Цель достигнута!';
+                    startMovementSimulationBtn.textContent = '🏃‍♂️ Симуляция';
+                    statusDisplay.textContent = '🏆 Цель достигнута!';
+                    statusDisplay.className = 'status reached';
+                } else {
+                    // Обновляем информацию
+                    simDistance.textContent = `${Math.round(distance)} м`;
+                    simSpeed.textContent = `${speed} м/с`;
+                    
+                    if (speed > 0) {
+                        // Приближаемся
+                        simTimeToTarget.textContent = `${Math.round(distance / speed)} сек`;
+                        simStatus.textContent = '🏃‍♂️ Приближаемся к цели';
+                    } else {
+                        // Удаляемся
+                        simTimeToTarget.textContent = '∞ сек';
+                        simStatus.textContent = '🚶‍♂️ Удаляемся от цели';
+                    }
+                    
+                    // Обновляем слайдеры
+                    distanceSlider.value = distance;
+                    updateValues();
+                }
+            });
+            
+            startMovementSimulationBtn.textContent = '⏹️ Остановить';
+            statusDisplay.textContent = '🏃‍♂️ Симуляция движения';
+            statusDisplay.className = 'status navigating';
+        }
+        
+        function stopMovementSimulationMode() {
+            stopMovementSimulation();
+            simulationPanel.style.display = 'none';
+            startMovementSimulationBtn.textContent = '🏃‍♂️ Симуляция';
+            statusDisplay.textContent = 'Готов к тестированию';
+            statusDisplay.className = 'status';
+        }
+        
+        // Автотест
+        function startAutoTest() {
+            if (autoTestInterval) {
+                clearInterval(autoTestInterval);
+                autoTestInterval = null;
+                startAutoTestBtn.textContent = '🎯 Автотест';
+                stopContinuousPlay(); // Останавливаем непрерывное воспроизведение
+                return;
+            }
+            
+            if (!isAudioOn()) {
+                alert('Включите звук для автотеста!');
+                return;
+            }
+            
+            stopContinuousPlay(); // Останавливаем непрерывное воспроизведение
+            startAutoTestBtn.textContent = '⏹️ Остановить';
+            
+            // Автотест: меняем параметры и проигрываем звуки
+            let testStep = 0;
+            const testCases = [
+                { distance: 20, speed: 2, desc: 'Близко + Приближение' },
+                { distance: 20, speed: -2, desc: 'Близко + Удаление' },
+                { distance: 100, speed: 1, desc: 'Средне + Приближение' },
+                { distance: 100, speed: -1, desc: 'Средне + Удаление' },
+                { distance: 180, speed: 0.5, desc: 'Далеко + Приближение' },
+                { distance: 180, speed: -0.5, desc: 'Далеко + Удаление' }
+            ];
+            
+            autoTestInterval = setInterval(() => {
+                const testCase = testCases[testStep % testCases.length];
+                
+                // Обновляем слайдеры
+                distanceSlider.value = testCase.distance;
+                speedSlider.value = testCase.speed;
+                updateValues();
+                
+                // Проигрываем звук
+                playTestSound(testCase.distance, testCase.speed);
+                
+                testStep++;
+            }, 3000);
+        }
+        
+        // Обработчики событий
+        const startContinuousPlayBtn = document.getElementById('startContinuousPlay');
+        
+        audioToggle.addEventListener('click', () => {
+            const isOn = toggleAudio();
+            audioToggle.textContent = isOn ? '🔊 Отключить звук' : '🔇 Включить звук';
+            audioToggle.className = `audio-toggle ${isOn ? 'active' : ''}`;
+        });
+        
+        playTestBtn.addEventListener('click', playTest);
+        playVictoryBtn.addEventListener('click', () => {
+            if (!isAudioOn()) {
+                alert('Включите звук для прослушивания!');
+                return;
+            }
+            createVictorySound();
+            statusDisplay.textContent = '🏆 Звук победы проигран!';
+            statusDisplay.className = 'status reached';
+        });
+        startContinuousPlayBtn.addEventListener('click', () => {
+            if (isContinuousPlaying) {
+                stopContinuousPlay();
+                startContinuousPlayBtn.textContent = '🔄 Непрерывно';
+            } else {
+                startContinuousPlay();
+                startContinuousPlayBtn.textContent = '⏹️ Остановить';
+            }
+        });
+        startMovementSimulationBtn.addEventListener('click', () => {
+            const status = getSimulationStatus();
+            if (status.isRunning) {
+                stopMovementSimulationMode();
+            } else {
+                startMovementSimulationMode();
+            }
+        });
+        startAutoTestBtn.addEventListener('click', startAutoTest);
+        
+        distanceSlider.addEventListener('input', () => {
+            updateValues();
+            // Если играет непрерывно, перезапускаем с новыми параметрами
+            if (isContinuousPlaying) {
+                stopContinuousPlay();
+                startContinuousPlay();
+            }
+        });
+        
+        speedSlider.addEventListener('input', () => {
+            updateValues();
+            // Если играет непрерывно, перезапускаем с новыми параметрами
+            if (isContinuousPlaying) {
+                stopContinuousPlay();
+                startContinuousPlay();
+            }
+        });
+        
+        // Обработчики для примеров
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const distance = parseFloat(btn.dataset.distance);
+                const speed = parseFloat(btn.dataset.speed);
+                
+                // Останавливаем все воспроизведения
+                stopContinuousPlay();
+                if (autoTestInterval) {
+                    clearInterval(autoTestInterval);
+                    autoTestInterval = null;
+                    startAutoTestBtn.textContent = '🎯 Автотест';
+                }
+                
+                distanceSlider.value = distance;
+                speedSlider.value = speed;
+                updateValues();
+                
+                setTimeout(() => {
+                    playTest();
+                }, 100);
+            });
+        });
+        
+        // Инициализация
+        updateValues();
+        
+        console.log('🎵 Отладка звуковой навигации загружена');
+    </script>
+</body>
+</html>

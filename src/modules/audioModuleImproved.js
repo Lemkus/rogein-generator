@@ -1,11 +1,12 @@
 /**
- * Модуль звуковых сигналов для навигации с улучшенными звуками
- * Использует собственную генерацию тонов для надёжности
+ * Модуль звуковых сигналов для навигации с простой логикой мажор/минор
+ * Использует аккорды: мажорный для приближения, минорный для удаления
  */
 
 // Переменные состояния
 let isAudioEnabled = true;
 let audioContext = null;
+let lastDistance = null;
 
 // Инициализация аудио контекста
 function initAudioContext() {
@@ -17,274 +18,220 @@ function initAudioContext() {
       isAudioEnabled = false;
     }
   }
+  return audioContext;
 }
 
-// Создание улучшенного звука с несколькими гармониками
-function createRichTone(frequency, duration, volume = 0.3, waveType = 'sine') {
-  if (!isAudioEnabled || !audioContext) return;
-  
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  const filterNode = audioContext.createBiquadFilter();
-  
-  oscillator.connect(filterNode);
-  filterNode.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  oscillator.type = waveType;
-  
-  // Добавляем фильтр для более приятного звука
-  filterNode.type = 'lowpass';
-  filterNode.frequency.setValueAtTime(frequency * 3, audioContext.currentTime);
-  filterNode.Q.setValueAtTime(0.5, audioContext.currentTime);
-  
-  // Настраиваем громкость с плавным затуханием
-  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-  gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + duration);
+// Получение базовой частоты в зависимости от расстояния
+function getBaseFrequency(distance) {
+    const minDistance = 10;
+    const maxDistance = 200;
+    const minFreq = 200; // Низкий тон для далеко
+    const maxFreq = 800; // Высокий тон для близко
+
+    // Нормализуем расстояние от 0 до 1
+    const normalizedDistance = 1 - Math.min(1, Math.max(0, (distance - minDistance) / (maxDistance - minDistance)));
+
+    // Вычисляем базовую частоту
+    return minFreq + (maxFreq - minFreq) * normalizedDistance;
 }
 
-// Создание колокольчиков (высокие гармоники) - поднятые частоты
-function createBellSound(frequencies, durations) {
-  initAudioContext();
-  
-  frequencies.forEach((freq, i) => {
-    setTimeout(() => {
-      // Основной тон - поднимаем все частоты для лучшей слышимости
-      createRichTone(freq, durations[i], 0.5, 'sine');
-      
-      // Добавляем гармоники для более богатого звука
-      setTimeout(() => createRichTone(freq * 1.5, durations[i] * 0.5, 0.3, 'triangle'), 50);
-      setTimeout(() => createRichTone(freq * 2, durations[i] * 0.3, 0.2, 'triangle'), 100);
-    }, i * 120);
-  });
+// Создание мажорного аккорда
+function createMajorChord(baseFrequency, volume = 0.8) {
+    const ctx = initAudioContext();
+    if (!ctx || !isAudioEnabled) return;
+    
+    const frequencies = [
+        baseFrequency,                    // Прима
+        baseFrequency * Math.pow(2, 4/12), // Большая терция
+        baseFrequency * Math.pow(2, 7/12)  // Чистая квинта
+    ];
+    
+    frequencies.forEach(freq => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.5);
+    });
 }
 
-// Создание свиста (быстрые высокие тоны)
-function createWhistleSound(frequencies, durations) {
-  initAudioContext();
-  
-  frequencies.forEach((freq, i) => {
-    setTimeout(() => {
-      createRichTone(freq, durations[i], 0.5, 'triangle');
-    }, i * 100);
-  });
+// Создание минорного аккорда
+function createMinorChord(baseFrequency, volume = 0.8) {
+    const ctx = initAudioContext();
+    if (!ctx || !isAudioEnabled) return;
+    
+    const frequencies = [
+        baseFrequency,                    // Прима
+        baseFrequency * Math.pow(2, 3/12), // Малая терция
+        baseFrequency * Math.pow(2, 7/12)  // Чистая квинта
+    ];
+    
+    frequencies.forEach(freq => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.5);
+    });
 }
 
-// Создание гонга (низкий тон с затуханием) - поднятые частоты
-function createGongSound(frequency, duration) {
-  initAudioContext();
-  
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  const filterNode = audioContext.createBiquadFilter();
-  
-  oscillator.connect(filterNode);
-  filterNode.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  // Поднимаем базовую частоту гонга для лучшей слышимости
-  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  oscillator.type = 'sine';
-  
-  // Фильтр для гонга
-  filterNode.type = 'lowpass';
-  filterNode.frequency.setValueAtTime(frequency * 3, audioContext.currentTime);
-  filterNode.Q.setValueAtTime(1.5, audioContext.currentTime);
-  
-  // Медленное затухание для гонга
-  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.1);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + duration);
-}
-
-// Создание триумфального звука
-function createTriumphSound() {
-  initAudioContext();
-  
-  const frequencies = [523, 659, 784, 1047]; // До-Ми-Соль-До (мажорный аккорд)
-  const durations = [0.3, 0.3, 0.3, 0.5];
-  
-  frequencies.forEach((freq, i) => {
-    setTimeout(() => {
-      createRichTone(freq, durations[i], 0.6, 'triangle');
-    }, i * 200);
-  });
-}
-
-// Создание звука приближения (восходящий аккорд)
-function createApproachingSound() {
-  initAudioContext();
-  
-  const frequencies = [261, 329, 392]; // До-Ми-Соль (мажорный аккорд)
-  const durations = [0.4, 0.4, 0.4];
-  
-  frequencies.forEach((freq, i) => {
-    setTimeout(() => {
-      createRichTone(freq, durations[i], 0.5, 'triangle');
-    }, i * 150);
-  });
-}
-
-// Создание звука удаления (нисходящий аккорд)
-function createMovingAwaySound() {
-  initAudioContext();
-  
-  const frequencies = [392, 311, 261]; // Соль-Ми♭-До (минорный аккорд)
-  const durations = [0.5, 0.5, 0.5];
-  
-  frequencies.forEach((freq, i) => {
-    setTimeout(() => {
-      createRichTone(freq, durations[i], 0.3, 'sawtooth');
-    }, i * 200);
-  });
-}
-
-// Воспроизведение звукового паттерна с относительным определением тона
-export function playSoundPattern(pattern, direction = 'neutral', distance = null) {
-  console.log('🔊 playSoundPattern вызвана:', { pattern, direction, distance, isAudioEnabled });
-  
-  if (!isAudioEnabled) {
-    console.log('Звук отключен');
-    return;
-  }
-  
-  // Определяем тип звука по паттерну
-  let soundType;
-  if (pattern.length === 1) {
-    const duration = pattern[0];
-    if (duration <= 100) soundType = 'close';
-    else if (duration <= 150) soundType = 'hot';
-    else if (duration <= 200) soundType = 'warm';
-    else soundType = 'cold';
-  } else {
-    soundType = 'target';
-  }
-  
-  console.log(`🎵 Воспроизводим звук: ${soundType}, направление: ${direction}, расстояние: ${distance}м`);
-  
-  // ОТНОСИТЕЛЬНАЯ ЛОГИКА: тон зависит от текущего расстояния до цели
-  if (distance !== null) {
-    // Определяем базовую частоту в зависимости от расстояния
-    let baseFrequency;
-    if (distance < 20) {
-      baseFrequency = 1200; // Очень близко - очень высокий тон
-    } else if (distance < 50) {
-      baseFrequency = 1000; // Горячо - высокий тон
-    } else if (distance < 100) {
-      baseFrequency = 800;  // Тепло - средне-высокий
-    } else if (distance < 200) {
-      baseFrequency = 600;  // Прохладно - средний
-    } else if (distance < 500) {
-      baseFrequency = 400;  // Холодно - средне-низкий
-    } else {
-      baseFrequency = 300;  // Очень холодно - низкий, но слышимый
+// Создание звука победы - НАСТОЯЩИЕ ФАНФАРЫ!
+function createVictorySound() {
+    const ctx = initAudioContext();
+    
+    // Победная мелодия - восходящая гамма с триумфом
+    const victoryMelody = [
+        { freq: 261.63, duration: 0.2 },  // До (C4)
+        { freq: 293.66, duration: 0.2 },  // Ре (D4)
+        { freq: 329.63, duration: 0.2 },  // Ми (E4)
+        { freq: 349.23, duration: 0.2 },  // Фа (F4)
+        { freq: 392.00, duration: 0.2 },  // Соль (G4)
+        { freq: 440.00, duration: 0.2 },  // Ля (A4)
+        { freq: 493.88, duration: 0.2 },  // Си (B4)
+        { freq: 523.25, duration: 0.4 }   // До октавой (C5) - дольше!
+    ];
+    
+    // Проигрываем мелодию ТРИ РАЗА с нарастающей громкостью
+    for (let repeat = 0; repeat < 3; repeat++) {
+        const startTime = ctx.currentTime + repeat * 2.0; // 2 секунды между повторами
+        let currentTime = startTime;
+        
+        // Увеличиваем громкость с каждым повтором
+        const volume = 0.3 + (repeat * 0.1); // 0.3, 0.4, 0.5
+        
+        victoryMelody.forEach((note, index) => {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.setValueAtTime(note.freq, currentTime);
+            oscillator.type = 'sine';
+            
+            // Громкое нарастание и затухание
+            gainNode.gain.setValueAtTime(0, currentTime);
+            gainNode.gain.linearRampToValueAtTime(volume, currentTime + 0.05);
+            gainNode.gain.linearRampToValueAtTime(volume, currentTime + note.duration - 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, currentTime + note.duration);
+            
+            oscillator.start(currentTime);
+            oscillator.stop(currentTime + note.duration);
+            
+            currentTime += note.duration;
+        });
     }
     
-    // Модифицируем звуки в зависимости от направления
-    if (direction === 'approaching') {
-      // При приближении делаем звуки выше и ярче
-      switch (soundType) {
-        case 'close':
-          createBellSound([baseFrequency, baseFrequency * 1.2, baseFrequency * 1.4], [0.1, 0.1, 0.1]);
-          break;
-        case 'hot':
-          createWhistleSound([baseFrequency, baseFrequency * 1.3], [0.15, 0.15]);
-          break;
-        case 'warm':
-          createRichTone(baseFrequency, 0.2, 0.5, 'triangle');
-          setTimeout(() => createRichTone(baseFrequency * 1.2, 0.2, 0.5, 'triangle'), 150);
-          break;
-        case 'cold':
-          createRichTone(baseFrequency, 0.3, 0.5, 'triangle');
-          break;
-        case 'target':
-          createTriumphSound();
-          break;
-      }
-    } else if (direction === 'moving_away') {
-      // При удалении делаем звуки ниже и глуше
-      switch (soundType) {
-        case 'close':
-          createBellSound([baseFrequency * 0.8, baseFrequency * 0.9, baseFrequency], [0.15, 0.15, 0.15]);
-          break;
-        case 'hot':
-          createWhistleSound([baseFrequency * 0.7, baseFrequency * 0.8], [0.2, 0.2]);
-          break;
-        case 'warm':
-          createRichTone(baseFrequency * 0.8, 0.25, 0.3, 'sawtooth');
-          setTimeout(() => createRichTone(baseFrequency * 0.9, 0.25, 0.3, 'sawtooth'), 200);
-          break;
-        case 'cold':
-          createGongSound(baseFrequency * 0.6, 0.8);
-          break;
-        case 'target':
-          createTriumphSound();
-          break;
-      }
-    } else {
-      // Нейтральное направление
-      switch (soundType) {
-        case 'close':
-          createBellSound([baseFrequency, baseFrequency * 1.1, baseFrequency * 1.2], [0.1, 0.1, 0.1]);
-          break;
-        case 'hot':
-          createWhistleSound([baseFrequency, baseFrequency * 1.2], [0.15, 0.15]);
-          break;
-        case 'warm':
-          createRichTone(baseFrequency, 0.2, 0.4, 'sine');
-          setTimeout(() => createRichTone(baseFrequency * 1.1, 0.2, 0.4, 'sine'), 150);
-          break;
-        case 'cold':
-          createGongSound(baseFrequency * 0.8, 0.6);
-          break;
-        case 'target':
-          createTriumphSound();
-          break;
-      }
-    }
-  } else {
-    // Если расстояние не указано, используем стандартные частоты
-    console.log('⚠️ Расстояние не указано, используем стандартные частоты');
-    // ... стандартная логика без расстояния
-  }
+    // ФИНАЛЬНЫЙ ТРИУМФАЛЬНЫЙ АККОРД - МАКСИМАЛЬНО ГРОМКИЙ!
+    setTimeout(() => {
+        const finalFrequencies = [
+            261.63,  // До (C4)
+            329.63,  // Ми (E4)
+            392.00,  // Соль (G4)
+            523.25,  // До октавой (C5)
+            659.25,  // Ми октавой (E5)
+            783.99   // Соль октавой (G5)
+        ];
+        const finalTime = ctx.currentTime;
+        
+        finalFrequencies.forEach(freq => {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.setValueAtTime(freq, finalTime);
+            oscillator.type = 'sine';
+            
+            // МАКСИМАЛЬНАЯ ГРОМКОСТЬ!
+            gainNode.gain.setValueAtTime(0, finalTime);
+            gainNode.gain.linearRampToValueAtTime(0.4, finalTime + 0.1);
+            gainNode.gain.linearRampToValueAtTime(0.4, finalTime + 1.5);
+            gainNode.gain.linearRampToValueAtTime(0, finalTime + 2.0);
+            
+            oscillator.start(finalTime);
+            oscillator.stop(finalTime + 2.0);
+        });
+    }, 6000); // После всех трех мелодий
+    
+    console.log('🏆🎺🎉 ТРИУМФАЛЬНЫЕ ФАНФАРЫ! ПОБЕДА! 🎉🎺🏆');
 }
 
-// Специальные звуки для направления движения
-export function playDirectionSound(direction) {
-  console.log('🎵 playDirectionSound вызвана:', direction);
-  
-  if (!isAudioEnabled) return;
-  
-  if (direction === 'approaching') {
-    console.log('🎵 Воспроизводим звук приближения');
-    createApproachingSound();
-  } else if (direction === 'moving_away') {
-    console.log('🎵 Воспроизводим звук удаления');
-    createMovingAwaySound();
-  }
+// Основная функция навигации - проигрывает звук в зависимости от расстояния и скорости
+export function playNavigationSound(distance, speed) {
+    if (!isAudioEnabled) return;
+    
+    const baseFreq = getBaseFrequency(distance);
+    let isApproaching = false;
+    
+    if (speed > 0.1) {
+        isApproaching = true;
+    } else if (speed < -0.1) {
+        isApproaching = false;
+    } else {
+        isApproaching = (distance < 100); // Для нейтрального считаем приближением если расстояние < 100
+    }
+    
+    if (isApproaching) {
+        createMajorChord(baseFreq, 1.0);
+        console.log(`🎵 Мажорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
+    } else {
+        createMinorChord(baseFreq, 1.0);
+        console.log(`🎵 Минорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
+    }
+    
+    lastDistance = distance;
+}
+
+// Функция для воспроизведения звука победы
+export function playVictorySound() {
+    if (!isAudioEnabled) return;
+    createVictorySound();
 }
 
 // Включение/отключение звука
 export function toggleAudio() {
-  isAudioEnabled = !isAudioEnabled;
-  return isAudioEnabled;
+    isAudioEnabled = !isAudioEnabled;
+    console.log(`🔊 Звук ${isAudioEnabled ? 'включен' : 'отключен'}`);
+    return isAudioEnabled;
 }
 
 // Получение статуса звука
 export function isAudioOn() {
-  return isAudioEnabled;
+    return isAudioEnabled;
 }
 
-// Установка громкости (0.0 - 1.0)
-export function setVolume(volume) {
-  // Для генерации тонов громкость настраивается при создании
-  console.log('🔊 Громкость установлена:', volume);
+// Получение интервала между звуками в зависимости от расстояния
+export function getSoundInterval(distance) {
+    const minDistance = 10;
+    const maxDistance = 200;
+    const minInterval = 0.5; // Чаще для близко
+    const maxInterval = 2; // Реже для далеко
+
+    // Нормализуем расстояние от 0 до 1
+    const normalizedDistance = Math.min(1, Math.max(0, (distance - minDistance) / (maxDistance - minDistance)));
+
+    // Вычисляем интервал
+    return minInterval + (maxInterval - minInterval) * normalizedDistance;
 }
