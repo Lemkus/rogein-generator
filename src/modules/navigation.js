@@ -108,13 +108,20 @@ function playNavigationSoundWithPattern(pattern, direction = 'neutral', distance
 // Получение координат целевой точки
 function getTargetCoords() {
   const selectedValue = targetPointSelect.value;
+  console.log(`🎯 Выбранная точка: "${selectedValue}"`);
+  
   const startPoint = getStartPoint();
   if (selectedValue === 'start' && startPoint) {
+    console.log(`🎯 Используем стартовую точку: ${startPoint.lat.toFixed(6)}, ${startPoint.lng.toFixed(6)}`);
     return { lat: startPoint.lat, lng: startPoint.lng };
   } else if (selectedValue !== '' && pointMarkers[selectedValue]) {
     const marker = pointMarkers[selectedValue];
-    return marker.getLatLng();
+    const coords = marker.getLatLng();
+    console.log(`🎯 Используем точку ${selectedValue}: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
+    return coords;
   }
+  
+  console.log('❌ Не удалось получить координаты цели');
   return null;
 }
 
@@ -146,8 +153,9 @@ function navigationStep() {
     }
   }
   
-  // Обновляем статус с индикацией направления
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}`;
+  // Обновляем статус с индикацией направления и отладочной информацией
+  const speedText = speed > 0 ? ` ↗️+${speed.toFixed(1)}` : speed < 0 ? ` ↘️${speed.toFixed(1)}` : ' =0';
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}${speedText}`;
   
   // Проверяем достижение цели
   if (distance < 10) {
@@ -181,12 +189,18 @@ function navigationStep() {
   
   // Получаем интервал для следующего звука
   const soundDelay = getSoundInterval(distance) * 1000; // Конвертируем в миллисекунды
+  console.log(`⏱️ Следующий звук через: ${(soundDelay/1000).toFixed(1)}с`);
+  
+  // Обновляем статус с информацией о следующем звуке
+  const currentStatus = navStatus.textContent;
+  navStatus.textContent = `${currentStatus} | ⏱️${(soundDelay/1000).toFixed(1)}с`;
   
   lastDistance = distance;
   
   // Планируем следующую проверку
   clearTimeout(navigationInterval);
   navigationInterval = setTimeout(navigationStep, soundDelay);
+  console.log(`⏰ Запланирован следующий navigationStep через ${(soundDelay/1000).toFixed(1)}с`);
 }
 
 // Обработка изменения позиции пользователя
@@ -196,7 +210,14 @@ function onPositionUpdate(position) {
     lng: position.coords.longitude
   };
   
+  console.log(`📍 GPS получен: ${userPosition.lat.toFixed(6)}, ${userPosition.lng.toFixed(6)}`);
+  console.log(`🎯 Цель: ${currentTarget ? `${currentTarget.lat.toFixed(6)}, ${currentTarget.lng.toFixed(6)}` : 'НЕТ'}`);
+  console.log(`🚀 Навигация активна: ${isNavigating}`);
+  
+  // Обновляем статус с информацией о GPS
   if (isNavigating) {
+    navStatus.textContent = `📍 GPS: ${userPosition.lat.toFixed(4)}, ${userPosition.lng.toFixed(4)}`;
+    console.log('🎵 Вызываем navigationStep...');
     navigationStep();
   }
 }
@@ -215,12 +236,18 @@ function startNavigation() {
     return;
   }
   
+  console.log(`🎯 Начинаем навигацию к точке: ${target.lat.toFixed(6)}, ${target.lng.toFixed(6)}`);
+  
   currentTarget = target;
   isNavigating = true;
   lastDistance = null;
   
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
+  console.log('🔄 Состояние аудио модуля сброшено');
+  
+  // Обновляем статус
+  navStatus.textContent = `🎯 Цель: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}`;
   
   // Предотвращаем засыпание экрана
   if ('wakeLock' in navigator) {
