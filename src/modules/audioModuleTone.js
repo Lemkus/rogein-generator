@@ -46,6 +46,14 @@ function getTargetFrequencyProgress(distance) {
     if (startDistance === null) {
         startDistance = distance;
         console.log(`🎯 Установлено начальное расстояние: ${startDistance}м`);
+        
+        // Обновляем статус навигации
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            const currentText = navStatus.textContent;
+            navStatus.textContent = `${currentText} | 🎯${startDistance}м`;
+        }
+        
         return 0;
     }
     
@@ -191,9 +199,23 @@ export function playNavigationSound(distance, speed) {
     if (isApproaching) {
         createApproachingSound(currentFrequency);
         console.log(`🎵 Приближение: ${Math.round(currentFrequency)}Hz (прогресс: ${(frequencyProgress*100).toFixed(1)}%, целевой: ${(targetProgress*100).toFixed(1)}%), расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
+        
+        // Обновляем статус навигации с информацией о звуке
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            const currentText = navStatus.textContent;
+            navStatus.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↗️`;
+        }
     } else {
         createMovingAwaySound(currentFrequency);
         console.log(`🎵 Удаление: ${Math.round(currentFrequency)}Hz (прогресс: ${(frequencyProgress*100).toFixed(1)}%, целевой: ${(targetProgress*100).toFixed(1)}%), расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
+        
+        // Обновляем статус навигации с информацией о звуке
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            const currentText = navStatus.textContent;
+            navStatus.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↘️`;
+        }
     }
     
     lastDistance = distance;
@@ -305,6 +327,13 @@ export function getSoundInterval(distance) {
     const interval = maxInterval - (maxInterval - minInterval) * Math.min(1, progress);
     
     console.log(`⏱️ Ритм: ${interval.toFixed(1)}с (прогресс: ${(progress*100).toFixed(1)}%)`);
+    
+    // Обновляем статус навигации с информацией о ритме
+    const navStatus = document.getElementById('navStatus');
+    if (navStatus) {
+        const currentText = navStatus.textContent;
+        navStatus.textContent = `${currentText} | ⏱️${interval.toFixed(1)}с`;
+    }
     
     return interval;
 }
