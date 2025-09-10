@@ -127,6 +127,8 @@ function getTargetCoords() {
 
 // Основная логика навигации
 function navigationStep() {
+  console.log('🔄 navigationStep вызвана');
+  
   if (!isNavigating || !userPosition || !currentTarget) {
     console.log('❌ navigationStep: навигация не активна или нет данных');
     navStatus.textContent = '❌ Навигация не активна';
@@ -212,8 +214,14 @@ function navigationStep() {
   
   // Планируем следующую проверку
   clearTimeout(navigationInterval);
-  navigationInterval = setTimeout(navigationStep, soundDelay);
+  navigationInterval = setTimeout(() => {
+    console.log('⏰ Выполняется запланированный navigationStep');
+    navigationStep();
+  }, soundDelay);
   console.log(`⏰ Запланирован следующий navigationStep через ${(soundDelay/1000).toFixed(1)}с`);
+  
+  // Обновляем статус с информацией о следующем звуке
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ⏰ Следующий через ${(soundDelay/1000).toFixed(1)}с`;
 }
 
 // Обработка изменения позиции пользователя
@@ -232,6 +240,8 @@ function onPositionUpdate(position) {
     navStatus.textContent = `📍 GPS: ${userPosition.lat.toFixed(4)}, ${userPosition.lng.toFixed(4)}`;
     console.log('🎵 Вызываем navigationStep...');
     navigationStep();
+  } else {
+    console.log('❌ Навигация не активна, navigationStep не вызывается');
   }
 }
 

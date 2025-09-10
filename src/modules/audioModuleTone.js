@@ -366,11 +366,13 @@ export function getSoundInterval(distance) {
     
     // Если мы на старте - медленный ритм
     if (startDistance === null) {
+        console.log('⏱️ getSoundInterval: старт, возвращаем 3.0с');
         return 3.0; // 3 секунды
     }
     
     // Если мы достигли цели - очень быстрый ритм
     if (distance <= 10) {
+        console.log('⏱️ getSoundInterval: цель близко, возвращаем 0.2с');
         return 0.2; // 0.2 секунды
     }
     
@@ -385,7 +387,7 @@ export function getSoundInterval(distance) {
     // При отрицательном прогрессе (удаление) ритм становится еще медленнее
     const interval = maxInterval - (maxInterval - minInterval) * Math.min(1, progress);
     
-    console.log(`⏱️ Ритм: ${interval.toFixed(1)}с (прогресс: ${(progress*100).toFixed(1)}%)`);
+    console.log(`⏱️ getSoundInterval: возвращаем ${interval.toFixed(1)}с (прогресс: ${(progress*100).toFixed(1)}%)`);
     
     // Обновляем статус навигации с информацией о ритме
     const statusEl14 = document.getElementById('navStatus');
