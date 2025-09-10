@@ -129,6 +129,9 @@ function getTargetCoords() {
 function navigationStep() {
   console.log('🔄 navigationStep вызвана');
   
+  // Обновляем статус с временной меткой
+  navStatus.textContent = `🔄 navigationStep вызвана (${new Date().toLocaleTimeString()})`;
+  
   if (!isNavigating || !userPosition || !currentTarget) {
     console.log('❌ navigationStep: навигация не активна или нет данных');
     navStatus.textContent = '❌ Навигация не активна';
@@ -216,16 +219,18 @@ function navigationStep() {
   clearTimeout(navigationInterval);
   clearInterval(navigationInterval);
   
-  // Используем setInterval для более надежной работы на мобильных устройствах
-  navigationInterval = setInterval(() => {
-    console.log('⏰ Выполняется запланированный navigationStep');
-    navigationStep();
-  }, soundDelay);
+  // Используем фиксированный интервал для тестирования
+  const testInterval = 2000; // 2 секунды для тестирования
   
-  console.log(`⏰ Запланирован следующий navigationStep через ${(soundDelay/1000).toFixed(1)}с`);
+  navigationInterval = setInterval(() => {
+    console.log('⏰ Выполняется запланированный navigationStep (тест)');
+    navigationStep();
+  }, testInterval);
+  
+  console.log(`⏰ Запланирован следующий navigationStep через ${(testInterval/1000).toFixed(1)}с (тест)`);
   
   // Обновляем статус с информацией о следующем звуке
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ⏰ Следующий через ${(soundDelay/1000).toFixed(1)}с`;
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ⏰ Следующий через ${(testInterval/1000).toFixed(1)}с (тест)`;
 }
 
 // Обработка изменения позиции пользователя
