@@ -118,39 +118,77 @@ export async function fetchBarriers(bounds) {
   return executeOverpassQuery(query, 'Барьеры');
 }
 
-// Загрузка пешеходных путей и дорог
-export async function fetchPaths(bounds) {
+// Загрузка пешеходных путей и дорог по типам
+export async function fetchPaths(bounds, statusCallback) {
   const s = bounds.getSouth();
   const w = bounds.getWest();
   const n = bounds.getNorth();
   const e = bounds.getEast();
   const bbox = `${s},${w},${n},${e}`;
 
-  // Полный запрос со всеми типами дорог, но с лимитом для мобильных сетей
-  const query = `[
-    out:json][timeout:${TIMEOUT}][maxsize:50000000];
-    (
-      way["highway"="path"](${bbox});
-      way["highway"="footway"](${bbox});
-      way["highway"="cycleway"](${bbox});
-      way["highway"="track"](${bbox});
-      way["highway"="service"](${bbox});
-      way["highway"="bridleway"](${bbox});
-      way["highway"="unclassified"](${bbox});
-      way["highway"="residential"](${bbox});
-      way["highway"="living_street"](${bbox});
-      way["highway"="steps"](${bbox});
-      way["highway"="pedestrian"](${bbox});
-      way["highway"="crossing"](${bbox});
-      way["footway"="crossing"](${bbox});
-    );
-    out geom;`;
+  let allPaths = [];
+  
+  // Список типов дорог для загрузки
+  const pathTypes = [
+    { type: 'path', name: 'Пешеходные тропы' },
+    { type: 'footway', name: 'Пешеходные дорожки' },
+    { type: 'cycleway', name: 'Велосипедные дорожки' },
+    { type: 'track', name: 'Полевые дороги' },
+    { type: 'service', name: 'Служебные дороги' },
+    { type: 'bridleway', name: 'Конные тропы' },
+    { type: 'unclassified', name: 'Неклассифицированные дороги' },
+    { type: 'residential', name: 'Жилые улицы' },
+    { type: 'living_street', name: 'Жилые зоны' },
+    { type: 'steps', name: 'Лестницы' },
+    { type: 'pedestrian', name: 'Пешеходные зоны' },
+    { type: 'crossing', name: 'Переходы' }
+  ];
 
-  return executeOverpassQuery(query, 'Тропы');
+  // Загружаем каждый тип отдельно
+  for (const pathType of pathTypes) {
+    try {
+      statusCallback(`Загрузка ${pathType.name}...`);
+      
+      const query = `[
+        out:json][timeout:${TIMEOUT}][maxsize:10000000];
+        way["highway"="${pathType.type}"](${bbox});
+        out geom;`;
+
+      const paths = await executeOverpassQuery(query, pathType.name);
+      allPaths = allPaths.concat(paths);
+      
+      statusCallback(`✅ ${pathType.name}: ${paths.length} элементов`);
+      
+    } catch (error) {
+      console.warn(`Не удалось загрузить ${pathType.name}:`, error.message);
+      statusCallback(`⚠️ ${pathType.name}: ${error.message}`);
+    }
+  }
+
+  // Дополнительно загружаем footway=crossing
+  try {
+    statusCallback('Загрузка пешеходных переходов...');
+    
+    const query = `[
+      out:json][timeout:${TIMEOUT}][maxsize:10000000];
+      way["footway"="crossing"](${bbox});
+      out geom;`;
+
+    const crossings = await executeOverpassQuery(query, 'Пешеходные переходы');
+    allPaths = allPaths.concat(crossings);
+    
+    statusCallback(`✅ Пешеходные переходы: ${crossings.length} элементов`);
+    
+  } catch (error) {
+    console.warn('Не удалось загрузить пешеходные переходы:', error.message);
+    statusCallback(`⚠️ Пешеходные переходы: ${error.message}`);
+  }
+
+  return allPaths;
 }
 
 // Загрузка троп по частям для больших областей
-export async function fetchPathsInChunks(bounds) {
+export async function fetchPathsInChunks(bounds, statusCallback) {
   const s = bounds.getSouth();
   const w = bounds.getWest();
   const n = bounds.getNorth();
@@ -169,35 +207,66 @@ export async function fetchPathsInChunks(bounds) {
   
   let allPaths = [];
   
+  // Список типов дорог для загрузки
+  const pathTypes = [
+    { type: 'path', name: 'Пешеходные тропы' },
+    { type: 'footway', name: 'Пешеходные дорожки' },
+    { type: 'cycleway', name: 'Велосипедные дорожки' },
+    { type: 'track', name: 'Полевые дороги' },
+    { type: 'service', name: 'Служебные дороги' },
+    { type: 'bridleway', name: 'Конные тропы' },
+    { type: 'unclassified', name: 'Неклассифицированные дороги' },
+    { type: 'residential', name: 'Жилые улицы' },
+    { type: 'living_street', name: 'Жилые зоны' },
+    { type: 'steps', name: 'Лестницы' },
+    { type: 'pedestrian', name: 'Пешеходные зоны' },
+    { type: 'crossing', name: 'Переходы' }
+  ];
+  
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     const bbox = `${chunk.s},${chunk.w},${chunk.n},${chunk.e}`;
     
-    const query = `[
-      out:json][timeout:${TIMEOUT}][maxsize:20000000];
-      (
-        way["highway"="path"](${bbox});
-        way["highway"="footway"](${bbox});
-        way["highway"="cycleway"](${bbox});
-        way["highway"="track"](${bbox});
-        way["highway"="service"](${bbox});
-        way["highway"="bridleway"](${bbox});
-        way["highway"="unclassified"](${bbox});
-        way["highway"="residential"](${bbox});
-        way["highway"="living_street"](${bbox});
-        way["highway"="steps"](${bbox});
-        way["highway"="pedestrian"](${bbox});
-        way["highway"="crossing"](${bbox});
-        way["footway"="crossing"](${bbox});
-      );
-      out geom;`;
+    statusCallback(`Загрузка части ${i + 1}/4...`);
     
+    // Загружаем каждый тип троп в этой части
+    for (const pathType of pathTypes) {
+      try {
+        statusCallback(`Часть ${i + 1}/4: ${pathType.name}...`);
+        
+        const query = `[
+          out:json][timeout:${TIMEOUT}][maxsize:5000000];
+          way["highway"="${pathType.type}"](${bbox});
+          out geom;`;
+
+        const paths = await executeOverpassQuery(query, `Часть ${i + 1}/4: ${pathType.name}`);
+        allPaths = allPaths.concat(paths);
+        
+        statusCallback(`✅ Часть ${i + 1}/4: ${pathType.name} (${paths.length})`);
+        
+      } catch (error) {
+        console.warn(`Не удалось загрузить часть ${i + 1}: ${pathType.name}:`, error.message);
+        statusCallback(`⚠️ Часть ${i + 1}/4: ${pathType.name}: ${error.message}`);
+      }
+    }
+    
+    // Дополнительно загружаем footway=crossing для этой части
     try {
-      const chunkPaths = await executeOverpassQuery(query, `Тропы (часть ${i + 1}/4)`);
-      allPaths = allPaths.concat(chunkPaths);
+      statusCallback(`Часть ${i + 1}/4: Пешеходные переходы...`);
+      
+      const query = `[
+        out:json][timeout:${TIMEOUT}][maxsize:5000000];
+        way["footway"="crossing"](${bbox});
+        out geom;`;
+
+      const crossings = await executeOverpassQuery(query, `Часть ${i + 1}/4: Пешеходные переходы`);
+      allPaths = allPaths.concat(crossings);
+      
+      statusCallback(`✅ Часть ${i + 1}/4: Пешеходные переходы (${crossings.length})`);
+      
     } catch (error) {
-      console.warn(`Не удалось загрузить часть ${i + 1} троп:`, error.message);
-      // Продолжаем загрузку других частей
+      console.warn(`Не удалось загрузить часть ${i + 1}: Пешеходные переходы:`, error.message);
+      statusCallback(`⚠️ Часть ${i + 1}/4: Пешеходные переходы: ${error.message}`);
     }
   }
   

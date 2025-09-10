@@ -123,9 +123,9 @@ export async function generatePoints(selectedBounds, startPoint, count, percent,
       
       if (area > maxArea) {
         statusCallback('⚠️ Большая область - загружаем тропы по частям...');
-        pathsData = await fetchPathsInChunks(selectedBounds);
+        pathsData = await fetchPathsInChunks(selectedBounds, statusCallback);
       } else {
-        pathsData = await fetchPaths(selectedBounds);
+        pathsData = await fetchPaths(selectedBounds, statusCallback);
       }
       
       if (pathsData.length === 0) {
