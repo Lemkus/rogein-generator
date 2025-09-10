@@ -84,9 +84,11 @@ function getTargetFrequencyProgress(distance) {
     const progress = (startDistance - distance) / startDistance;
     console.log(`📊 Прогресс: ${(progress*100).toFixed(1)}% (${startDistance}м → ${distance}м)`);
     
-    // При удалении прогресс может быть отрицательным - это нормально
-    // Ограничиваем только сверху (не больше 100%)
-    return Math.min(1, progress);
+    // Ограничиваем прогресс от 0 до 1, чтобы избежать отрицательных частот
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    console.log(`📊 Ограниченный прогресс: ${(clampedProgress*100).toFixed(1)}%`);
+    
+    return clampedProgress;
 }
 
 // Создание звука приближения (мажорный, яркий)
@@ -250,7 +252,11 @@ export function playNavigationSound(distance, speed) {
     frequencyProgress = targetProgress;
     
     // Вычисляем текущую частоту на основе прогресса
-    currentFrequency = minFreq + (maxFreq - minFreq) * frequencyProgress;
+    // Ограничиваем прогресс от 0 до 1, чтобы частота была в допустимом диапазоне
+    const clampedProgress = Math.max(0, Math.min(1, frequencyProgress));
+    currentFrequency = minFreq + (maxFreq - minFreq) * clampedProgress;
+    
+    console.log(`🎵 Частота: ${Math.round(currentFrequency)}Hz (прогресс: ${(frequencyProgress*100).toFixed(1)}%, ограниченный: ${(clampedProgress*100).toFixed(1)}%)`);
     
     // Дополнительный буст не нужен - максимальный тон уже достигается при близком расстоянии
     
@@ -384,8 +390,9 @@ export function getSoundInterval(distance) {
     const maxInterval = 3.0; // Медленный ритм на старте
     
     // Ритм ускоряется по мере приближения
-    // При отрицательном прогрессе (удаление) ритм становится еще медленнее
-    const interval = maxInterval - (maxInterval - minInterval) * Math.min(1, progress);
+    // Ограничиваем прогресс от 0 до 1, чтобы избежать отрицательных интервалов
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    const interval = maxInterval - (maxInterval - minInterval) * clampedProgress;
     
     console.log(`⏱️ getSoundInterval: возвращаем ${interval.toFixed(1)}с (прогресс: ${(progress*100).toFixed(1)}%)`);
     
