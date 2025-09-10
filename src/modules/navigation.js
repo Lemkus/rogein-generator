@@ -139,6 +139,12 @@ function navigationStep() {
   // Обновляем статус с расстоянием
   navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🔄 Вычисляем...`;
   
+  // Вычисляем скорость приближения/удаления СНАЧАЛА
+  let speed = 0;
+  if (lastDistance !== null) {
+    speed = lastDistance - distance; // Положительное = приближаемся, отрицательное = удаляемся
+  }
+  
   // Определяем направление движения
   let direction = 'neutral';
   let directionText = '';
@@ -161,6 +167,9 @@ function navigationStep() {
   const speedText = speed > 0 ? ` ↗️+${speed.toFixed(1)}` : speed < 0 ? ` ↘️${speed.toFixed(1)}` : ' =0';
   navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}${speedText}`;
   
+  // Обновляем статус перед проверкой цели
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🎯 Проверяем цель...`;
+  
   // Проверяем достижение цели
   if (distance < 10) {
     playVictorySound(); // Звук победы
@@ -182,11 +191,8 @@ function navigationStep() {
     return;
   }
   
-  // Вычисляем скорость приближения/удаления
-  let speed = 0;
-  if (lastDistance !== null) {
-    speed = lastDistance - distance; // Положительное = приближаемся, отрицательное = удаляемся
-  }
+  // Обновляем статус после проверки цели
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ✅ Цель не достигнута, продолжаем...`;
   
   // Обновляем статус перед вызовом звука
   navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🎵 Вызываем звук...`;
