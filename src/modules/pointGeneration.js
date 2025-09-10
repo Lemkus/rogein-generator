@@ -4,7 +4,7 @@
  */
 
 import { haversine, rectangleArea, extractPolygons, pointInPolygon, getRandomPointOnLine } from './utils.js';
-import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths } from './overpassAPI.js';
+import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths, fetchPathsInChunks } from './overpassAPI.js';
 import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, pointMarkers, getStartPoint, showGraphDebug, clearGraphDebugLayers } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
@@ -116,7 +116,22 @@ export async function generatePoints(selectedBounds, startPoint, count, percent,
     // Загружаем тропы (критично - без них генерация невозможна)
     try {
       statusCallback('Загрузка троп...');
-      pathsData = await fetchPaths(selectedBounds);
+      
+      // Проверяем размер области - если слишком большая, разбиваем на части
+      const area = rectangleArea(selectedBounds);
+      const maxArea = 10000000; // 10 км²
+      
+      if (area > maxArea) {
+        statusCallback('⚠️ Большая область - загружаем тропы по частям...');
+        pathsData = await fetchPathsInChunks(selectedBounds);
+      } else {
+        pathsData = await fetchPaths(selectedBounds);
+      }
+      
+      if (pathsData.length === 0) {
+        throw new Error('В выбранной области не найдено троп. Попробуйте выбрать другую область.');
+      }
+      
     } catch (error) {
       console.error('Не удалось загрузить тропы:', error.message);
       statusCallback(`❌ Ошибка загрузки троп: ${error.message}`);
