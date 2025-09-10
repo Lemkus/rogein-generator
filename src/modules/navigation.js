@@ -20,6 +20,7 @@ const targetPointSelect = document.getElementById('targetPointSelect');
 const audioNavBtn = document.getElementById('audioNavBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const stopNavBtn = document.getElementById('stopNavBtn');
+const testNavBtn = document.getElementById('testNavBtn');
 const navStatus = document.getElementById('navStatus');
 
 // Инициализация модуля навигации
@@ -27,6 +28,7 @@ export function initNavigation() {
   audioNavBtn.addEventListener('click', startNavigation);
   stopNavBtn.addEventListener('click', stopNavigation);
   toggleAudioBtn.addEventListener('click', toggleAudioHandler);
+  testNavBtn.addEventListener('click', testNavigation);
   
   // Обновляем иконку кнопки звука
   updateAudioButtonIcon();
@@ -307,6 +309,7 @@ function startNavigation() {
     
     audioNavBtn.style.display = 'none';
     stopNavBtn.style.display = 'inline-block';
+    testNavBtn.style.display = 'inline-block';
     
     // Приветственный звуковой сигнал
     console.log('🎵 Запуск приветственного звука...');
@@ -334,9 +337,22 @@ function stopNavigation() {
   navStatus.textContent = '';
   audioNavBtn.style.display = 'inline-block';
   stopNavBtn.style.display = 'none';
+  testNavBtn.style.display = 'none';
   
   // Финальный звуковой сигнал
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
+}
+
+// Функция тестирования навигации
+function testNavigation() {
+  console.log('🧪 Тест навигации запущен');
+  navStatus.textContent = '🧪 Тест навигации запущен';
+  
+  // Принудительно вызываем navigationStep
+  setTimeout(() => {
+    console.log('🧪 Принудительный вызов navigationStep');
+    navigationStep();
+  }, 1000);
 }
 
 // Экспорт функций для внешнего использования
