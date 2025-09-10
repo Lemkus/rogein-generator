@@ -129,11 +129,15 @@ function getTargetCoords() {
 function navigationStep() {
   if (!isNavigating || !userPosition || !currentTarget) {
     console.log('❌ navigationStep: навигация не активна или нет данных');
+    navStatus.textContent = '❌ Навигация не активна';
     return;
   }
   
   const distance = haversine(userPosition.lat, userPosition.lng, currentTarget.lat, currentTarget.lng);
   console.log(`📍 navigationStep: расстояние=${distance.toFixed(1)}м`);
+  
+  // Обновляем статус с расстоянием
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🔄 Вычисляем...`;
   
   // Определяем направление движения
   let direction = 'neutral';
@@ -183,6 +187,9 @@ function navigationStep() {
   if (lastDistance !== null) {
     speed = lastDistance - distance; // Положительное = приближаемся, отрицательное = удаляемся
   }
+  
+  // Обновляем статус перед вызовом звука
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🎵 Вызываем звук...`;
   
   // Проигрываем звук с новой логикой
   playNavigationSound(distance, speed);

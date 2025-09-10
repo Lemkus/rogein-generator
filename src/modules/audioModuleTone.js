@@ -22,6 +22,10 @@ function initTone() {
     // Проверяем, что Tone.js загружен
     if (typeof Tone === 'undefined') {
         console.error('❌ Tone.js не загружен!');
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            navStatus.textContent = '❌ Tone.js не загружен!';
+        }
         return false;
     }
     
@@ -29,8 +33,16 @@ function initTone() {
     if (Tone.context.state !== 'running') {
         Tone.start().then(() => {
             console.log('🎵 Tone.js аудио контекст запущен');
+            const navStatus = document.getElementById('navStatus');
+            if (navStatus) {
+                navStatus.textContent = '🎵 Tone.js запущен';
+            }
         }).catch(err => {
             console.error('❌ Ошибка запуска Tone.js:', err);
+            const navStatus = document.getElementById('navStatus');
+            if (navStatus) {
+                navStatus.textContent = '❌ Ошибка Tone.js';
+            }
         });
     }
     
@@ -73,7 +85,19 @@ function getTargetFrequencyProgress(distance) {
 
 // Создание звука приближения (мажорный, яркий)
 function createApproachingSound(frequency) {
-    if (!initTone()) return;
+    if (!initTone()) {
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            navStatus.textContent = '❌ Tone.js не инициализирован';
+        }
+        return;
+    }
+    
+    // Обновляем статус
+    const navStatus = document.getElementById('navStatus');
+    if (navStatus) {
+        navStatus.textContent = `🎵 Создаем звук приближения: ${Math.round(frequency)}Hz`;
+    }
     
     // Создаем более приятный синтезатор для приближения
     const synth = new Tone.Synth({
@@ -163,10 +187,20 @@ function createMovingAwaySound(frequency) {
 export function playNavigationSound(distance, speed) {
     if (!isAudioEnabled) {
         console.log('🔇 Звук отключен');
+        const navStatus = document.getElementById('navStatus');
+        if (navStatus) {
+            navStatus.textContent = '🔇 Звук отключен';
+        }
         return;
     }
     
     console.log(`🎵 playNavigationSound вызвана: расстояние=${distance}м, скорость=${speed}`);
+    
+    // Обновляем статус
+    const navStatus = document.getElementById('navStatus');
+    if (navStatus) {
+        navStatus.textContent = `🎵 playNavigationSound: ${distance}м, ${speed}`;
+    }
     let isApproaching = false;
     
     // Определяем направление по скорости
