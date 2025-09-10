@@ -22,9 +22,9 @@ function initTone() {
     // Проверяем, что Tone.js загружен
     if (typeof Tone === 'undefined') {
         console.error('❌ Tone.js не загружен!');
-        const navStatus = document.getElementById('navStatus');
-        if (navStatus) {
-            navStatus.textContent = '❌ Tone.js не загружен!';
+        const statusEl5 = document.getElementById('navStatus');
+        if (statusEl5) {
+            statusEl5.textContent = '❌ Tone.js не загружен!';
         }
         return false;
     }
@@ -33,17 +33,23 @@ function initTone() {
     if (Tone.context.state !== 'running') {
         Tone.start().then(() => {
             console.log('🎵 Tone.js аудио контекст запущен');
-            const navStatus = document.getElementById('navStatus');
-            if (navStatus) {
-                navStatus.textContent = '🎵 Tone.js запущен';
+            const statusEl6 = document.getElementById('navStatus');
+            if (statusEl6) {
+                statusEl6.textContent = '🎵 Tone.js запущен';
             }
         }).catch(err => {
             console.error('❌ Ошибка запуска Tone.js:', err);
-            const navStatus = document.getElementById('navStatus');
-            if (navStatus) {
-                navStatus.textContent = '❌ Ошибка Tone.js';
+            const statusEl7 = document.getElementById('navStatus');
+            if (statusEl7) {
+                statusEl7.textContent = '❌ Ошибка Tone.js';
             }
         });
+    } else {
+        // Аудио контекст уже запущен
+        const statusEl8 = document.getElementById('navStatus');
+        if (statusEl8) {
+            statusEl8.textContent = '🎵 Tone.js уже запущен';
+        }
     }
     
     return true;
@@ -60,10 +66,10 @@ function getTargetFrequencyProgress(distance) {
         console.log(`🎯 Установлено начальное расстояние: ${startDistance}м`);
         
         // Обновляем статус навигации
-        const navStatus = document.getElementById('navStatus');
-        if (navStatus) {
-            const currentText = navStatus.textContent;
-            navStatus.textContent = `${currentText} | 🎯${startDistance}м`;
+        const statusEl9 = document.getElementById('navStatus');
+        if (statusEl9) {
+            const currentText = statusEl9.textContent;
+            statusEl9.textContent = `${currentText} | 🎯${startDistance}м`;
         }
         
         return 0;
@@ -86,17 +92,17 @@ function getTargetFrequencyProgress(distance) {
 // Создание звука приближения (мажорный, яркий)
 function createApproachingSound(frequency) {
     if (!initTone()) {
-        const navStatus = document.getElementById('navStatus');
-        if (navStatus) {
-            navStatus.textContent = '❌ Tone.js не инициализирован';
+        const statusEl10 = document.getElementById('navStatus');
+        if (statusEl10) {
+            statusEl10.textContent = '❌ Tone.js не инициализирован';
         }
         return;
     }
     
     // Обновляем статус
-    const navStatus = document.getElementById('navStatus');
-    if (navStatus) {
-        navStatus.textContent = `🎵 Создаем звук приближения: ${Math.round(frequency)}Hz`;
+    const statusEl11 = document.getElementById('navStatus');
+    if (statusEl11) {
+        statusEl11.textContent = `🎵 Создаем звук приближения: ${Math.round(frequency)}Hz`;
     }
     
     // Создаем более приятный синтезатор для приближения
@@ -123,6 +129,12 @@ function createApproachingSound(frequency) {
     
     // Проигрываем мажорную терцию (более яркий звук)
     const majorThird = frequency * Math.pow(2, 4/12); // Большая терция
+    
+    // Обновляем статус перед проигрыванием
+    const statusEl12 = document.getElementById('navStatus');
+    if (statusEl12) {
+        statusEl12.textContent = `🎵 Играем приближение: ${Math.round(frequency)}Hz`;
+    }
     
     synth.triggerAttackRelease(frequency, "8n");
     setTimeout(() => {
@@ -170,6 +182,12 @@ function createMovingAwaySound(frequency) {
     // Проигрываем минорную терцию (более грустный звук)
     const minorThird = frequency * Math.pow(2, 3/12); // Малая терция
     
+    // Обновляем статус перед проигрыванием
+    const statusEl13 = document.getElementById('navStatus');
+    if (statusEl13) {
+        statusEl13.textContent = `🎵 Играем удаление: ${Math.round(frequency)}Hz`;
+    }
+    
     synth.triggerAttackRelease(frequency, "4n");
     setTimeout(() => {
         synth.triggerAttackRelease(minorThird, "4n");
@@ -197,9 +215,9 @@ export function playNavigationSound(distance, speed) {
     console.log(`🎵 playNavigationSound вызвана: расстояние=${distance}м, скорость=${speed}`);
     
     // Обновляем статус
-    const navStatus = document.getElementById('navStatus');
-    if (navStatus) {
-        navStatus.textContent = `🎵 playNavigationSound: ${distance}м, ${speed}`;
+    const statusEl1 = document.getElementById('navStatus');
+    if (statusEl1) {
+        statusEl1.textContent = `🎵 playNavigationSound: ${distance}м, ${speed}`;
     }
     let isApproaching = false;
     
@@ -215,6 +233,13 @@ export function playNavigationSound(distance, speed) {
         } else {
             isApproaching = distance < 100; // По умолчанию считаем приближением
         }
+    }
+    
+    // Обновляем статус с направлением
+    const statusEl2 = document.getElementById('navStatus');
+    if (statusEl2) {
+        const directionText = isApproaching ? '↗️ Приближение' : '↘️ Удаление';
+        statusEl2.textContent = `🎵 ${directionText}: ${distance}м, скорость: ${speed}`;
     }
     
     // Получаем целевой прогресс частоты в зависимости от расстояния
@@ -235,20 +260,20 @@ export function playNavigationSound(distance, speed) {
         console.log(`🎵 Приближение: ${Math.round(currentFrequency)}Hz (прогресс: ${(frequencyProgress*100).toFixed(1)}%, целевой: ${(targetProgress*100).toFixed(1)}%), расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
         
         // Обновляем статус навигации с информацией о звуке
-        const navStatus = document.getElementById('navStatus');
-        if (navStatus) {
-            const currentText = navStatus.textContent;
-            navStatus.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↗️`;
+        const statusEl3 = document.getElementById('navStatus');
+        if (statusEl3) {
+            const currentText = statusEl3.textContent;
+            statusEl3.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↗️`;
         }
     } else {
         createMovingAwaySound(currentFrequency);
         console.log(`🎵 Удаление: ${Math.round(currentFrequency)}Hz (прогресс: ${(frequencyProgress*100).toFixed(1)}%, целевой: ${(targetProgress*100).toFixed(1)}%), расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
         
         // Обновляем статус навигации с информацией о звуке
-        const navStatus = document.getElementById('navStatus');
-        if (navStatus) {
-            const currentText = navStatus.textContent;
-            navStatus.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↘️`;
+        const statusEl4 = document.getElementById('navStatus');
+        if (statusEl4) {
+            const currentText = statusEl4.textContent;
+            statusEl4.textContent = `${currentText} | 🎵${Math.round(currentFrequency)}Hz ↘️`;
         }
     }
     
@@ -363,10 +388,10 @@ export function getSoundInterval(distance) {
     console.log(`⏱️ Ритм: ${interval.toFixed(1)}с (прогресс: ${(progress*100).toFixed(1)}%)`);
     
     // Обновляем статус навигации с информацией о ритме
-    const navStatus = document.getElementById('navStatus');
-    if (navStatus) {
-        const currentText = navStatus.textContent;
-        navStatus.textContent = `${currentText} | ⏱️${interval.toFixed(1)}с`;
+    const statusEl14 = document.getElementById('navStatus');
+    if (statusEl14) {
+        const currentText = statusEl14.textContent;
+        statusEl14.textContent = `${currentText} | ⏱️${interval.toFixed(1)}с`;
     }
     
     return interval;
