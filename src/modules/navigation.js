@@ -5,7 +5,7 @@
 
 import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
-import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval } from './audioModuleTone.js';
+import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleTone.js';
 
 // Переменные навигации
 let isNavigating = false;
@@ -120,9 +120,13 @@ function getTargetCoords() {
 
 // Основная логика навигации
 function navigationStep() {
-  if (!isNavigating || !userPosition || !currentTarget) return;
+  if (!isNavigating || !userPosition || !currentTarget) {
+    console.log('❌ navigationStep: навигация не активна или нет данных');
+    return;
+  }
   
   const distance = haversine(userPosition.lat, userPosition.lng, currentTarget.lat, currentTarget.lng);
+  console.log(`📍 navigationStep: расстояние=${distance.toFixed(1)}м`);
   
   // Определяем направление движения
   let direction = 'neutral';
@@ -146,7 +150,7 @@ function navigationStep() {
   navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}`;
   
   // Проверяем достижение цели
-  if (distance < 5) {
+  if (distance < 10) {
     playVictorySound(); // Звук победы
     navStatus.textContent = '🎯 Цель достигнута!';
     navStatus.style.color = 'green';
@@ -215,6 +219,9 @@ function startNavigation() {
   isNavigating = true;
   lastDistance = null;
   
+  // Сбрасываем состояние аудио модуля для новой навигации
+  resetNavigation();
+  
   // Предотвращаем засыпание экрана
   if ('wakeLock' in navigator) {
     navigator.wakeLock.request('screen').then(lock => {
@@ -243,6 +250,7 @@ function startNavigation() {
     stopNavBtn.style.display = 'inline-block';
     
     // Приветственный звуковой сигнал
+    console.log('🎵 Запуск приветственного звука...');
     playNavigationSound(100, 0); // Расстояние 100м, скорость 0
   } else {
     alert('Геолокация не поддерживается вашим браузером!');
