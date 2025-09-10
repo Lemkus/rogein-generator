@@ -126,8 +126,9 @@ export async function fetchPaths(bounds) {
   const e = bounds.getEast();
   const bbox = `${s},${w},${n},${e}`;
 
+  // Полный запрос со всеми типами дорог, но с лимитом для мобильных сетей
   const query = `[
-    out:json][timeout:${TIMEOUT}];
+    out:json][timeout:${TIMEOUT}][maxsize:50000000];
     (
       way["highway"="path"](${bbox});
       way["highway"="footway"](${bbox});
@@ -146,4 +147,59 @@ export async function fetchPaths(bounds) {
     out geom;`;
 
   return executeOverpassQuery(query, 'Тропы');
+}
+
+// Загрузка троп по частям для больших областей
+export async function fetchPathsInChunks(bounds) {
+  const s = bounds.getSouth();
+  const w = bounds.getWest();
+  const n = bounds.getNorth();
+  const e = bounds.getEast();
+  
+  // Разбиваем область на 4 части
+  const midLat = (s + n) / 2;
+  const midLng = (w + e) / 2;
+  
+  const chunks = [
+    { s, w, n: midLat, e: midLng }, // Юго-запад
+    { s, w: midLng, n: midLat, e }, // Юго-восток
+    { s: midLat, w, n, e: midLng }, // Северо-запад
+    { s: midLat, w: midLng, n, e }  // Северо-восток
+  ];
+  
+  let allPaths = [];
+  
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const bbox = `${chunk.s},${chunk.w},${chunk.n},${chunk.e}`;
+    
+    const query = `[
+      out:json][timeout:${TIMEOUT}][maxsize:20000000];
+      (
+        way["highway"="path"](${bbox});
+        way["highway"="footway"](${bbox});
+        way["highway"="cycleway"](${bbox});
+        way["highway"="track"](${bbox});
+        way["highway"="service"](${bbox});
+        way["highway"="bridleway"](${bbox});
+        way["highway"="unclassified"](${bbox});
+        way["highway"="residential"](${bbox});
+        way["highway"="living_street"](${bbox});
+        way["highway"="steps"](${bbox});
+        way["highway"="pedestrian"](${bbox});
+        way["highway"="crossing"](${bbox});
+        way["footway"="crossing"](${bbox});
+      );
+      out geom;`;
+    
+    try {
+      const chunkPaths = await executeOverpassQuery(query, `Тропы (часть ${i + 1}/4)`);
+      allPaths = allPaths.concat(chunkPaths);
+    } catch (error) {
+      console.warn(`Не удалось загрузить часть ${i + 1} троп:`, error.message);
+      // Продолжаем загрузку других частей
+    }
+  }
+  
+  return allPaths;
 } 
