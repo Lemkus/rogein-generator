@@ -139,7 +139,7 @@ function navigationStep() {
   console.log(`📍 navigationStep: расстояние=${distance.toFixed(1)}м`);
   
   // Обновляем статус с расстоянием
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🔄 Вычисляем...`;
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🔄 Вычисляем... (${new Date().toLocaleTimeString()})`;
   
   // Вычисляем скорость приближения/удаления СНАЧАЛА
   let speed = 0;
@@ -214,10 +214,14 @@ function navigationStep() {
   
   // Планируем следующую проверку
   clearTimeout(navigationInterval);
-  navigationInterval = setTimeout(() => {
+  clearInterval(navigationInterval);
+  
+  // Используем setInterval для более надежной работы на мобильных устройствах
+  navigationInterval = setInterval(() => {
     console.log('⏰ Выполняется запланированный navigationStep');
     navigationStep();
   }, soundDelay);
+  
   console.log(`⏰ Запланирован следующий navigationStep через ${(soundDelay/1000).toFixed(1)}с`);
   
   // Обновляем статус с информацией о следующем звуке
@@ -231,7 +235,7 @@ function onPositionUpdate(position) {
     lng: position.coords.longitude
   };
   
-  console.log(`📍 GPS получен: ${userPosition.lat.toFixed(6)}, ${userPosition.lng.toFixed(6)}`);
+  console.log(`📍 GPS получен: ${userPosition.lat.toFixed(6)}, ${userPosition.lng.toFixed(6)} (${new Date().toLocaleTimeString()})`);
   console.log(`🎯 Цель: ${currentTarget ? `${currentTarget.lat.toFixed(6)}, ${currentTarget.lng.toFixed(6)}` : 'НЕТ'}`);
   console.log(`🚀 Навигация активна: ${isNavigating}`);
   
@@ -318,6 +322,7 @@ function stopNavigation() {
   
   if (navigationInterval) {
     clearTimeout(navigationInterval);
+    clearInterval(navigationInterval);
     navigationInterval = null;
   }
   

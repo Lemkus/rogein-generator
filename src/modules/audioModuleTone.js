@@ -48,7 +48,7 @@ function initTone() {
         // Аудио контекст уже запущен
         const statusEl8 = document.getElementById('navStatus');
         if (statusEl8) {
-            statusEl8.textContent = '🎵 Tone.js уже запущен';
+            statusEl8.textContent = '🎵 Tone.js уже запущен :(';
         }
     }
     
