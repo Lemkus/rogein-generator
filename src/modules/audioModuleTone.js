@@ -214,13 +214,6 @@ export function playNavigationSound(distance, speed) {
         return;
     }
     
-    console.log(`🎵 playNavigationSound вызвана: расстояние=${distance}м, скорость=${speed}`);
-    
-    // Обновляем статус
-    const statusEl1 = document.getElementById('navStatus');
-    if (statusEl1) {
-        statusEl1.textContent = `🎵 playNavigationSound: ${distance}м, ${speed}`;
-    }
     let isApproaching = false;
     
     // Определяем направление по скорости
@@ -237,12 +230,6 @@ export function playNavigationSound(distance, speed) {
         }
     }
     
-    // Обновляем статус с направлением
-    const statusEl2 = document.getElementById('navStatus');
-    if (statusEl2) {
-        const directionText = isApproaching ? '↗️ Приближение' : '↘️ Удаление';
-        statusEl2.textContent = `🎵 ${directionText}: ${distance}м, скорость: ${speed}`;
-    }
     
     // Получаем целевой прогресс частоты в зависимости от расстояния
     const targetProgress = getTargetFrequencyProgress(distance);
