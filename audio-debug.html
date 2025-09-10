@@ -228,7 +228,7 @@
             <h3>📏 Параметры навигации</h3>
             <div class="input-group">
                 <label>Расстояние:</label>
-                <input type="range" id="distanceSlider" min="10" max="200" value="100">
+                <input type="range" id="distanceSlider" min="1" max="2000" value="100">
                 <div class="value-display" id="distanceValue">100 м</div>
             </div>
             
@@ -323,16 +323,22 @@
                     <p>Средний тон, минор</p>
                 </div>
                 
-                <div class="example-btn" data-distance="180" data-speed="0.5">
+                <div class="example-btn" data-distance="500" data-speed="0.5">
                     <h4>Далеко + Приближение</h4>
-                    <p>180м, +0.5 м/с</p>
+                    <p>500м, +0.5 м/с</p>
                     <p>Низкий тон, мажор</p>
                 </div>
                 
-                <div class="example-btn" data-distance="180" data-speed="-0.5">
-                    <h4>Далеко + Удаление</h4>
-                    <p>180м, -0.5 м/с</p>
-                    <p>Низкий тон, минор</p>
+                <div class="example-btn" data-distance="1000" data-speed="-0.5">
+                    <h4>Очень далеко + Удаление</h4>
+                    <p>1км, -0.5 м/с</p>
+                    <p>Очень низкий тон, минор</p>
+                </div>
+                
+                <div class="example-btn" data-distance="2000" data-speed="0">
+                    <h4>Максимальное расстояние</h4>
+                    <p>2км, 0 м/с</p>
+                    <p>Минимальный тон</p>
                 </div>
             </div>
         </div>
@@ -342,25 +348,30 @@
             <ul>
                 <li><strong>Мажорный аккорд</strong> - когда приближаемся к цели (положительная скорость)</li>
                 <li><strong>Минорный аккорд</strong> - когда удаляемся от цели (отрицательная скорость)</li>
-                <li><strong>Высота тона</strong> - чем ближе к цели, тем выше тон (200-800 Hz)</li>
-                <li><strong>Частота звуков</strong> - чем ближе к цели, тем чаще звуки (0.5-2 сек)</li>
+                <li><strong>Высота тона</strong> - всегда начинаем с низкой (200Hz), заканчиваем высокой (800Hz)</li>
+                <li><strong>Максимальный тон</strong> - достигается только в пределах 10 метров от цели</li>
+                <li><strong>Рост тона</strong> - начинается с 10 км, плавно растет до 10 метров</li>
+                <li><strong>Частота звуков</strong> - чем ближе к цели, тем чаще звуки (0.2-3 сек)</li>
+                <li><strong>Логарифмическая шкала</strong> - работает с любыми расстояниями (1м - 10км+)</li>
                 <li><strong>Скорость 0</strong> - определяется по изменению расстояния</li>
             </ul>
         </div>
     </div>
 
+    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
     <script type="module">
         import { 
             playTestSound, 
             toggleAudio, 
             isAudioOn, 
-            getBaseFrequency, 
             getSoundInterval,
+            createVictorySound,
             startMovementSimulation,
             stopMovementSimulation,
             getSimulationStatus,
-            createVictorySound
-        } from './src/modules/audioModuleSimple.js';
+            getBaseFrequency,
+            resetNavigation
+        } from './src/modules/audioModuleTone.js';
         
         // DOM элементы
         const audioToggle = document.getElementById('audioToggle');
@@ -490,6 +501,9 @@
                 alert('Включите звук для симуляции!');
                 return;
             }
+            
+            // Сбрасываем навигацию для новой симуляции
+            resetNavigation();
             
             // Останавливаем все другие режимы
             stopContinuousPlay();
