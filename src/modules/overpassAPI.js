@@ -4,25 +4,40 @@
  */
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const TIMEOUT = 25;
+const TIMEOUT = 60; // Увеличиваем таймаут для мобильных сетей
 
 // Базовая функция для выполнения запросов к Overpass API
 async function executeOverpassQuery(query, errorMessage) {
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    body: query,
-    headers: { 'Content-Type': 'text/plain' }
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Ошибка Overpass API (${errorMessage}):`, response.status, response.statusText, errorText);
-    throw new Error(`${errorMessage}: ${response.status} ${response.statusText}. Попробуйте уменьшить область.`);
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT * 1000);
+    
+    const response = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      body: query,
+      headers: { 'Content-Type': 'text/plain' },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Ошибка Overpass API (${errorMessage}):`, response.status, response.statusText, errorText);
+      throw new Error(`${errorMessage}: ${response.status} ${response.statusText}. Попробуйте уменьшить область.`);
+    }
+    
+    const data = await response.json();
+    console.log(`${errorMessage} из Overpass:`, data.elements?.length || 0, 'элементов');
+    return data.elements || [];
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error(`Таймаут Overpass API (${errorMessage})`);
+      throw new Error(`${errorMessage}: Превышено время ожидания (${TIMEOUT}с). Попробуйте уменьшить область или использовать Wi-Fi.`);
+    }
+    console.error(`Ошибка сети (${errorMessage}):`, error);
+    throw new Error(`${errorMessage}: Ошибка сети. Проверьте подключение к интернету.`);
   }
-  
-  const data = await response.json();
-  console.log(`${errorMessage} из Overpass:`, data.elements);
-  return data.elements;
 }
 
 // Загрузка закрытых зон (военные объекты, частные территории)

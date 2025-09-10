@@ -20,7 +20,6 @@ const targetPointSelect = document.getElementById('targetPointSelect');
 const audioNavBtn = document.getElementById('audioNavBtn');
 const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const stopNavBtn = document.getElementById('stopNavBtn');
-const testNavBtn = document.getElementById('testNavBtn');
 const navStatus = document.getElementById('navStatus');
 
 // Инициализация модуля навигации
@@ -28,7 +27,6 @@ export function initNavigation() {
   audioNavBtn.addEventListener('click', startNavigation);
   stopNavBtn.addEventListener('click', stopNavigation);
   toggleAudioBtn.addEventListener('click', toggleAudioHandler);
-  testNavBtn.addEventListener('click', testNavigation);
   
   // Обновляем иконку кнопки звука
   updateAudioButtonIcon();
@@ -129,22 +127,11 @@ function getTargetCoords() {
 
 // Основная логика навигации
 function navigationStep() {
-  console.log('🔄 navigationStep вызвана');
-  
-  // Обновляем статус с временной меткой
-  navStatus.textContent = `🔄 navigationStep вызвана (${new Date().toLocaleTimeString()})`;
-  
   if (!isNavigating || !userPosition || !currentTarget) {
-    console.log('❌ navigationStep: навигация не активна или нет данных');
-    navStatus.textContent = '❌ Навигация не активна';
     return;
   }
   
   const distance = haversine(userPosition.lat, userPosition.lng, currentTarget.lat, currentTarget.lng);
-  console.log(`📍 navigationStep: расстояние=${distance.toFixed(1)}м`);
-  
-  // Обновляем статус с расстоянием
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🔄 Вычисляем... (${new Date().toLocaleTimeString()})`;
   
   // Вычисляем скорость приближения/удаления СНАЧАЛА
   let speed = 0;
@@ -170,12 +157,8 @@ function navigationStep() {
     }
   }
   
-  // Обновляем статус с индикацией направления и отладочной информацией
-  const speedText = speed > 0 ? ` ↗️+${speed.toFixed(1)}` : speed < 0 ? ` ↘️${speed.toFixed(1)}` : ' =0';
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}${speedText}`;
-  
-  // Обновляем статус перед проверкой цели
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🎯 Проверяем цель...`;
+  // Обновляем статус с индикацией направления
+  navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}`;
   
   // Проверяем достижение цели
   if (distance < 10) {
@@ -198,22 +181,12 @@ function navigationStep() {
     return;
   }
   
-  // Обновляем статус после проверки цели
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ✅ Цель не достигнута, продолжаем...`;
-  
-  // Обновляем статус перед вызовом звука
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | 🎵 Вызываем звук...`;
   
   // Проигрываем звук с новой логикой
   playNavigationSound(distance, speed);
   
   // Получаем интервал для следующего звука
   const soundDelay = getSoundInterval(distance) * 1000; // Конвертируем в миллисекунды
-  console.log(`⏱️ Следующий звук через: ${(soundDelay/1000).toFixed(1)}с`);
-  
-  // Обновляем статус с информацией о следующем звуке
-  const currentStatus = navStatus.textContent;
-  navStatus.textContent = `${currentStatus} | ⏱️${(soundDelay/1000).toFixed(1)}с`;
   
   lastDistance = distance;
   
@@ -221,18 +194,10 @@ function navigationStep() {
   clearTimeout(navigationInterval);
   clearInterval(navigationInterval);
   
-  // Используем фиксированный интервал для тестирования
-  const testInterval = 2000; // 2 секунды для тестирования
-  
+  // Планируем следующую проверку
   navigationInterval = setInterval(() => {
-    console.log('⏰ Выполняется запланированный navigationStep (тест)');
     navigationStep();
-  }, testInterval);
-  
-  console.log(`⏰ Запланирован следующий navigationStep через ${(testInterval/1000).toFixed(1)}с (тест)`);
-  
-  // Обновляем статус с информацией о следующем звуке
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м | ⏰ Следующий через ${(testInterval/1000).toFixed(1)}с (тест)`;
+  }, soundDelay);
 }
 
 // Обработка изменения позиции пользователя
@@ -242,17 +207,8 @@ function onPositionUpdate(position) {
     lng: position.coords.longitude
   };
   
-  console.log(`📍 GPS получен: ${userPosition.lat.toFixed(6)}, ${userPosition.lng.toFixed(6)} (${new Date().toLocaleTimeString()})`);
-  console.log(`🎯 Цель: ${currentTarget ? `${currentTarget.lat.toFixed(6)}, ${currentTarget.lng.toFixed(6)}` : 'НЕТ'}`);
-  console.log(`🚀 Навигация активна: ${isNavigating}`);
-  
-  // Обновляем статус с информацией о GPS
   if (isNavigating) {
-    navStatus.textContent = `📍 GPS: ${userPosition.lat.toFixed(4)}, ${userPosition.lng.toFixed(4)}`;
-    console.log('🎵 Вызываем navigationStep...');
     navigationStep();
-  } else {
-    console.log('❌ Навигация не активна, navigationStep не вызывается');
   }
 }
 
@@ -270,18 +226,12 @@ function startNavigation() {
     return;
   }
   
-  console.log(`🎯 Начинаем навигацию к точке: ${target.lat.toFixed(6)}, ${target.lng.toFixed(6)}`);
-  
   currentTarget = target;
   isNavigating = true;
   lastDistance = null;
   
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
-  console.log('🔄 Состояние аудио модуля сброшено');
-  
-  // Обновляем статус
-  navStatus.textContent = `🎯 Цель: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}`;
   
   // Предотвращаем засыпание экрана
   if ('wakeLock' in navigator) {
@@ -309,10 +259,8 @@ function startNavigation() {
     
     audioNavBtn.style.display = 'none';
     stopNavBtn.style.display = 'inline-block';
-    testNavBtn.style.display = 'inline-block';
     
     // Приветственный звуковой сигнал
-    console.log('🎵 Запуск приветственного звука...');
     playNavigationSound(100, 0); // Расстояние 100м, скорость 0
   } else {
     alert('Геолокация не поддерживается вашим браузером!');
@@ -337,23 +285,11 @@ function stopNavigation() {
   navStatus.textContent = '';
   audioNavBtn.style.display = 'inline-block';
   stopNavBtn.style.display = 'none';
-  testNavBtn.style.display = 'none';
   
   // Финальный звуковой сигнал
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
 }
 
-// Функция тестирования навигации
-function testNavigation() {
-  console.log('🧪 Тест навигации запущен');
-  navStatus.textContent = '🧪 Тест навигации запущен';
-  
-  // Принудительно вызываем navigationStep
-  setTimeout(() => {
-    console.log('🧪 Принудительный вызов navigationStep');
-    navigationStep();
-  }, 1000);
-}
 
 // Экспорт функций для внешнего использования
 export { isNavigating, currentTarget, userPosition }; 

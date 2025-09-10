@@ -56,14 +56,74 @@ export async function generatePoints(selectedBounds, startPoint, count, percent,
   }
 
   try {
-    // Загружаем данные параллельно
-    statusCallback('Загрузка закрытых зон...');
-    const [closedAreasData, waterAreasData, barriersData, pathsData] = await Promise.all([
-      fetchClosedAreas(selectedBounds),
-      fetchWaterAreas(selectedBounds),
-      fetchBarriers(selectedBounds),
-      fetchPaths(selectedBounds)
-    ]);
+    // Загружаем данные последовательно для лучшей работы на мобильных сетях
+    let closedAreasData = [];
+    let waterAreasData = [];
+    let barriersData = [];
+    let pathsData = [];
+    
+    // Загружаем закрытые зоны (критично)
+    try {
+      statusCallback('Загрузка закрытых зон...');
+      closedAreasData = await fetchClosedAreas(selectedBounds);
+    } catch (error) {
+      console.warn('Не удалось загрузить закрытые зоны:', error.message);
+      statusCallback('⚠️ Закрытые зоны пропущены (ошибка сети)');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Пауза для показа сообщения
+    }
+    
+    if (cancelGeneration) {
+      statusCallback('Отменено пользователем.');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+    
+    // Загружаем водоёмы (критично)
+    try {
+      statusCallback('Загрузка водоёмов...');
+      waterAreasData = await fetchWaterAreas(selectedBounds);
+    } catch (error) {
+      console.warn('Не удалось загрузить водоёмы:', error.message);
+      statusCallback('⚠️ Водоёмы пропущены (ошибка сети)');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    if (cancelGeneration) {
+      statusCallback('Отменено пользователем.');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+    
+    // Загружаем барьеры (не критично)
+    try {
+      statusCallback('Загрузка барьеров...');
+      barriersData = await fetchBarriers(selectedBounds);
+    } catch (error) {
+      console.warn('Не удалось загрузить барьеры:', error.message);
+      statusCallback('⚠️ Барьеры пропущены (ошибка сети)');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    if (cancelGeneration) {
+      statusCallback('Отменено пользователем.');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+    
+    // Загружаем тропы (критично - без них генерация невозможна)
+    try {
+      statusCallback('Загрузка троп...');
+      pathsData = await fetchPaths(selectedBounds);
+    } catch (error) {
+      console.error('Не удалось загрузить тропы:', error.message);
+      statusCallback(`❌ Ошибка загрузки троп: ${error.message}`);
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
 
     if (cancelGeneration) {
       statusCallback('Отменено пользователем.');
