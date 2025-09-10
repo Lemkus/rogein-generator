@@ -19,24 +19,22 @@ const maxFreq = 800; // Всегда заканчиваем высокой ча�
 
 // Инициализация Tone.js
 function initTone() {
-    if (Tone.context.state !== 'running') {
-        Tone.start();
+    // Проверяем, что Tone.js загружен
+    if (typeof Tone === 'undefined') {
+        console.error('❌ Tone.js не загружен!');
+        return false;
     }
     
-    if (!currentSynth) {
-        // Создаем синтезатор для приближения (яркий, мажорный звук)
-        currentSynth = new Tone.Synth({
-            oscillator: {
-                type: 'sine'
-            },
-            envelope: {
-                attack: 0.1,
-                decay: 0.2,
-                sustain: 0.3,
-                release: 0.8
-            }
-        }).toDestination();
+    // Запускаем аудио контекст
+    if (Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            console.log('🎵 Tone.js аудио контекст запущен');
+        }).catch(err => {
+            console.error('❌ Ошибка запуска Tone.js:', err);
+        });
     }
+    
+    return true;
 }
 
 // Получение целевого прогресса частоты в зависимости от расстояния
@@ -67,7 +65,7 @@ function getTargetFrequencyProgress(distance) {
 
 // Создание звука приближения (мажорный, яркий)
 function createApproachingSound(frequency) {
-    initTone();
+    if (!initTone()) return;
     
     // Создаем более приятный синтезатор для приближения
     const synth = new Tone.Synth({
@@ -108,7 +106,7 @@ function createApproachingSound(frequency) {
 
 // Создание звука удаления (минорный, глухой)
 function createMovingAwaySound(frequency) {
-    initTone();
+    if (!initTone()) return;
     
     // Создаем более приятный синтезатор для удаления
     const synth = new Tone.Synth({
@@ -155,7 +153,12 @@ function createMovingAwaySound(frequency) {
 
 // Основная функция навигации с плавным изменением тона
 export function playNavigationSound(distance, speed) {
-    if (!isAudioEnabled) return;
+    if (!isAudioEnabled) {
+        console.log('🔇 Звук отключен');
+        return;
+    }
+    
+    console.log(`🎵 playNavigationSound вызвана: расстояние=${distance}м, скорость=${speed}`);
     let isApproaching = false;
     
     // Определяем направление по скорости
@@ -201,7 +204,7 @@ export function playNavigationSound(distance, speed) {
 export function playVictorySound() {
     if (!isAudioEnabled) return;
     
-    initTone();
+    if (!initTone()) return;
     
     // Создаем основной синтезатор для мелодии
     const melodySynth = new Tone.Synth({
