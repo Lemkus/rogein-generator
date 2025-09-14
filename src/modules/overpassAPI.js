@@ -140,8 +140,8 @@ export async function fetchPaths(bounds, statusCallback) {
     { type: 'residential', name: 'Жилые улицы' },
     { type: 'living_street', name: 'Жилые зоны' },
     { type: 'steps', name: 'Лестницы' },
-    { type: 'pedestrian', name: 'Пешеходные зоны' },
-    { type: 'crossing', name: 'Переходы' }
+    { type: 'pedestrian', name: 'Пешеходные зоны' }
+    // Примечание: crossing загружается отдельно как footway=crossing
   ];
 
   // Загружаем каждый тип отдельно
@@ -224,8 +224,8 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
     { type: 'residential', name: 'Жилые улицы' },
     { type: 'living_street', name: 'Жилые зоны' },
     { type: 'steps', name: 'Лестницы' },
-    { type: 'pedestrian', name: 'Пешеходные зоны' },
-    { type: 'crossing', name: 'Переходы' }
+    { type: 'pedestrian', name: 'Пешеходные зоны' }
+    // Примечание: crossing загружается отдельно как footway=crossing
   ];
   
   for (let i = 0; i < chunks.length; i++) {
