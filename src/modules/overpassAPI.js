@@ -149,8 +149,13 @@ export async function fetchPaths(bounds, statusCallback) {
     try {
       statusCallback(`Загрузка ${pathType.name}...`);
       
+      // Для пешеходных троп используем более строгие лимиты
+      const isPathType = pathType.type === 'path';
+      const timeout = isPathType ? 30 : TIMEOUT; // 30 сек для path, 60 для остальных
+      const maxsize = isPathType ? 5000000 : 10000000; // 5 МБ для path, 10 МБ для остальных
+      
       const query = `[
-        out:json][timeout:${TIMEOUT}][maxsize:10000000];
+        out:json][timeout:${timeout}][maxsize:${maxsize}];
         way["highway"="${pathType.type}"](${bbox});
         out geom;`;
 
@@ -234,8 +239,13 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
       try {
         statusCallback(`Часть ${i + 1}/4: ${pathType.name}...`);
         
+        // Для пешеходных троп используем еще более строгие лимиты в частях
+        const isPathType = pathType.type === 'path';
+        const timeout = isPathType ? 20 : TIMEOUT; // 20 сек для path, 60 для остальных
+        const maxsize = isPathType ? 2000000 : 5000000; // 2 МБ для path, 5 МБ для остальных
+        
         const query = `[
-          out:json][timeout:${TIMEOUT}][maxsize:5000000];
+          out:json][timeout:${timeout}][maxsize:${maxsize}];
           way["highway"="${pathType.type}"](${bbox});
           out geom;`;
 
