@@ -5,7 +5,7 @@
 
 import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
-import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleTone.js';
+import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleSimple.js';
 
 // Переменные навигации
 let isNavigating = false;

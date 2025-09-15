@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Отладка звуковой навигации</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -358,20 +359,16 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
+    <!-- Tone.js удален - используем простой Web Audio API -->
     <script type="module">
         import { 
-            playTestSound, 
+            playNavigationSound, 
+            playVictorySound,
             toggleAudio, 
             isAudioOn, 
             getSoundInterval,
-            createVictorySound,
-            startMovementSimulation,
-            stopMovementSimulation,
-            getSimulationStatus,
-            getBaseFrequency,
             resetNavigation
-        } from './src/modules/audioModuleTone.js';
+        } from './src/modules/audioModuleSimple.js';
         
         // DOM элементы
         const audioToggle = document.getElementById('audioToggle');
@@ -402,6 +399,7 @@
         let currentDistance = 100;
         let currentSpeed = 0;
         let isContinuousPlaying = false;
+        let isSimulationRunning = false;
         
         // Обновление значений
         function updateValues() {
@@ -411,8 +409,19 @@
             distanceValue.textContent = `${currentDistance} м`;
             speedValue.textContent = `${currentSpeed} м/с`;
             
-            // Вычисляем параметры звука
-            const frequency = getBaseFrequency(currentDistance);
+            // Вычисляем параметры звука (простая логика без внешних функций)
+            const minFreq = 200;
+            const maxFreq = 800;
+            let frequency;
+            
+            if (currentDistance <= 10) {
+                frequency = maxFreq;
+            } else {
+                // Простой расчет частоты (0-100% прогресса)
+                const progress = Math.max(0, Math.min(1, (1000 - currentDistance) / 1000));
+                frequency = minFreq + (maxFreq - minFreq) * progress;
+            }
+            
             const interval = getSoundInterval(currentDistance);
             
             frequencyValue.textContent = `${Math.round(frequency)} Hz`;
@@ -448,7 +457,7 @@
                 return;
             }
             
-            playTestSound(currentDistance, currentSpeed);
+            playNavigationSound(currentDistance, currentSpeed);
         }
         
         // Непрерывное воспроизведение
@@ -468,7 +477,7 @@
             isContinuousPlaying = true;
             
             // Проигрываем звук сразу
-            playTestSound(currentDistance, currentSpeed);
+            playNavigationSound(currentDistance, currentSpeed);
             
             // Затем проигрываем с интервалами
             const playNext = () => {
@@ -477,7 +486,7 @@
                 const interval = getSoundInterval(currentDistance);
                 continuousPlayInterval = setTimeout(() => {
                     if (isContinuousPlaying) {
-                        playTestSound(currentDistance, currentSpeed);
+                        playNavigationSound(currentDistance, currentSpeed);
                         playNext(); // Рекурсивно планируем следующий звук
                     }
                 }, interval * 1000);
@@ -525,8 +534,12 @@
             simulationPanel.style.display = 'block';
             
             // Запускаем симуляцию
-            startMovementSimulation(initialDistance, speed, (reached, distance) => {
-                if (reached) {
+            // Простая симуляция без сложной логики
+            let currentSimDistance = initialDistance;
+            const simulationInterval = setInterval(() => {
+                currentSimDistance -= speed;
+                
+                if (currentSimDistance <= 10) {
                     // Достигли цели
                     simDistance.textContent = '0 м';
                     simTimeToTarget.textContent = '0 сек';
@@ -534,14 +547,16 @@
                     startMovementSimulationBtn.textContent = '🏃‍♂️ Симуляция';
                     statusDisplay.textContent = '🏆 Цель достигнута!';
                     statusDisplay.className = 'status reached';
+                    isSimulationRunning = false;
+                    clearInterval(simulationInterval);
                 } else {
                     // Обновляем информацию
-                    simDistance.textContent = `${Math.round(distance)} м`;
+                    simDistance.textContent = `${Math.round(currentSimDistance)} м`;
                     simSpeed.textContent = `${speed} м/с`;
                     
                     if (speed > 0) {
                         // Приближаемся
-                        simTimeToTarget.textContent = `${Math.round(distance / speed)} сек`;
+                        simTimeToTarget.textContent = `${Math.round(currentSimDistance / speed)} сек`;
                         simStatus.textContent = '🏃‍♂️ Приближаемся к цели';
                     } else {
                         // Удаляемся
@@ -550,10 +565,17 @@
                     }
                     
                     // Обновляем слайдеры
-                    distanceSlider.value = distance;
+                    distanceSlider.value = currentSimDistance;
                     updateValues();
+                    
+                    // Проигрываем звук навигации
+                    playNavigationSound(currentSimDistance, speed);
                 }
-            });
+            }, 1000); // Обновляем каждую секунду
+            
+            // Сохраняем интервал для остановки
+            window.currentSimulationInterval = simulationInterval;
+            isSimulationRunning = true;
             
             startMovementSimulationBtn.textContent = '⏹️ Остановить';
             statusDisplay.textContent = '🏃‍♂️ Симуляция движения';
@@ -561,7 +583,12 @@
         }
         
         function stopMovementSimulationMode() {
-            stopMovementSimulation();
+            // Останавливаем симуляцию
+            if (window.currentSimulationInterval) {
+                clearInterval(window.currentSimulationInterval);
+                window.currentSimulationInterval = null;
+            }
+            isSimulationRunning = false;
             simulationPanel.style.display = 'none';
             startMovementSimulationBtn.textContent = '🏃‍♂️ Симуляция';
             statusDisplay.textContent = 'Готов к тестированию';
@@ -627,7 +654,7 @@
                 alert('Включите звук для прослушивания!');
                 return;
             }
-            createVictorySound();
+            playVictorySound();
             statusDisplay.textContent = '🏆 Звук победы проигран!';
             statusDisplay.className = 'status reached';
         });
@@ -641,8 +668,7 @@
             }
         });
         startMovementSimulationBtn.addEventListener('click', () => {
-            const status = getSimulationStatus();
-            if (status.isRunning) {
+            if (isSimulationRunning) {
                 stopMovementSimulationMode();
             } else {
                 startMovementSimulationMode();
