@@ -6,34 +6,67 @@
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const TIMEOUT = 60; // Увеличиваем таймаут для мобильных сетей
 
+// Простой кэш для избежания повторных запросов
+const queryCache = new Map();
+
+// Определяем мобильную сеть
+function isMobileNetwork() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const connection = window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
+  
+  // Если это мобильное устройство и соединение не 4G/5G
+  return isMobile && (!connection || !connection.effectiveType?.includes('4g'));
+}
+
+// Очистка кэша
+export function clearQueryCache() {
+  queryCache.clear();
+  console.log('Кэш Overpass API очищен');
+}
+
 // Базовая функция для выполнения запросов к Overpass API
-async function executeOverpassQuery(query, errorMessage) {
+async function executeOverpassQuery(query, errorMessage, customTimeout = TIMEOUT) {
+  // Проверяем кэш
+  const cacheKey = query + customTimeout;
+  if (queryCache.has(cacheKey)) {
+    console.log(`${errorMessage} из кэша:`, queryCache.get(cacheKey).length, 'элементов');
+    return queryCache.get(cacheKey);
+  }
+  
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT * 1000);
+    const timeoutId = setTimeout(() => controller.abort(), customTimeout * 1000);
     
-    const response = await fetch(OVERPASS_URL, {
-      method: 'POST',
-      body: query,
-      headers: { 'Content-Type': 'text/plain' },
+  const response = await fetch(OVERPASS_URL, {
+    method: 'POST',
+    body: query,
+      headers: { 
+        'Content-Type': 'text/plain',
+        'Accept': 'application/json'
+      },
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Ошибка Overpass API (${errorMessage}):`, response.status, response.statusText, errorText);
+    throw new Error(`${errorMessage}: ${response.status} ${response.statusText}. Попробуйте уменьшить область.`);
+  }
+  
+  const data = await response.json();
+    const elements = data.elements || [];
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Ошибка Overpass API (${errorMessage}):`, response.status, response.statusText, errorText);
-      throw new Error(`${errorMessage}: ${response.status} ${response.statusText}. Попробуйте уменьшить область.`);
-    }
+    // Сохраняем в кэш
+    queryCache.set(cacheKey, elements);
     
-    const data = await response.json();
-    console.log(`${errorMessage} из Overpass:`, data.elements?.length || 0, 'элементов');
-    return data.elements || [];
+    console.log(`${errorMessage} из Overpass:`, elements.length, 'элементов');
+    return elements;
   } catch (error) {
     if (error.name === 'AbortError') {
       console.error(`Таймаут Overpass API (${errorMessage})`);
-      throw new Error(`${errorMessage}: Превышено время ожидания (${TIMEOUT}с). Попробуйте уменьшить область или использовать Wi-Fi.`);
+      throw new Error(`${errorMessage}: Превышено время ожидания (${customTimeout}с). Попробуйте уменьшить область или использовать Wi-Fi.`);
     }
     console.error(`Ошибка сети (${errorMessage}):`, error);
     throw new Error(`${errorMessage}: Ошибка сети. Проверьте подключение к интернету.`);
@@ -60,7 +93,7 @@ export async function fetchClosedAreas(bounds) {
     );
     out geom;`;
 
-  return executeOverpassQuery(query, 'Закрытые зоны');
+  return executeOverpassQuery(query, 'Закрытые зоны', TIMEOUT);
 }
 
 // Загрузка водоёмов
@@ -85,7 +118,7 @@ export async function fetchWaterAreas(bounds) {
     );
     out geom;`;
 
-  return executeOverpassQuery(query, 'Водоёмы');
+  return executeOverpassQuery(query, 'Водоёмы', TIMEOUT);
 }
 
 // Загрузка барьеров - только ЯВНО ЗАПРЕЩЁННЫЕ
@@ -115,7 +148,7 @@ export async function fetchBarriers(bounds) {
     );
     out geom;`;
 
-  return executeOverpassQuery(query, 'Барьеры');
+  return executeOverpassQuery(query, 'Барьеры', TIMEOUT);
 }
 
 // Загрузка пешеходных путей и дорог по типам
@@ -145,28 +178,99 @@ export async function fetchPaths(bounds, statusCallback) {
   ];
 
   // Загружаем каждый тип отдельно
+  const isMobile = isMobileNetwork();
+  
   for (const pathType of pathTypes) {
     try {
       statusCallback(`Загрузка ${pathType.name}...`);
       
-      // Для пешеходных троп используем более строгие лимиты
+      // Специальные настройки для пешеходных троп (highway=path)
+      let timeout, maxsize;
       const isPathType = pathType.type === 'path';
-      const timeout = isPathType ? 30 : TIMEOUT; // 30 сек для path, 60 для остальных
-      const maxsize = isPathType ? 5000000 : 10000000; // 5 МБ для path, 10 МБ для остальных
       
-      const query = `[
-        out:json][timeout:${timeout}][maxsize:${maxsize}];
+      if (isMobile && isPathType) {
+        // Для мобильных сетей и пешеходных троп - очень консервативные настройки
+        timeout = 30; // 30 секунд
+        maxsize = 2000000; // 2 МБ максимум
+        statusCallback(`📱 Мобильная сеть: ${pathType.name} (лимит 2МБ, 30с)`);
+      } else if (isPathType) {
+        // Для пешеходных троп на обычных сетях
+        timeout = 30; // 30 секунд
+        maxsize = 5000000; // 5 МБ
+      } else {
+        // Для остальных типов
+        timeout = TIMEOUT; // 60 секунд
+        maxsize = 10000000; // 10 МБ
+      }
+      
+      // Всегда используем out geom для получения полной геометрии троп
+      const query = `[out:json][timeout:${timeout}][maxsize:${maxsize}];
         way["highway"="${pathType.type}"](${bbox});
         out geom;`;
 
-      const paths = await executeOverpassQuery(query, pathType.name);
+      const paths = await executeOverpassQuery(query, pathType.name, timeout);
       allPaths = allPaths.concat(paths);
+      
+      // Отладочная информация для пешеходных троп
+      if (pathType.type === 'path' && paths.length > 0) {
+        console.log(`Отладка ${pathType.name}:`, {
+          count: paths.length,
+          firstPath: {
+            hasGeometry: !!paths[0].geometry,
+            geometryType: typeof paths[0].geometry,
+            isArray: Array.isArray(paths[0].geometry),
+            geometryLength: paths[0].geometry?.length,
+            firstCoord: paths[0].geometry?.[0],
+            firstCoordType: typeof paths[0].geometry?.[0]
+          }
+        });
+      }
       
       statusCallback(`✅ ${pathType.name}: ${paths.length} элементов`);
       
     } catch (error) {
       console.warn(`Не удалось загрузить ${pathType.name}:`, error.message);
       statusCallback(`⚠️ ${pathType.name}: ${error.message}`);
+      
+      // Специальная логика для пешеходных троп (highway=path)
+      if (pathType.type === 'path') {
+        statusCallback(`🔄 Повторная попытка загрузки ${pathType.name}...`);
+        try {
+          // Повторная попытка с еще более строгими лимитами для пешеходных троп
+          const retryTimeout = isMobile ? 20 : 25; // Еще меньше времени
+          const retryMaxsize = isMobile ? 1000000 : 2000000; // Еще меньше данных
+          
+          // Всегда используем out geom для повторных попыток
+          const retryQuery = `[out:json][timeout:${retryTimeout}][maxsize:${retryMaxsize}];
+            way["highway"="${pathType.type}"](${bbox});
+            out geom;`;
+          
+          const retryPaths = await executeOverpassQuery(retryQuery, `${pathType.name} (повтор)`, retryTimeout);
+          allPaths = allPaths.concat(retryPaths);
+          statusCallback(`✅ ${pathType.name} (повтор): ${retryPaths.length} элементов`);
+        } catch (retryError) {
+          console.warn(`Повторная попытка не удалась:`, retryError.message);
+          statusCallback(`❌ ${pathType.name}: не удалось загрузить даже с повторной попыткой`);
+          
+          // Последняя попытка - минимальные лимиты
+          if (isMobile) {
+            statusCallback(`🔄 Последняя попытка для ${pathType.name} (минимальные лимиты)...`);
+            try {
+              // Последняя попытка - всегда out geom
+              const lastRetryQuery = `[out:json][timeout:15][maxsize:500000];
+                way["highway"="${pathType.type}"](${bbox});
+                out geom;`;
+              
+              const lastRetryPaths = await executeOverpassQuery(lastRetryQuery, `${pathType.name} (последняя попытка)`, 15);
+              allPaths = allPaths.concat(lastRetryPaths);
+              statusCallback(`✅ ${pathType.name} (последняя попытка): ${lastRetryPaths.length} элементов`);
+            } catch (lastError) {
+              console.warn(`Последняя попытка не удалась:`, lastError.message);
+              statusCallback(`❌ ${pathType.name}: все попытки исчерпаны`);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -174,12 +278,11 @@ export async function fetchPaths(bounds, statusCallback) {
   try {
     statusCallback('Загрузка пешеходных переходов...');
     
-    const query = `[
-      out:json][timeout:${TIMEOUT}][maxsize:10000000];
+    const query = `[out:json][timeout:${TIMEOUT}][maxsize:10000000];
       way["footway"="crossing"](${bbox});
       out geom;`;
 
-    const crossings = await executeOverpassQuery(query, 'Пешеходные переходы');
+    const crossings = await executeOverpassQuery(query, 'Пешеходные переходы', TIMEOUT);
     allPaths = allPaths.concat(crossings);
     
     statusCallback(`✅ Пешеходные переходы: ${crossings.length} элементов`);
@@ -239,17 +342,31 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
       try {
         statusCallback(`Часть ${i + 1}/4: ${pathType.name}...`);
         
-        // Для пешеходных троп используем еще более строгие лимиты в частях
+        // Специальные настройки для пешеходных троп в частях
         const isPathType = pathType.type === 'path';
-        const timeout = isPathType ? 20 : TIMEOUT; // 20 сек для path, 60 для остальных
-        const maxsize = isPathType ? 2000000 : 5000000; // 2 МБ для path, 5 МБ для остальных
+        const isMobileChunk = isMobileNetwork();
         
-        const query = `[
-          out:json][timeout:${timeout}][maxsize:${maxsize}];
+        let timeout, maxsize;
+        if (isPathType && isMobileChunk) {
+          // Для пешеходных троп на мобильных сетях в частях - очень строгие лимиты
+          timeout = 15; // 15 секунд
+          maxsize = 1000000; // 1 МБ максимум
+          statusCallback(`📱 Часть ${i + 1}/4: ${pathType.name} (мобильная сеть, лимит 1МБ, 15с)`);
+        } else if (isPathType) {
+          // Для пешеходных троп в частях
+          timeout = 20; // 20 секунд
+          maxsize = 2000000; // 2 МБ
+        } else {
+          // Для остальных типов в частях
+          timeout = TIMEOUT; // 60 секунд
+          maxsize = 5000000; // 5 МБ
+        }
+        
+        const query = `[out:json][timeout:${timeout}][maxsize:${maxsize}];
           way["highway"="${pathType.type}"](${bbox});
           out geom;`;
 
-        const paths = await executeOverpassQuery(query, `Часть ${i + 1}/4: ${pathType.name}`);
+        const paths = await executeOverpassQuery(query, `Часть ${i + 1}/4: ${pathType.name}`, timeout);
         allPaths = allPaths.concat(paths);
         
         statusCallback(`✅ Часть ${i + 1}/4: ${pathType.name} (${paths.length})`);
@@ -264,12 +381,11 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
     try {
       statusCallback(`Часть ${i + 1}/4: Пешеходные переходы...`);
       
-      const query = `[
-        out:json][timeout:${TIMEOUT}][maxsize:5000000];
+      const query = `[out:json][timeout:${TIMEOUT}][maxsize:5000000];
         way["footway"="crossing"](${bbox});
-        out geom;`;
+    out geom;`;
 
-      const crossings = await executeOverpassQuery(query, `Часть ${i + 1}/4: Пешеходные переходы`);
+      const crossings = await executeOverpassQuery(query, `Часть ${i + 1}/4: Пешеходные переходы`, TIMEOUT);
       allPaths = allPaths.concat(crossings);
       
       statusCallback(`✅ Часть ${i + 1}/4: Пешеходные переходы (${crossings.length})`);

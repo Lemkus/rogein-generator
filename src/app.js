@@ -6,7 +6,7 @@
 import { initMap, pointMarkers, getSelectedBounds, getStartPoint } from './modules/mapModule.js';
 import { initNavigation } from './modules/navigation.js';
 import { generatePoints, cancelPointGeneration, downloadGPX } from './modules/pointGeneration.js';
-import './modules/audioModuleTone.js'; // Инициализация аудио модуля с Tone.js
+import './modules/audioModuleSimple.js'; // Инициализация простого аудио модуля
 
 // DOM элементы (будут инициализированы в initApp)
 let generateBtn, pointsInput, status, minDistPercentInput, cancelBtn, downloadGpxBtn;

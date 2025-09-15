@@ -1,359 +1,281 @@
-// Простой аудио модуль для навигации
-// Мажорный аккорд - приближение, минорный - удаление
-// Тон и частота зависят от расстояния
+/**
+ * Простой модуль звуковой навигации без Tone.js
+ * Использует Web Audio API напрямую для максимальной стабильности
+ */
 
-let audioContext = null;
+// Переменные состояния
 let isAudioEnabled = true;
+let currentFrequency = 200;
+let frequencyProgress = 0;
+let startDistance = null;
+let lastDistance = null;
+let lastSpeed = 0;
+let isPlaying = false;
 
-// Инициализация аудио контекста
+// Константы частот
+const minFreq = 200;
+const maxFreq = 800;
+
+// Глобальные аудио объекты
+let audioContext = null;
+let gainNode = null;
+let oscillator = null;
+
+// Инициализация Web Audio API
 function initAudioContext() {
     if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            gainNode.gain.value = 0.3; // Умеренная громкость
+        } catch (error) {
+            console.error('Ошибка инициализации Web Audio API:', error);
+            return false;
+        }
     }
-    return audioContext;
+    
+    // Возобновляем контекст если приостановлен
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    
+    return true;
 }
 
-// Создание мажорного аккорда (приближение)
-function createMajorChord(baseFreq, duration = 0.5) {
-    const ctx = initAudioContext();
+// Остановка текущего звука
+function stopCurrentSound() {
+    if (oscillator) {
+        try {
+            oscillator.stop();
+            oscillator.disconnect();
+        } catch (e) {
+            // Игнорируем ошибки при остановке
+        }
+        oscillator = null;
+    }
+    isPlaying = false;
+}
+
+// Воспроизведение простого тона
+function playTone(frequency, duration = 0.3, type = 'sine') {
+    if (!initAudioContext() || !isAudioEnabled || isPlaying) {
+        return;
+    }
     
-    // Мажорный аккорд: основной тон, большая терция, чистая квинта
-    const frequencies = [
-        baseFreq,           // Основной тон (до)
-        baseFreq * 1.25,    // Большая терция (ми) - 5/4
-        baseFreq * 1.5      // Чистая квинта (соль) - 3/2
-    ];
+    // Останавливаем предыдущий звук
+    stopCurrentSound();
     
-    frequencies.forEach((freq, index) => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
+    try {
+        oscillator = audioContext.createOscillator();
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
         
         oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        
-        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
-        oscillator.type = 'sine';
         
         // Плавное нарастание и затухание
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+        const now = audioContext.currentTime;
+        oscillator.start(now);
+        oscillator.stop(now + duration);
         
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + duration);
-    });
+        isPlaying = true;
+        
+        // Сбрасываем флаг после завершения
+        setTimeout(() => {
+            isPlaying = false;
+        }, duration * 1000 + 100);
+        
+    } catch (error) {
+        console.warn('Ошибка воспроизведения звука:', error);
+        isPlaying = false;
+    }
 }
 
-// Создание минорного аккорда (удаление)
-function createMinorChord(baseFreq, duration = 0.5) {
-    const ctx = initAudioContext();
+// Воспроизведение аккорда (два тона одновременно)
+function playChord(frequency1, frequency2, duration = 0.4, type = 'sine') {
+    if (!initAudioContext() || !isAudioEnabled || isPlaying) {
+        return;
+    }
     
-    // Минорный аккорд: основной тон, малая терция, чистая квинта
-    const frequencies = [
-        baseFreq,           // Основной тон (до)
-        baseFreq * 1.2,     // Малая терция (ми-бемоль) - 6/5
-        baseFreq * 1.5      // Чистая квинта (соль) - 3/2
-    ];
+    stopCurrentSound();
     
-    frequencies.forEach((freq, index) => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
+    try {
+        const now = audioContext.currentTime;
         
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
+        // Первый тон
+        const osc1 = audioContext.createOscillator();
+        osc1.type = type;
+        osc1.frequency.value = frequency1;
         
-        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
-        oscillator.type = 'sine';
+        // Второй тон
+        const osc2 = audioContext.createOscillator();
+        osc2.type = type;
+        osc2.frequency.value = frequency2;
         
-        // Плавное нарастание и затухание
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+        // Создаем отдельный gain для аккорда
+        const chordGain = audioContext.createGain();
+        chordGain.gain.value = 0.2; // Тише для аккорда
+        chordGain.connect(gainNode);
         
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + duration);
-    });
+        osc1.connect(chordGain);
+        osc2.connect(chordGain);
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + duration);
+        osc2.stop(now + duration);
+        
+        isPlaying = true;
+        
+        // Очистка после завершения
+        setTimeout(() => {
+            try {
+                osc1.disconnect();
+                osc2.disconnect();
+                chordGain.disconnect();
+            } catch (e) {
+                // Игнорируем ошибки очистки
+            }
+            isPlaying = false;
+        }, duration * 1000 + 100);
+        
+    } catch (error) {
+        console.warn('Ошибка воспроизведения аккорда:', error);
+        isPlaying = false;
+    }
 }
 
-// Вычисление базовой частоты на основе расстояния
-function getBaseFrequency(distance) {
-    // Чем ближе, тем выше тон
-    // Диапазон: от 200Hz (далеко) до 800Hz (близко)
-    const minFreq = 200;
-    const maxFreq = 800;
-    const maxDistance = 200; // Максимальное расстояние для расчета
+// Получение прогресса частоты
+function getTargetFrequencyProgress(distance) {
+    if (startDistance === null) {
+        startDistance = distance;
+        return 0;
+    }
     
-    // Ограничиваем расстояние
-    const clampedDistance = Math.min(distance, maxDistance);
+    if (distance <= 10) {
+        return 1;
+    }
     
-    // Инвертируем: чем меньше расстояние, тем выше частота
-    const frequency = maxFreq - (clampedDistance / maxDistance) * (maxFreq - minFreq);
-    
-    return Math.max(frequency, minFreq);
+    const progress = (startDistance - distance) / startDistance;
+    return Math.max(0, Math.min(1, progress));
 }
 
-// Вычисление интервала между звуками на основе расстояния
-function getSoundInterval(distance) {
-    // Чем ближе, тем чаще звуки
-    // Диапазон: от 2 секунд (далеко) до 0.5 секунд (близко)
-    const minInterval = 0.5;
-    const maxInterval = 2.0;
-    const maxDistance = 200;
+// Основная функция навигации
+export function playNavigationSound(distance, speed) {
+    if (!isAudioEnabled || isPlaying) {
+        return;
+    }
     
-    const clampedDistance = Math.min(distance, maxDistance);
-    const interval = minInterval + (clampedDistance / maxDistance) * (maxInterval - minInterval);
+    // Определяем направление движения
+    let isApproaching = false;
+    if (lastDistance !== null && speed !== undefined) {
+        isApproaching = speed > 0;
+    }
+    
+    // Получаем прогресс
+    const targetProgress = getTargetFrequencyProgress(distance);
+    frequencyProgress = targetProgress;
+    
+    // Вычисляем частоту
+    currentFrequency = minFreq + (maxFreq - minFreq) * frequencyProgress;
+    
+    // Проигрываем звук в зависимости от направления
+    if (isApproaching) {
+        // Приближение - мажорный аккорд (яркий, позитивный)
+        const majorThird = currentFrequency * Math.pow(2, 4/12);
+        playChord(currentFrequency, majorThird, 0.3, 'triangle');
+    } else {
+        // Удаление - минорный аккорд (глухой, предупреждающий)
+        const minorThird = currentFrequency * Math.pow(2, 3/12);
+        playChord(currentFrequency, minorThird, 0.4, 'sawtooth');
+    }
+    
+    lastDistance = distance;
+    lastSpeed = speed;
+}
+
+// Звук победы
+export function playVictorySound() {
+    if (!isAudioEnabled || isPlaying) {
+        return;
+    }
+    
+    stopCurrentSound();
+    
+    try {
+        // Простая мелодия победы
+        const melody = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        
+        melody.forEach((freq, index) => {
+            setTimeout(() => {
+                if (index === melody.length - 1) {
+                    // Последняя нота - аккорд
+                    playChord(freq, freq * 1.25, 0.8, 'triangle');
+                } else {
+                    playTone(freq, 0.3, 'triangle');
+                }
+            }, index * 300);
+        });
+        
+    } catch (error) {
+        console.warn('Ошибка воспроизведения звука победы:', error);
+    }
+}
+
+// Получение интервала между звуками
+export function getSoundInterval(distance) {
+    if (startDistance === null) {
+        return 3.0;
+    }
+    
+    if (distance <= 10) {
+        return 0.2;
+    }
+    
+    const progress = (startDistance - distance) / startDistance;
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    
+    const minInterval = 0.2;
+    const maxInterval = 3.0;
+    const interval = maxInterval - (maxInterval - minInterval) * clampedProgress;
     
     return interval;
 }
 
-// Основная функция навигации
-let lastSoundTime = 0;
-let lastDistance = null;
-
-function playNavigationSound(distance, speed) {
-    if (!isAudioEnabled) return;
-    
-    const ctx = initAudioContext();
-    const currentTime = ctx.currentTime;
-    
-    // Определяем направление движения
-    let isApproaching = false;
-    if (lastDistance !== null) {
-        if (speed > 0) {
-            isApproaching = true;  // Положительная скорость = приближение
-        } else if (speed < 0) {
-            isApproaching = false; // Отрицательная скорость = удаление
-        } else {
-            isApproaching = (distance < lastDistance); // Если скорость 0, смотрим изменение расстояния
-        }
-    }
-    
-    // Вычисляем параметры звука
-    const baseFreq = getBaseFrequency(distance);
-    const interval = getSoundInterval(distance);
-    
-    // Проверяем, пора ли играть звук
-    if (currentTime - lastSoundTime >= interval) {
-        if (isApproaching) {
-            // Приближаемся - мажорный аккорд
-            createMajorChord(baseFreq, 0.6);
-            console.log(`🎵 Мажорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м`);
-        } else {
-            // Удаляемся - минорный аккорд
-            createMinorChord(baseFreq, 0.6);
-            console.log(`🎵 Минорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м`);
-        }
-        
-        lastSoundTime = currentTime;
-    }
-    
-    lastDistance = distance;
-}
-
-// Функция для тестирования (без ограничений по времени)
-function playTestSound(distance, speed) {
-    if (!isAudioEnabled) return;
-    
-    const baseFreq = getBaseFrequency(distance);
-    let isApproaching = false;
-    
-    if (speed > 0) {
-        isApproaching = true;
-    } else if (speed < 0) {
-        isApproaching = false;
-    } else {
-        isApproaching = (distance < 100); // Для теста считаем приближением если расстояние < 100
-    }
-    
-    if (isApproaching) {
-        createMajorChord(baseFreq, 1.0);
-        console.log(`🎵 ТЕСТ - Мажорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
-    } else {
-        createMinorChord(baseFreq, 1.0);
-        console.log(`🎵 ТЕСТ - Минорный аккорд: ${Math.round(baseFreq)}Hz, расстояние: ${Math.round(distance)}м, скорость: ${speed}`);
-    }
-}
-
-// Создание звука победы - НАСТОЯЩИЕ ФАНФАРЫ!
-function createVictorySound() {
-    const ctx = initAudioContext();
-    
-    // Победная мелодия - восходящая гамма с триумфом
-    const victoryMelody = [
-        { freq: 261.63, duration: 0.2 },  // До (C4)
-        { freq: 293.66, duration: 0.2 },  // Ре (D4)
-        { freq: 329.63, duration: 0.2 },  // Ми (E4)
-        { freq: 349.23, duration: 0.2 },  // Фа (F4)
-        { freq: 392.00, duration: 0.2 },  // Соль (G4)
-        { freq: 440.00, duration: 0.2 },  // Ля (A4)
-        { freq: 493.88, duration: 0.2 },  // Си (B4)
-        { freq: 523.25, duration: 0.4 }   // До октавой (C5) - дольше!
-    ];
-    
-    // Проигрываем мелодию ТРИ РАЗА с нарастающей громкостью
-    for (let repeat = 0; repeat < 3; repeat++) {
-        const startTime = ctx.currentTime + repeat * 2.0; // 2 секунды между повторами
-        let currentTime = startTime;
-        
-        // Увеличиваем громкость с каждым повтором
-        const volume = 0.4 + (repeat * 0.1); // 0.4, 0.5, 0.6
-        
-        victoryMelody.forEach((note, index) => {
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            oscillator.frequency.setValueAtTime(note.freq, currentTime);
-            oscillator.type = 'sine';
-            
-            // Громкое нарастание и затухание
-            gainNode.gain.setValueAtTime(0, currentTime);
-            gainNode.gain.linearRampToValueAtTime(volume, currentTime + 0.05);
-            gainNode.gain.linearRampToValueAtTime(volume, currentTime + note.duration - 0.05);
-            gainNode.gain.linearRampToValueAtTime(0, currentTime + note.duration);
-            
-            oscillator.start(currentTime);
-            oscillator.stop(currentTime + note.duration);
-            
-            currentTime += note.duration;
-        });
-    }
-    
-    // ФИНАЛЬНЫЙ ТРИУМФАЛЬНЫЙ АККОРД - МАКСИМАЛЬНО ГРОМКИЙ!
-    setTimeout(() => {
-        const finalFrequencies = [
-            261.63,  // До (C4)
-            329.63,  // Ми (E4)
-            392.00,  // Соль (G4)
-            523.25,  // До октавой (C5)
-            659.25,  // Ми октавой (E5)
-            783.99   // Соль октавой (G5)
-        ];
-        const finalTime = ctx.currentTime;
-        
-        finalFrequencies.forEach(freq => {
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            oscillator.frequency.setValueAtTime(freq, finalTime);
-            oscillator.type = 'sine';
-            
-            // МАКСИМАЛЬНАЯ ГРОМКОСТЬ!
-            gainNode.gain.setValueAtTime(0, finalTime);
-            gainNode.gain.linearRampToValueAtTime(0.5, finalTime + 0.1);
-            gainNode.gain.linearRampToValueAtTime(0.5, finalTime + 1.5);
-            gainNode.gain.linearRampToValueAtTime(0, finalTime + 2.0);
-            
-            oscillator.start(finalTime);
-            oscillator.stop(finalTime + 2.0);
-        });
-    }, 6000); // После всех трех мелодий
-    
-    console.log('🏆🎺🎉 ТРИУМФАЛЬНЫЕ ФАНФАРЫ! ПОБЕДА! 🎉🎺🏆');
-}
-
-// Симулятор движения к цели
-let simulationInterval = null;
-let currentSimulationDistance = 0;
-let simulationSpeed = 0;
-let simulationTarget = 0;
-let simulationCallback = null;
-
-function startMovementSimulation(initialDistance, speed, callback) {
-    if (simulationInterval) {
-        clearInterval(simulationInterval);
-    }
-    
-    currentSimulationDistance = initialDistance;
-    simulationSpeed = speed;
-    simulationTarget = 0; // Цель - достичь 0 метров
-    simulationCallback = callback;
-    
-    console.log(`🏃‍♂️ Начинаем симуляцию: ${initialDistance}м, скорость ${speed}м/с`);
-    
-    // Проигрываем первый звук
-    if (isAudioEnabled) {
-        playTestSound(currentSimulationDistance, simulationSpeed);
-    }
-    
-    // Запускаем симуляцию
-    simulationInterval = setInterval(() => {
-        // Обновляем расстояние в зависимости от направления
-        if (simulationSpeed > 0) {
-            // Приближаемся - уменьшаем расстояние
-            currentSimulationDistance -= simulationSpeed;
-        } else if (simulationSpeed < 0) {
-            // Удаляемся - увеличиваем расстояние
-            currentSimulationDistance += Math.abs(simulationSpeed);
-        }
-        
-        if (simulationSpeed > 0 && currentSimulationDistance <= 0) {
-            // Достигли цели при приближении!
-            currentSimulationDistance = 0;
-            stopMovementSimulation();
-            
-            if (isAudioEnabled) {
-                createVictorySound();
-            }
-            
-            if (simulationCallback) {
-                simulationCallback(true, 0); // true = достигли цели
-            }
-        } else {
-            // Продолжаем движение
-            if (isAudioEnabled) {
-                playTestSound(currentSimulationDistance, simulationSpeed);
-            }
-            
-            if (simulationCallback) {
-                simulationCallback(false, currentSimulationDistance);
-            }
-        }
-    }, 1000); // Обновляем каждую секунду
-}
-
-function stopMovementSimulation() {
-    if (simulationInterval) {
-        clearInterval(simulationInterval);
-        simulationInterval = null;
-    }
-}
-
-function getSimulationStatus() {
-    return {
-        isRunning: simulationInterval !== null,
-        distance: currentSimulationDistance,
-        speed: simulationSpeed,
-        target: simulationTarget
-    };
-}
-
-// Управление звуком
-function toggleAudio() {
+// Включение/отключение звука
+export function toggleAudio() {
     isAudioEnabled = !isAudioEnabled;
-    console.log(`🔊 Звук ${isAudioEnabled ? 'включен' : 'отключен'}`);
+    
+    if (!isAudioEnabled) {
+        stopCurrentSound();
+    }
+    
     return isAudioEnabled;
 }
 
-function isAudioOn() {
+// Получение статуса звука
+export function isAudioOn() {
     return isAudioEnabled;
 }
 
-// Экспорт функций
-export {
-    playNavigationSound,
-    playTestSound,
-    toggleAudio,
-    isAudioOn,
-    getBaseFrequency,
-    getSoundInterval,
-    startMovementSimulation,
-    stopMovementSimulation,
-    getSimulationStatus,
-    createVictorySound
-};
+// Сброс состояния навигации
+export function resetNavigation() {
+    startDistance = null;
+    frequencyProgress = 0;
+    lastDistance = null;
+    lastSpeed = null;
+    stopCurrentSound();
+}
+
+// Функции для отладочной страницы (заглушки)
+export function startMovementSimulation(initialDistance, speed, callback) {
+    console.log('Симуляция движения не реализована в простом модуле');
+}
+
+export function stopMovementSimulation() {
+    console.log('Остановка симуляции не реализована в простом модуле');
+}
+
+export function getSimulationStatus() {
+    return { isRunning: false, distance: 0, speed: 0 };
+}
