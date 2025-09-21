@@ -15,6 +15,13 @@ let navigationInterval = null;
 let userPosition = null;
 let watchId = null;
 
+// Переменные для улучшенной навигации
+let distanceHistory = []; // История расстояний для стабилизации
+let directionHistory = []; // История направлений
+const MAX_HISTORY_SIZE = 5; // Максимальный размер истории
+const ACCURACY_ZONE_DISTANCE = 25; // Зона неопределенности (метры)
+const CRITICAL_ZONE_DISTANCE = 15; // Критическая зона (метры)
+
 // DOM элементы
 const targetPointSelect = document.getElementById('targetPointSelect');
 const audioNavBtn = document.getElementById('audioNavBtn');
@@ -54,6 +61,64 @@ function updateAudioButtonIcon() {
   const isOn = isAudioOn();
   toggleAudioBtn.textContent = isOn ? '🔊' : '🔇';
   toggleAudioBtn.title = isOn ? 'Отключить звук' : 'Включить звук';
+}
+
+// Функция для добавления значения в историю
+function addToHistory(history, value, maxSize = MAX_HISTORY_SIZE) {
+  history.push(value);
+  if (history.length > maxSize) {
+    history.shift(); // Удаляем самый старый элемент
+  }
+}
+
+// Функция для вычисления стабилизированного направления
+function getStabilizedDirection(currentDistance, lastDistance) {
+  if (lastDistance === null) return 'neutral';
+  
+  const distanceDiff = currentDistance - lastDistance;
+  
+  // Добавляем в историю
+  addToHistory(distanceHistory, distanceDiff);
+  
+  // Вычисляем среднее изменение расстояния за последние измерения
+  const avgDistanceChange = distanceHistory.reduce((sum, diff) => sum + diff, 0) / distanceHistory.length;
+  
+  // Определяем стабилизированное направление
+  if (avgDistanceChange < -1) { // Приближаемся (расстояние уменьшается)
+    return 'approaching';
+  } else if (avgDistanceChange > 1) { // Удаляемся (расстояние увеличивается)
+    return 'moving_away';
+  }
+  
+  return 'neutral';
+}
+
+// Функция для получения адаптивного интервала обновления
+function getAdaptiveUpdateInterval(distance) {
+  if (distance < CRITICAL_ZONE_DISTANCE) {
+    return 500; // 0.5 секунды в критической зоне
+  } else if (distance < ACCURACY_ZONE_DISTANCE) {
+    return 1000; // 1 секунда в зоне неопределенности
+  } else if (distance < 50) {
+    return 1500; // 1.5 секунды вблизи цели
+  } else {
+    return 2000; // 2 секунды на обычном расстоянии
+  }
+}
+
+// Функция для получения текста статуса в зависимости от зоны
+function getZoneStatusText(distance, direction) {
+  if (distance < 10) {
+    return '🎯 ЦЕЛЬ ДОСТИГНУТА!';
+  } else if (distance < CRITICAL_ZONE_DISTANCE) {
+    return `🔥 ОЧЕНЬ БЛИЗКО! ${distance.toFixed(0)}м`;
+  } else if (distance < ACCURACY_ZONE_DISTANCE) {
+    return `⚡ В ЗОНЕ ЦЕЛИ ${distance.toFixed(0)}м`;
+  } else {
+    const directionSymbol = direction === 'approaching' ? ' ↗️' : 
+                           direction === 'moving_away' ? ' ↘️' : ' ➡️';
+    return `📍 ${distance.toFixed(0)}м${directionSymbol}`;
+  }
 }
 
 // Обновляем список точек после генерации
@@ -125,7 +190,7 @@ function getTargetCoords() {
   return null;
 }
 
-// Основная логика навигации
+// Основная логика навигации с улучшенной точностью
 function navigationStep() {
   if (!isNavigating || !userPosition || !currentTarget) {
     return;
@@ -133,37 +198,36 @@ function navigationStep() {
   
   const distance = haversine(userPosition.lat, userPosition.lng, currentTarget.lat, currentTarget.lng);
   
-  // Вычисляем скорость приближения/удаления СНАЧАЛА
+  // Вычисляем скорость приближения/удаления
   let speed = 0;
   if (lastDistance !== null) {
     speed = lastDistance - distance; // Положительное = приближаемся, отрицательное = удаляемся
   }
   
-  // Определяем направление движения
-  let direction = 'neutral';
-  let directionText = '';
+  // Получаем стабилизированное направление
+  const direction = getStabilizedDirection(distance, lastDistance);
   
-  if (lastDistance !== null) {
-    const distanceDiff = distance - lastDistance;
-    
-    if (distanceDiff < -2) {
-      // Приближаемся (расстояние уменьшилось более чем на 2 метра)
-      direction = 'approaching';
-      directionText = ' ↗️';
-    } else if (distanceDiff > 2) {
-      // Удаляемся (расстояние увеличилось более чем на 2 метра)
-      direction = 'moving_away';
-      directionText = ' ↘️';
-    }
+  // Получаем текст статуса в зависимости от зоны
+  const statusText = getZoneStatusText(distance, direction);
+  
+  // Обновляем статус с улучшенной индикацией
+  navStatus.textContent = statusText;
+  
+  // Устанавливаем цвет в зависимости от зоны
+  if (distance < 10) {
+    navStatus.style.color = 'green';
+  } else if (distance < CRITICAL_ZONE_DISTANCE) {
+    navStatus.style.color = 'red';
+  } else if (distance < ACCURACY_ZONE_DISTANCE) {
+    navStatus.style.color = 'orange';
+  } else {
+    navStatus.style.color = 'black';
   }
-  
-  // Обновляем статус с индикацией направления
-  navStatus.textContent = `📍 ${distance.toFixed(0)}м${directionText}`;
   
   // Проверяем достижение цели
   if (distance < 10) {
     playVictorySound(); // Звук победы
-    navStatus.textContent = '🎯 Цель достигнута!';
+    navStatus.textContent = '🎯 ЦЕЛЬ ДОСТИГНУТА!';
     navStatus.style.color = 'green';
     
     // Показываем уведомление
@@ -171,7 +235,6 @@ function navigationStep() {
       new Notification('Рогейн', {
         body: 'Цель достигнута! 🎯',
         icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM0Q0FGNTAiLz4KPHBhdGggZD0iTTk2IDQ4TDEwOCA2NEwxMjggNzJMMTA4IDgwTDk2IDk2TDg0IDgwTDY0IDcyTDg0IDY0TDk2IDQ4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==',
-        // Звуковой сигнал уже воспроизведён
       });
     }
     
@@ -181,23 +244,27 @@ function navigationStep() {
     return;
   }
   
-  
   // Проигрываем звук с новой логикой
   playNavigationSound(distance, speed);
   
-  // Получаем интервал для следующего звука
+  // Получаем адаптивный интервал обновления
+  const adaptiveInterval = getAdaptiveUpdateInterval(distance);
+  
+  // Получаем интервал для следующего звука (из аудио модуля)
   const soundDelay = getSoundInterval(distance) * 1000; // Конвертируем в миллисекунды
   
   lastDistance = distance;
   
-  // Планируем следующую проверку
+  // Планируем следующую проверку с адаптивным интервалом
   clearTimeout(navigationInterval);
   clearInterval(navigationInterval);
   
-  // Планируем следующую проверку
+  // Используем меньший из двух интервалов для более отзывчивой навигации
+  const finalInterval = Math.min(adaptiveInterval, soundDelay);
+  
   navigationInterval = setInterval(() => {
     navigationStep();
-  }, soundDelay);
+  }, finalInterval);
 }
 
 // Обработка изменения позиции пользователя
@@ -229,6 +296,10 @@ function startNavigation() {
   currentTarget = target;
   isNavigating = true;
   lastDistance = null;
+  
+  // Очищаем историю для новой навигации
+  distanceHistory = [];
+  directionHistory = [];
   
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
