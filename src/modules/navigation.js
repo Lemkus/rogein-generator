@@ -22,6 +22,10 @@ const MAX_HISTORY_SIZE = 5; // Максимальный размер истор�
 const ACCURACY_ZONE_DISTANCE = 25; // Зона неопределенности (метры)
 const CRITICAL_ZONE_DISTANCE = 15; // Критическая зона (метры)
 
+// Переменные для предотвращения засыпания экрана
+let wakeLock = null;
+let noSleepInterval = null; // Fallback для браузеров без Wake Lock API
+
 // DOM элементы
 const targetPointSelect = document.getElementById('targetPointSelect');
 const audioNavBtn = document.getElementById('audioNavBtn');
@@ -34,6 +38,20 @@ export function initNavigation() {
   audioNavBtn.addEventListener('click', startNavigation);
   stopNavBtn.addEventListener('click', stopNavigation);
   toggleAudioBtn.addEventListener('click', toggleAudioHandler);
+  
+  // Обработка изменения видимости страницы (для Wake Lock)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Страница скрыта - Wake Lock может быть потерян
+      console.log('📱 Страница скрыта - проверяем Wake Lock');
+    } else {
+      // Страница снова видна - пытаемся восстановить Wake Lock
+      if (isNavigating && !wakeLock) {
+        console.log('📱 Страница видна - восстанавливаем Wake Lock');
+        activateWakeLock();
+      }
+    }
+  });
   
   // Обновляем иконку кнопки звука
   updateAudioButtonIcon();
@@ -118,6 +136,106 @@ function getZoneStatusText(distance, direction) {
     const directionSymbol = direction === 'approaching' ? ' ↗️' : 
                            direction === 'moving_away' ? ' ↘️' : ' ➡️';
     return `📍 ${distance.toFixed(0)}м${directionSymbol}`;
+  }
+}
+
+// Функция для активации Wake Lock (предотвращение засыпания экрана)
+async function activateWakeLock() {
+  // Освобождаем предыдущий lock если есть
+  await releaseWakeLock();
+  
+  // Пытаемся использовать Wake Lock API
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('✅ Wake Lock активирован - экран не будет засыпать');
+      
+      // Обработка потери Wake Lock (например, при смене вкладки)
+      wakeLock.addEventListener('release', () => {
+        console.log('⚠️ Wake Lock потерян, пытаемся восстановить...');
+        wakeLock = null;
+        // Пытаемся восстановить Wake Lock
+        setTimeout(() => {
+          if (isNavigating) {
+            activateWakeLock();
+          }
+        }, 1000);
+      });
+      
+      return true;
+    } catch (error) {
+      console.log('❌ Не удалось активировать Wake Lock:', error);
+      wakeLock = null;
+    }
+  }
+  
+  // Fallback: используем скрытое видео для предотвращения засыпания
+  console.log('🔄 Используем fallback метод предотвращения засыпания');
+  activateNoSleepFallback();
+  return false;
+}
+
+// Fallback метод для предотвращения засыпания экрана
+function activateNoSleepFallback() {
+  // Создаем скрытое видео элемент
+  const noSleepVideo = document.createElement('video');
+  noSleepVideo.setAttribute('muted', '');
+  noSleepVideo.setAttribute('playsinline', '');
+  noSleepVideo.setAttribute('loop', '');
+  noSleepVideo.style.display = 'none';
+  
+  // Создаем короткое видео (1 секунда черного экрана)
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, 1, 1);
+  
+  // Конвертируем в blob и создаем URL
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    noSleepVideo.src = url;
+    noSleepVideo.play();
+    document.body.appendChild(noSleepVideo);
+    
+    // Периодически обновляем видео
+    noSleepInterval = setInterval(() => {
+      if (isNavigating && noSleepVideo.paused) {
+        noSleepVideo.play();
+      }
+    }, 10000); // Каждые 10 секунд
+    
+    console.log('✅ Fallback метод активирован');
+  });
+}
+
+// Функция для освобождения Wake Lock
+async function releaseWakeLock() {
+  // Освобождаем Wake Lock API
+  if (wakeLock) {
+    try {
+      await wakeLock.release();
+      wakeLock = null;
+      console.log('✅ Wake Lock освобожден');
+    } catch (error) {
+      console.log('❌ Ошибка при освобождении Wake Lock:', error);
+    }
+  }
+  
+  // Останавливаем fallback метод
+  if (noSleepInterval) {
+    clearInterval(noSleepInterval);
+    noSleepInterval = null;
+    
+    // Удаляем скрытое видео
+    const noSleepVideo = document.querySelector('video[style*="display: none"]');
+    if (noSleepVideo) {
+      URL.revokeObjectURL(noSleepVideo.src);
+      noSleepVideo.remove();
+    }
+    
+    console.log('✅ Fallback метод остановлен');
   }
 }
 
@@ -286,7 +404,7 @@ function onPositionError(error) {
 }
 
 // Начало навигации
-function startNavigation() {
+async function startNavigation() {
   const target = getTargetCoords();
   if (!target) {
     alert('Выберите целевую точку!');
@@ -304,14 +422,8 @@ function startNavigation() {
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
   
-  // Предотвращаем засыпание экрана
-  if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').then(lock => {
-      console.log('Экран не будет засыпать во время навигации');
-    }).catch(err => {
-      console.log('Не удалось предотвратить засыпание экрана:', err);
-    });
-  }
+  // Активируем предотвращение засыпания экрана
+  await activateWakeLock();
   
   // Запрашиваем геолокацию
   if ('geolocation' in navigator) {
@@ -339,8 +451,11 @@ function startNavigation() {
 }
 
 // Остановка навигации
-function stopNavigation() {
+async function stopNavigation() {
   isNavigating = false;
+  
+  // Освобождаем Wake Lock
+  await releaseWakeLock();
   
   if (watchId !== null) {
     navigator.geolocation.clearWatch(watchId);
