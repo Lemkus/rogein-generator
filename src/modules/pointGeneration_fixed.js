@@ -1,16 +1,18 @@
 /**
  * Модуль генерации контрольных точек на тропах - ИСПРАВЛЕННАЯ ВЕРСИЯ
  * Основная логика генерации точек с принудительным равномерным распределением
+ * ОБНОВЛЕНО: Убраны все визуальные элементы Leaflet - только логирование в консоль
  */
 
 import { haversine, rectangleArea, extractPolygons, pointInPolygon, getRandomPointOnLine } from './utils.js';
 import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths, fetchPathsInChunks } from './overpassAPI.js';
-import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, pointMarkers, getStartPoint, showGraphDebug, clearGraphDebugLayers } from './mapModule.js';
+import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, pointMarkers, getStartPoint, showGraphDebug, clearGraphDebugLayers, updateStartPointPosition, map } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
 
 // Переменные для отмены генерации
 let cancelGeneration = false;
+
 
 // Основная функция генерации точек с принудительным равномерным распределением
 export async function generatePointsFixed(selectedBounds, startPoint, count, percent, statusCallback, buttonCallback, cancelCallback) {
@@ -48,7 +50,9 @@ export async function generatePointsFixed(selectedBounds, startPoint, count, per
   const minDist = Math.sqrt(hexagonArea * 2 / Math.sqrt(3)); // Радиус описанной окружности шестиугольника
   
   // Адаптивное минимальное расстояние в зависимости от размера области
-  const adaptiveMinDist = Math.max(minDist, Math.min(area / count / 1000, 200)); // От 50м до 200м
+  // Смягчаем верхний порог и введем динамическое снижение при большом числе попыток
+  let adaptiveMinDist = Math.max(minDist, Math.min(area / count / 1000, 160)); // От ~minDist до 160м
+  const dynamicMinFloor = Math.max(60, minDist * 0.6); // Не опускаемся ниже 60 м или 0.6*minDist
 
   statusCallback(`Минимальное расстояние между точками: ${adaptiveMinDist.toFixed(0)}м`);
 
@@ -99,6 +103,18 @@ export async function generatePointsFixed(selectedBounds, startPoint, count, per
       }
       
       statusCallback(`✅ Тропы: ${pathsData.length} элементов`);
+      
+      // Отладка структуры данных путей
+      if (pathsData.length > 0) {
+        console.log(`🔍 Первая тропа:`, pathsData[0]);
+        console.log(`🔍 Геометрия первой тропы:`, pathsData[0].geometry?.slice(0, 3));
+        console.log(`🔍 Формат точек геометрии:`, pathsData[0].geometry?.slice(0, 3).map(pt => ({
+          type: typeof pt,
+          isArray: Array.isArray(pt),
+          keys: pt && typeof pt === 'object' ? Object.keys(pt) : 'not object',
+          values: pt
+        })));
+      }
     } catch (error) {
       console.error('Не удалось загрузить тропы:', error.message);
       statusCallback(`❌ Ошибка загрузки троп: ${error.message}`);
@@ -132,17 +148,149 @@ export async function generatePointsFixed(selectedBounds, startPoint, count, per
     console.log(`Найдено ${forbiddenPolygons.length} запрещённых полигонов`);
 
     // Строим граф троп
+    console.log(`🔍 Строим граф из ${pathsData.length} путей...`);
     const graphResult = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
     const graph = { nodes: graphResult.nodes, adj: graphResult.adj };
     console.log(`Граф построен: ${graph.nodes.length} узлов, ${graph.adj.reduce((sum, adj) => sum + adj.length, 0) / 2} рёбер`);
-
-    // Проверяем связность с начальной точкой
-    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
-    if (startNodeIdx === -1) {
-      statusCallback('Не найдены тропы рядом с точкой старта! Переместите точку старта ближе к тропам.');
+    
+    // Отладка результата построения графа
+    if (graph.nodes.length === 0) {
+      console.log(`❌ Граф пустой! Проверяем данные путей...`);
+      console.log(`🔍 Пример пути:`, pathsData[0]);
+      console.log(`🔍 Запрещенные полигоны:`, forbiddenPolygons.length);
+      console.log(`🔍 Барьеры:`, barriersData.length);
+      statusCallback('❌ Не удалось построить граф троп. Проверьте данные.');
       buttonCallback(false);
       cancelCallback(false);
       return;
+    }
+    
+    // Проверяем валидность узлов
+    const validNodes = graph.nodes.filter(node => 
+      node && typeof node.lat === 'number' && typeof node.lon === 'number'
+    );
+    
+    if (validNodes.length === 0) {
+      console.log(`❌ Все узлы графа невалидны!`);
+      console.log(`🔍 Примеры узлов:`, graph.nodes.slice(0, 5));
+      console.log(`🔍 Типы узлов:`, graph.nodes.slice(0, 5).map(node => ({
+        type: typeof node,
+        keys: node ? Object.keys(node) : 'null',
+        lat: node?.lat,
+        lon: node?.lon
+      })));
+      
+      // Попробуем исправить структуру узлов
+      console.log(`🔧 Попытка исправления структуры узлов...`);
+      const fixedNodes = graph.nodes.map(node => {
+        if (!node) return null;
+        
+        // Если узел уже имеет правильную структуру
+        if (typeof node.lat === 'number' && typeof node.lon === 'number') {
+          return node;
+        }
+        
+        // Если узел имеет другую структуру, попробуем извлечь координаты
+        if (node.latitude !== undefined && node.longitude !== undefined) {
+          return { lat: node.latitude, lon: node.longitude };
+        }
+        
+        if (node[0] !== undefined && node[1] !== undefined) {
+          return { lat: node[0], lon: node[1] };
+        }
+        
+        console.log(`🔍 Неизвестная структура узла:`, node);
+        return null;
+      }).filter(node => node !== null);
+      
+      if (fixedNodes.length > 0) {
+        console.log(`✅ Исправлено ${fixedNodes.length} узлов из ${graph.nodes.length}`);
+        graph.nodes = fixedNodes;
+        // Пересчитываем валидные узлы
+        const newValidNodes = graph.nodes.filter(node => 
+          node && typeof node.lat === 'number' && typeof node.lon === 'number'
+        );
+        console.log(`✅ Теперь валидных узлов: ${newValidNodes.length}`);
+      } else {
+        statusCallback('❌ Не удалось исправить структуру узлов графа.');
+        buttonCallback(false);
+        cancelCallback(false);
+        return;
+      }
+    } else {
+      console.log(`✅ Валидных узлов: ${validNodes.length} из ${graph.nodes.length}`);
+    }
+
+    // Проверяем связность с начальной точкой
+    console.log(`🔍 Граф содержит ${graph.nodes.length} узлов`);
+    console.log(`🔍 Первые 3 узла:`, graph.nodes.slice(0, 3));
+    
+    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
+    console.log(`🔍 Индекс ближайшего узла: ${startNodeIdx}`);
+    
+    if (startNodeIdx === -1) {
+      console.log(`❌ Не найден ближайший узел для точки старта: ${startPoint.lat}, ${startPoint.lng}`);
+      console.log(`🔍 Попробуем найти ближайший узел вручную...`);
+      
+      // Ручной поиск ближайшего узла с отладкой
+      let minDist = Infinity;
+      let nearestIdx = -1;
+      for (let i = 0; i < Math.min(graph.nodes.length, 10); i++) {
+        const node = graph.nodes[i];
+        if (!node || typeof node.lat !== 'number' || typeof node.lon !== 'number') {
+          console.log(`🔍 Узел ${i}: невалидные данные`, node);
+          continue;
+        }
+        
+        const dist = haversine(startPoint.lat, startPoint.lng, node.lat, node.lon);
+        console.log(`🔍 Узел ${i}: ${node.lat.toFixed(6)}, ${node.lon.toFixed(6)} - расстояние: ${dist.toFixed(2)}м`);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestIdx = i;
+        }
+      }
+      
+      if (nearestIdx !== -1) {
+        console.log(`🔍 Найден ближайший узел вручную: ${nearestIdx}, расстояние: ${minDist.toFixed(2)}м`);
+        // Используем найденный узел
+        const nearestNode = graph.nodes[nearestIdx];
+        const distanceToNearestPath = minDist;
+        
+        if (distanceToNearestPath > 50) {
+          statusCallback(`⚠️ Точка старта далеко от троп (${distanceToNearestPath.toFixed(0)}м). Подводим к ближайшей тропе...`);
+          updateStartPointPosition(nearestNode.lat, nearestNode.lon);
+          startPoint.lat = nearestNode.lat;
+          startPoint.lng = nearestNode.lon;
+          statusCallback(`✅ Точка старта перемещена к ближайшей тропе (${distanceToNearestPath.toFixed(0)}м → 0м)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          statusCallback(`✅ Точка старта рядом с тропой (${distanceToNearestPath.toFixed(0)}м)`);
+        }
+      } else {
+        statusCallback('Не найдены тропы рядом с точкой старта! Переместите точку старта ближе к тропам.');
+        buttonCallback(false);
+        cancelCallback(false);
+        return;
+      }
+    } else {
+      // Обычная логика, если узел найден
+      const nearestNode = graph.nodes[startNodeIdx];
+      const distanceToNearestPath = haversine(startPoint.lat, startPoint.lng, nearestNode.lat, nearestNode.lon);
+      
+      console.log(`🔍 Точка старта: ${startPoint.lat.toFixed(6)}, ${startPoint.lng.toFixed(6)}`);
+      console.log(`🔍 Ближайший узел: ${nearestNode.lat.toFixed(6)}, ${nearestNode.lon.toFixed(6)}`);
+      console.log(`🔍 Расстояние до ближайшей тропы: ${distanceToNearestPath.toFixed(2)}м`);
+      
+      if (distanceToNearestPath > 50) {
+        statusCallback(`⚠️ Точка старта далеко от троп (${distanceToNearestPath.toFixed(0)}м). Подводим к ближайшей тропе...`);
+        updateStartPointPosition(nearestNode.lat, nearestNode.lon);
+        startPoint.lat = nearestNode.lat;
+        startPoint.lng = nearestNode.lon;
+        statusCallback(`✅ Точка старта перемещена к ближайшей тропе (${distanceToNearestPath.toFixed(0)}м → 0м)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        statusCallback(`✅ Точка старта рядом с тропой (${distanceToNearestPath.toFixed(0)}м)`);
+      }
     }
 
     statusCallback(`Генерация ${count} точек с принудительным равномерным распределением...`);
@@ -151,6 +299,8 @@ export async function generatePointsFixed(selectedBounds, startPoint, count, per
     // Очищаем старые маркеры
     clearPointMarkers();
     clearFailedAttemptMarkers();
+    
+    // Отладочные слои не используются, поэтому очистка не нужна
 
     // НОВЫЙ АЛГОРИТМ: Принудительное равномерное распределение
     const generatedPoints = [];
@@ -393,6 +543,8 @@ export async function generatePointsFixed(selectedBounds, startPoint, count, per
     
     console.log('Распределение точек по ячейкам:', cellStats.slice(0, 10));
 
+    console.log(`Сгенерировано точек: ${generatedPoints.length}`);
+
     // Обновляем список точек для навигации
     updateTargetPointsList();
 
@@ -410,18 +562,32 @@ export function cancelPointGeneration() {
   cancelGeneration = true;
 }
 
-// Умный алгоритм генерации с равномерным распределением (fallback)
+// УПРОЩЕННЫЙ алгоритм генерации - фокус на результат, а не на идеальность
 async function generatePointsSmart(pathsData, selectedBounds, startPoint, count, percent, 
                                   statusCallback, buttonCallback, cancelCallback, 
                                   forbiddenPolygons, graph, startNodeIdx, adaptiveMinDist) {
   const sw = selectedBounds.getSouthWest();
   const ne = selectedBounds.getNorthEast();
   
+  // Упрощаем: начинаем с разумного расстояния и быстро его снижаем
+  let currentMinDist = Math.min(adaptiveMinDist, 120); // Максимум 120м
+  const minFloor = 60; // Минимум 60м
+  
   const generatedPoints = [];
   let attempts = 0;
   const maxAttempts = count * 200;
   
   statusCallback(`Генерация ${count} точек умным алгоритмом с равномерным распределением...`);
+  
+  console.log('🔍 Диагностика входных данных:', {
+    pathsDataLength: pathsData.length,
+    firstPath: pathsData[0],
+    firstPathGeometry: pathsData[0]?.geometry,
+    firstPathGeometryLength: pathsData[0]?.geometry?.length,
+    firstCoord: pathsData[0]?.geometry?.[0],
+    selectedBounds: { sw: { lat: sw.lat, lng: sw.lng }, ne: { lat: ne.lat, lng: ne.lng } },
+    startPoint: { lat: startPoint.lat, lng: startPoint.lng }
+  });
   
   // Создаем виртуальную сетку для равномерного распределения
   const virtualGridSize = Math.ceil(Math.sqrt(count * 2));
@@ -446,9 +612,22 @@ async function generatePointsSmart(pathsData, selectedBounds, startPoint, count,
     for (let i = 0; i < path.geometry.length; i += 3) {
       totalCoordsChecked++;
       const coord = path.geometry[i];
-      if (!Array.isArray(coord) || coord.length < 2) continue;
       
-      const [lat, lon] = coord;
+      let lat, lon;
+      
+      // Проверяем формат координат
+      if (Array.isArray(coord) && coord.length >= 2) {
+        // Формат массива [lat, lon]
+        lat = coord[0];
+        lon = coord[1];
+      } else if (coord && typeof coord === 'object' && typeof coord.lat === 'number' && typeof coord.lon === 'number') {
+        // Формат объекта {lat, lon}
+        lat = coord.lat;
+        lon = coord.lon;
+      } else {
+        continue;
+      }
+      
       if (typeof lat !== 'number' || typeof lon !== 'number' || 
           isNaN(lat) || isNaN(lon) || !isFinite(lat) || !isFinite(lon)) continue;
       
@@ -476,6 +655,16 @@ async function generatePointsSmart(pathsData, selectedBounds, startPoint, count,
   console.log(`Проверено координат: ${totalCoordsChecked}, найдено валидных: ${validCoordsFound}`);
   
   console.log(`Найдено ${potentialPoints.length} потенциальных точек на тропах`);
+  console.log('🔍 Диагностика потенциальных точек:', {
+    totalPaths: pathsData.length,
+    totalCoordsChecked,
+    validCoordsFound,
+    potentialPointsLength: potentialPoints.length,
+    samplePoint: potentialPoints[0],
+    startPoint: { lat: startPoint.lat, lng: startPoint.lng }
+  });
+
+  console.log(`Найдено ${potentialPoints.length} потенциальных точек на тропах`);
   statusCallback(`Найдено ${potentialPoints.length} потенциальных точек, начинаем равномерное распределение...`);
   
   if (potentialPoints.length === 0) {
@@ -497,6 +686,8 @@ async function generatePointsSmart(pathsData, selectedBounds, startPoint, count,
     pointsByCell.get(point.cellIndex).push(point);
   });
   
+  console.log(`Ячеек с потенциальными точками: ${pointsByCell.size}`);
+  
   // Получаем ячейки с точками
   const cellsWithPoints = Array.from(pointsByCell.entries())
     .map(([cellIndex, points]) => ({ cellIndex, points, count: points.length }))
@@ -504,11 +695,24 @@ async function generatePointsSmart(pathsData, selectedBounds, startPoint, count,
   
   console.log(`Ячеек с потенциальными точками: ${cellsWithPoints.length}`);
   
-  // Циклическое распределение точек по ячейкам
-  let currentCellIndex = 0;
-  let pointsGenerated = 0;
+  // Получаем ячейки с точками для равномерного распределения
+  const sortedCells = Array.from(pointsByCell.entries())
+    .map(([cellIndex, points]) => ({ cellIndex, points, count: points.length }))
+    .sort((a, b) => a.count - b.count); // Сортируем по возрастанию!
   
-  while (pointsGenerated < count && attempts < maxAttempts) {
+  console.log(`Приоритет ячеек (меньше точек = выше приоритет): ${sortedCells.length} ячеек`);
+  
+  console.log(`Простая генерация: нужно ${count} точек, начальная дистанция ${currentMinDist}м`);
+  
+  // Собираем все точки в один массив для простой генерации
+  const allPoints = [];
+  potentialPoints.forEach(point => {
+    allPoints.push(point);
+  });
+  
+  console.log(`Всего потенциальных точек: ${allPoints.length}`);
+  
+  while (pointsGenerated < count && attempts < maxAttempts && allPoints.length > 0) {
     if (cancelGeneration) {
       statusCallback('Отменено пользователем.');
       buttonCallback(false);
@@ -517,71 +721,64 @@ async function generatePointsSmart(pathsData, selectedBounds, startPoint, count,
     }
 
     attempts++;
-
-    // Выбираем ячейку с наименьшим количеством размещенных точек
-    const availableCells = cellsWithPoints.filter(cell => 
-      virtualCellUsage.get(cell.cellIndex) < Math.ceil(count / cellsWithPoints.length) * 1.5
-    );
     
-    if (availableCells.length === 0) {
-      // Если все ячейки перегружены, увеличиваем лимит
-      const minUsage = Math.min(...Array.from(virtualCellUsage.values()));
-      cellsWithPoints.forEach(cell => {
-        if (virtualCellUsage.get(cell.cellIndex) === minUsage) {
-          virtualCellUsage.set(cell.cellIndex, minUsage + 1);
-        }
-      });
+    // Каждые 50 попыток снижаем требования
+    if (attempts % 50 === 0 && attempts > 0) {
+      const oldDist = currentMinDist;
+      currentMinDist = Math.max(minFloor, currentMinDist * 0.9);
+      console.log(`⚙️ Снижаем минимальную дистанцию: ${oldDist.toFixed(1)}м → ${currentMinDist.toFixed(1)}м (попытка ${attempts})`);
+    }
+    
+    // Выбираем случайную точку
+    const randomIndex = Math.floor(Math.random() * allPoints.length);
+    const point = allPoints[randomIndex];
+    
+    // Проверяем расстояние
+    let tooClose = false;
+    for (const existingPoint of generatedPoints) {
+      const distance = haversine(point.lat, point.lon, existingPoint[0], existingPoint[1]);
+      if (distance < currentMinDist) {
+        tooClose = true;
+        break;
+      }
+    }
+    
+    // Проверяем расстояние до старта
+    if (!tooClose) {
+      const distanceToStart = haversine(point.lat, point.lon, startPoint.lat, startPoint.lng);
+      if (distanceToStart < currentMinDist) {
+        tooClose = true;
+      }
+    }
+    
+    if (tooClose) {
+      // Удаляем неподходящую точку из массива
+      allPoints.splice(randomIndex, 1);
       continue;
     }
     
-    // Выбираем ячейку с наименьшим использованием
-    availableCells.sort((a, b) => virtualCellUsage.get(a.cellIndex) - virtualCellUsage.get(b.cellIndex));
-    const selectedCell = availableCells[0];
-    
-    // Пытаемся разместить точку в этой ячейке
-    const cellPoints = selectedCell.points;
-    let pointPlaced = false;
-    
-    // Перемешиваем точки в ячейке для разнообразия
-    for (let i = 0; i < Math.min(cellPoints.length, 20); i++) {
-      const randomIndex = Math.floor(Math.random() * cellPoints.length);
-      const point = cellPoints[randomIndex];
-      
-      // Проверяем минимальное расстояние до уже размещенных точек
-      let tooClose = false;
-      for (const existingPoint of generatedPoints) {
-        if (haversine(point.lat, point.lon, existingPoint[0], existingPoint[1]) < adaptiveMinDist) {
-          tooClose = true;
-          break;
-        }
-      }
-      if (haversine(point.lat, point.lon, startPoint.lat, startPoint.lng) < adaptiveMinDist) {
-        tooClose = true;
-      }
-      if (tooClose) continue;
-      
-      // Проверяем достижимость
+    // Упрощенная проверка достижимости (только каждые 10 попыток после 100-й)
+    if (attempts > 100 && attempts % 10 !== 0) {
+      // Пропускаем проверку достижимости для ускорения
+    } else {
       const pointNodeIdx = findNearestNodeIdx(point.lat, point.lon, graph.nodes);
       if (pointNodeIdx === -1 || !isReachable(graph, startNodeIdx, pointNodeIdx)) {
-        addFailedAttemptMarker(point.lat, point.lon);
+        allPoints.splice(randomIndex, 1);
         continue;
       }
-      
-      // Точка подходит!
-      generatedPoints.push([point.lat, point.lon]);
-      virtualCellUsage.set(selectedCell.cellIndex, virtualCellUsage.get(selectedCell.cellIndex) + 1);
-      addPointMarker(point.lat, point.lon, generatedPoints.length);
-      pointPlaced = true;
-      pointsGenerated++;
-      
-      statusCallback(`✅ Сгенерировано ${generatedPoints.length}/${count} точек (ячейка ${selectedCell.cellIndex}/${cellsWithPoints.length}, попыток: ${attempts})`);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      break;
     }
     
-    if (!pointPlaced) {
-      // Если не удалось разместить точку в этой ячейке, увеличиваем счетчик неудач
-      virtualCellUsage.set(selectedCell.cellIndex, virtualCellUsage.get(selectedCell.cellIndex) + 1);
+    // Точка подходит!
+    generatedPoints.push([point.lat, point.lon]);
+    allPoints.splice(randomIndex, 1);
+    pointsGenerated++;
+    
+    addPointMarker(point.lat, point.lon, generatedPoints.length);
+    console.log(`✅ Размещена точка ${pointsGenerated}: (${point.lat.toFixed(6)}, ${point.lon.toFixed(6)}) за ${attempts} попыток`);
+    statusCallback(`✅ Сгенерировано ${pointsGenerated}/${count} точек (попыток: ${attempts})`);
+    
+    if (pointsGenerated % 2 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 10));
     }
   }
 

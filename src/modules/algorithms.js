@@ -58,7 +58,29 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
   paths.forEach(path => {
     if (!path.geometry || path.geometry.length < 2) return;
     path.geometry.forEach(pt => {
-      getOrCreateNodeIndex(pt.lat, pt.lon); // Just call to populate nodes array
+      let lat, lon;
+      
+      // Проверяем формат точки
+      if (Array.isArray(pt)) {
+        // Формат массива [lat, lon]
+        lat = pt[0];
+        lon = pt[1];
+      } else if (pt && typeof pt === 'object') {
+        // Формат объекта {lat, lon}
+        lat = pt.lat;
+        lon = pt.lon;
+      } else {
+        console.log(`🔍 Неизвестный формат точки:`, pt);
+        return;
+      }
+      
+      // Проверяем валидность координат
+      if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
+        console.log(`🔍 Невалидные координаты:`, { lat, lon, original: pt });
+        return;
+      }
+      
+      getOrCreateNodeIndex(lat, lon);
     });
   });
 
@@ -66,8 +88,37 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
   paths.forEach(path => {
     if (!path.geometry || path.geometry.length < 2) return;
     for (let i = 0; i < path.geometry.length - 1; i++) {
-      const a = path.geometry[i];
-      const b = path.geometry[i+1];
+      const ptA = path.geometry[i];
+      const ptB = path.geometry[i+1];
+      
+      // Извлекаем координаты из точек
+      let latA, lonA, latB, lonB;
+      
+      if (Array.isArray(ptA)) {
+        latA = ptA[0]; lonA = ptA[1];
+      } else if (ptA && typeof ptA === 'object') {
+        latA = ptA.lat; lonA = ptA.lon;
+      } else {
+        continue;
+      }
+      
+      if (Array.isArray(ptB)) {
+        latB = ptB[0]; lonB = ptB[1];
+      } else if (ptB && typeof ptB === 'object') {
+        latB = ptB.lat; lonB = ptB.lon;
+      } else {
+        continue;
+      }
+      
+      // Проверяем валидность координат
+      if (typeof latA !== 'number' || typeof lonA !== 'number' || 
+          typeof latB !== 'number' || typeof lonB !== 'number' ||
+          isNaN(latA) || isNaN(lonA) || isNaN(latB) || isNaN(lonB)) {
+        continue;
+      }
+      
+      const a = { lat: latA, lon: lonA };
+      const b = { lat: latB, lon: lonB };
       let forbidden = false;
       let reason = '';
 
@@ -187,7 +238,12 @@ export function findNearestNodeIdx(lat, lon, nodes) {
   let minDist = Infinity;
   let nearestIdx = -1;
   for (let i = 0; i < nodes.length; i++) {
-    const dist = haversine(lat, lon, nodes[i].lat, nodes[i].lon);
+    const node = nodes[i];
+    if (!node || typeof node.lat !== 'number' || typeof node.lon !== 'number') {
+      continue; // Пропускаем невалидные узлы
+    }
+    
+    const dist = haversine(lat, lon, node.lat, node.lon);
     if (dist < minDist) {
       minDist = dist;
       nearestIdx = i;

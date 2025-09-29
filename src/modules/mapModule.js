@@ -268,4 +268,26 @@ export function updateSelectedBounds(bounds) {
 
 export function updateStartPoint(point) {
   startPoint = point;
+}
+
+// Обновление точки старта с перемещением маркера
+export function updateStartPointPosition(lat, lng) {
+  startPoint = { lat, lng };
+  
+  // Обновляем маркер на карте
+  if (startMarker) {
+    map.removeLayer(startMarker);
+  }
+  
+  startMarker = L.marker([lat, lng], {
+    icon: L.icon({
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjRkY0NDQ0IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    })
+  }).addTo(map)
+  .bindPopup('Точка старта (автоматически перемещена к ближайшей тропе)')
+  .openPopup();
+  
+  console.log('Точка старта обновлена:', startPoint);
 } 

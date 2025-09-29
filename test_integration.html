@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест интеграции Backend + Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .warning {
+            color: orange;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Тест интеграции Backend + Frontend</h1>
+    
+    <div class="test-section">
+        <h2>1. Проверка Backend</h2>
+        <button onclick="testBackend()">Проверить Backend</button>
+        <div id="backend-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Тест загрузки данных через OSMnx API</h2>
+        <button onclick="testOSMnxAPI()">Тест OSMnx API</button>
+        <div id="osmnx-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Тест интеграции с OverpassAPI</h2>
+        <button onclick="testOverpassIntegration()">Тест интеграции</button>
+        <div id="integration-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Тест формата данных</h2>
+        <button onclick="testDataFormat()">Проверить формат данных</button>
+        <div id="format-result" class="result"></div>
+    </div>
+
+    <script type="module">
+        // Импортируем модули
+        import { isOSMnxBackendAvailable, fetchPathsWithOSMnx, getBboxString } from './src/modules/osmnxAPI.js';
+        import { fetchPaths } from './src/modules/overpassAPI.js';
+        
+        // Тестовая область: парк Сокольники в Москве
+        const TEST_BBOX = '55.79,37.68,55.81,37.70';
+        const TEST_BOUNDS = {
+            getSouthWest: () => ({ lat: 55.79, lng: 37.68 }),
+            getNorthEast: () => ({ lat: 55.81, lng: 37.70 })
+        };
+
+        window.testBackend = async function() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.textContent = 'Проверяем Backend...';
+            
+            try {
+                const isAvailable = await isOSMnxBackendAvailable();
+                
+                if (isAvailable) {
+                    resultDiv.innerHTML = '<span class="success">✅ Backend доступен и работает!</span>';
+                } else {
+                    resultDiv.innerHTML = '<span class="warning">⚠️ Backend недоступен, будет использован Overpass API</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка проверки Backend: ${error.message}</span>`;
+            }
+        };
+
+        window.testOSMnxAPI = async function() {
+            const resultDiv = document.getElementById('osmnx-result');
+            resultDiv.textContent = 'Тестируем OSMnx API...';
+            
+            try {
+                const startTime = Date.now();
+                const paths = await fetchPathsWithOSMnx(TEST_BBOX, 'тестовые маршруты');
+                const loadTime = Date.now() - startTime;
+                
+                resultDiv.innerHTML = `<span class="success">✅ OSMnx API работает!</span>\n\n` +
+                    `Загружено: ${paths.length} маршрутов\n` +
+                    `Время: ${loadTime}мс\n\n` +
+                    `Пример данных:\n${JSON.stringify(paths.slice(0, 2), null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка OSMnx API: ${error.message}</span>`;
+            }
+        };
+
+        window.testOverpassIntegration = async function() {
+            const resultDiv = document.getElementById('integration-result');
+            resultDiv.textContent = 'Тестируем интеграцию с OverpassAPI...';
+            
+            try {
+                const startTime = Date.now();
+                const paths = await fetchPaths(TEST_BOUNDS, (msg) => {
+                    resultDiv.textContent = `Тестируем интеграцию... ${msg}`;
+                });
+                const loadTime = Date.now() - startTime;
+                
+                resultDiv.innerHTML = `<span class="success">✅ Интеграция работает!</span>\n\n` +
+                    `Загружено: ${paths.length} маршрутов\n` +
+                    `Время: ${loadTime}мс\n\n` +
+                    `Тип данных: ${Array.isArray(paths) ? 'Array' : typeof paths}\n` +
+                    `Пример данных:\n${JSON.stringify(paths.slice(0, 2), null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка интеграции: ${error.message}</span>`;
+            }
+        };
+
+        window.testDataFormat = async function() {
+            const resultDiv = document.getElementById('format-result');
+            resultDiv.textContent = 'Проверяем формат данных...';
+            
+            try {
+                const paths = await fetchPaths(TEST_BOUNDS, () => {});
+                
+                if (!Array.isArray(paths)) {
+                    resultDiv.innerHTML = `<span class="error">❌ Данные не являются массивом: ${typeof paths}</span>`;
+                    return;
+                }
+                
+                if (paths.length === 0) {
+                    resultDiv.innerHTML = '<span class="warning">⚠️ Массив пуст</span>';
+                    return;
+                }
+                
+                const firstPath = paths[0];
+                const hasGeometry = firstPath && 'geometry' in firstPath;
+                const geometryIsArray = hasGeometry && Array.isArray(firstPath.geometry);
+                const hasValidCoords = geometryIsArray && firstPath.geometry.length > 0 && Array.isArray(firstPath.geometry[0]);
+                
+                resultDiv.innerHTML = `<span class="success">✅ Формат данных корректен!</span>\n\n` +
+                    `Количество путей: ${paths.length}\n` +
+                    `Есть geometry: ${hasGeometry}\n` +
+                    `Geometry - массив: ${geometryIsArray}\n` +
+                    `Есть валидные координаты: ${hasValidCoords}\n\n` +
+                    `Пример пути:\n${JSON.stringify(firstPath, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Ошибка проверки формата: ${error.message}</span>`;
+            }
+        };
+
+        // Автоматически проверяем Backend при загрузке
+        window.addEventListener('load', () => {
+            testBackend();
+        });
+    </script>
+</body>
+</html>
