@@ -18,7 +18,10 @@ project/
 │       ├── mapModule.js (карта и визуализация)
 │       ├── algorithms.js (алгоритмы и графы)
 │       ├── navigation.js (звуковая навигация)
-│       └── pointGeneration.js (генерация точек)
+│       ├── audioModuleSimple.js (простой аудио модуль)
+│       ├── audioModuleAdvanced.js (продвинутый аудио модуль)
+│       ├── pointGeneration.js (генерация точек)
+│       └── pointGeneration_simple.js (упрощенная генерация)
 ```
 
 ### Описание модулей
