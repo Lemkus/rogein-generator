@@ -5,11 +5,12 @@
 
 import { initMap, pointMarkers, getSelectedBounds, getStartPoint } from './modules/mapModule.js';
 import { initNavigation } from './modules/navigation.js';
-import { generatePoints, cancelPointGeneration, downloadGPX } from './modules/pointGeneration.js';
-import './modules/audioModuleSimple.js'; // Инициализация простого аудио модуля
+import { generatePointsSimple as generatePoints, cancelPointGeneration } from './modules/pointGeneration_simple.js';
+import { downloadGPX } from './modules/pointGeneration.js';
+import './modules/audioModuleAdvanced.js'; // Инициализация продвинутого аудио модуля
 
 // DOM элементы (будут инициализированы в initApp)
-let generateBtn, pointsInput, status, minDistPercentInput, cancelBtn, downloadGpxBtn;
+let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn;
 
 // Инициализация приложения
 export function initApp() {
@@ -19,17 +20,15 @@ export function initApp() {
   generateBtn = document.getElementById('generateBtn');
   pointsInput = document.getElementById('pointsCount');
   status = document.getElementById('status');
-  minDistPercentInput = document.getElementById('minDistPercent');
   cancelBtn = document.getElementById('cancelBtn');
   downloadGpxBtn = document.getElementById('downloadGpxBtn');
   
   // Проверяем наличие всех элементов
-  if (!generateBtn || !pointsInput || !status || !minDistPercentInput || !cancelBtn || !downloadGpxBtn) {
+  if (!generateBtn || !pointsInput || !status || !cancelBtn || !downloadGpxBtn) {
     console.error('Не найдены необходимые DOM элементы');
     console.error('generateBtn:', !!generateBtn);
     console.error('pointsInput:', !!pointsInput);
     console.error('status:', !!status);
-    console.error('minDistPercentInput:', !!minDistPercentInput);
     console.error('cancelBtn:', !!cancelBtn);
     console.error('downloadGpxBtn:', !!downloadGpxBtn);
     return;
@@ -64,7 +63,6 @@ function setupEventHandlers() {
 // Обработчик клика по кнопке генерации
 async function handleGenerateClick() {
   const count = parseInt(pointsInput.value, 10);
-  const percent = parseFloat(minDistPercentInput.value);
   
   // Получаем текущие значения из mapModule
   const selectedBounds = getSelectedBounds();
@@ -74,7 +72,6 @@ async function handleGenerateClick() {
     selectedBounds,
     startPoint,
     count,
-    percent,
     updateStatus,
     toggleGenerateButton,
     toggleCancelButton
