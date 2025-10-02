@@ -192,6 +192,9 @@
     <button id="generateBtn">Сгенерировать точки (автоматическое распределение)</button>
     <button id="cancelBtn" style="display:none;">Отмена</button>
     <button id="downloadGpxBtn">Скачать точки для Garmin (GPX)</button>
+    <button id="saveRouteBtn">Сохранить распределение</button>
+    <button id="loadRouteBtn">Загрузить распределение</button>
+    <button id="shareRouteBtn">Поделиться ссылкой</button>
     <span id="status"></span>
   </div>
   <div class="controls" style="border-top: 2px solid #ccc; padding-top: 10px;">
@@ -208,7 +211,19 @@
   </div>
   <div id="map"></div>
   
-
+  <!-- Modal: список маршрутов -->
+  <div id="routesModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: min(520px, 92vw); max-height: 80vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-weight: 600; font-size: 16px;">Сохранённые маршруты</div>
+        <button id="routesModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333;">Закрыть</button>
+      </div>
+      <div id="routesModalBody" style="padding: 10px 12px;">
+        <div id="routesListEmpty" style="color:#777; padding: 8px;">Пока нет сохранённых маршрутов</div>
+        <div id="routesList" style="display: grid; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
   
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
