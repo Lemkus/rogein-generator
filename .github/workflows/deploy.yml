@@ -22,6 +22,13 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
+      - name: SSH debug (verbose)
+        env:
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          PORT_OPT=${SSH_PORT:+-p $SSH_PORT}
+          ssh -vvv -i key.pem -o StrictHostKeyChecking=no $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH OK'"
+
       - name: Deploy over SSH
         env:
           SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
@@ -43,10 +50,10 @@ jobs:
             git fetch --all
             git reset --hard origin/main
 
-            # перезапускаем FastAPI на 6001
-            pkill -f 'uvicorn.*6001' || true
+            # перезапускаем FastAPI на 6666
+            pkill -f 'uvicorn.*6666' || true
             sleep 2
             cd backend
-            nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6001 > /tmp/fastapi.log 2>&1 &
-            echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6001/health'
+            nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
+            echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6002/health'
           "
