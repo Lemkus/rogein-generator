@@ -3,7 +3,7 @@
  * Предоставляет быструю загрузку данных OpenStreetMap через Python backend
  */
 
-const OSMNX_API_BASE = 'http://localhost:5000/api';
+import { OSMNX_API_BASE } from './config.js';
 const REQUEST_TIMEOUT = 30000; // 30 секунд
 const MAX_RETRIES = 3; // Максимальное количество повторных попыток
 const RETRY_DELAY = 1000; // Задержка между попытками в мс
@@ -20,22 +20,22 @@ async function executeOSMnxRequest(endpoint, description, timeout = REQUEST_TIME
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
+  try {
+    const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
       
       console.log(`🔄 ${description}: попытка ${attempt}/${maxRetries} - ${OSMNX_API_BASE}${endpoint}`);
-      
+    
       const response = await fetch(`${OSMNX_API_BASE}${endpoint}`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
       console.log(`📡 ${description}: получен ответ HTTP ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
@@ -212,32 +212,32 @@ function convertGeometryFormat(geometry) {
  * @returns {Promise<Array>}
  */
 export async function fetchPathsWithOSMnx(bbox, pathType = 'пешеходные маршруты') {
-  console.log(`🔄 Загружаем ${pathType} через OSMnx backend...`);
-  
+    console.log(`🔄 Загружаем ${pathType} через OSMnx backend...`);
+    
   const data = await executeOSMnxRequest(`/paths?bbox=${bbox}`, `OSMnx ${pathType}`);
-  
-  console.log(`✅ OSMnx: загружено ${data.count} ${pathType} за ${data.load_time}с`);
-  
-  // Конвертируем данные в формат, ожидаемый frontend
-  const convertedPaths = data.data.map(path => ({
-    geometry: convertGeometryFormat(path.geometry),
-    highway: path.highway || 'unknown',
-    name: path.name || '',
-    surface: path.surface || '',
-    access: path.access || '',
-    osmid: path.osmid || '',
-    length: path.length || 0
-  })).filter(path => path.geometry.length >= 2); // Фильтруем пустые геометрии
-  
-  console.log(`✅ OSMnx: конвертировано ${convertedPaths.length} валидных путей`);
-  console.log('🔍 OSMnx возвращает:', {
-    isArray: Array.isArray(convertedPaths),
-    length: convertedPaths.length,
-    firstItem: convertedPaths[0],
-    sampleGeometry: convertedPaths[0]?.geometry?.slice(0, 3)
-  });
-  
-  return convertedPaths;
+    
+    console.log(`✅ OSMnx: загружено ${data.count} ${pathType} за ${data.load_time}с`);
+    
+    // Конвертируем данные в формат, ожидаемый frontend
+    const convertedPaths = data.data.map(path => ({
+      geometry: convertGeometryFormat(path.geometry),
+      highway: path.highway || 'unknown',
+      name: path.name || '',
+      surface: path.surface || '',
+      access: path.access || '',
+      osmid: path.osmid || '',
+      length: path.length || 0
+    })).filter(path => path.geometry.length >= 2); // Фильтруем пустые геометрии
+    
+    console.log(`✅ OSMnx: конвертировано ${convertedPaths.length} валидных путей`);
+    console.log('🔍 OSMnx возвращает:', {
+      isArray: Array.isArray(convertedPaths),
+      length: convertedPaths.length,
+      firstItem: convertedPaths[0],
+      sampleGeometry: convertedPaths[0]?.geometry?.slice(0, 3)
+    });
+    
+    return convertedPaths;
 }
 
 /**
@@ -246,26 +246,26 @@ export async function fetchPathsWithOSMnx(bbox, pathType = 'пешеходные
  * @returns {Promise<Array>}
  */
 export async function fetchBarriersWithOSMnx(bbox) {
-  console.log('🔄 Загружаем барьеры через OSMnx backend...');
-  
+    console.log('🔄 Загружаем барьеры через OSMnx backend...');
+    
   const data = await executeOSMnxRequest(`/barriers?bbox=${bbox}`, 'OSMnx барьеры');
-  
-  console.log(`✅ OSMnx: загружено ${data.count} барьеров за ${data.load_time}с`);
-  
-  // Конвертируем данные в формат, ожидаемый frontend
-  const convertedBarriers = data.data.map(barrier => ({
-    geometry: convertGeometryFormat(barrier.geometry),
-    type: 'barrier',
-    barrier_type: barrier.barrier_type || '',
-    natural: barrier.natural || '',
-    waterway: barrier.waterway || '',
-    name: barrier.name || '',
-    osmid: barrier.osmid || ''
-  })).filter(barrier => barrier.geometry.length >= 2);
-  
-  console.log(`✅ OSMnx: конвертировано ${convertedBarriers.length} валидных барьеров`);
-  
-  return convertedBarriers;
+    
+    console.log(`✅ OSMnx: загружено ${data.count} барьеров за ${data.load_time}с`);
+    
+    // Конвертируем данные в формат, ожидаемый frontend
+    const convertedBarriers = data.data.map(barrier => ({
+      geometry: convertGeometryFormat(barrier.geometry),
+      type: 'barrier',
+      barrier_type: barrier.barrier_type || '',
+      natural: barrier.natural || '',
+      waterway: barrier.waterway || '',
+      name: barrier.name || '',
+      osmid: barrier.osmid || ''
+    })).filter(barrier => barrier.geometry.length >= 2);
+    
+    console.log(`✅ OSMnx: конвертировано ${convertedBarriers.length} валидных барьеров`);
+    
+    return convertedBarriers;
 }
 
 /**
@@ -274,39 +274,39 @@ export async function fetchBarriersWithOSMnx(bbox) {
  * @returns {Promise<Object>} - объект с paths и barriers
  */
 export async function fetchAllWithOSMnx(bbox) {
-  console.log('🔄 Загружаем все данные через OSMnx backend...');
-  
+    console.log('🔄 Загружаем все данные через OSMnx backend...');
+    
   const data = await executeOSMnxRequest(`/all?bbox=${bbox}`, 'OSMnx все данные');
-  
-  console.log(`✅ OSMnx: загружено ${data.paths_count} путей и ${data.barriers_count} барьеров за ${data.load_time}с`);
-  
-  // Конвертируем данные
-  const convertedPaths = data.paths.map(path => ({
-    geometry: convertGeometryFormat(path.geometry),
-    highway: path.highway || 'unknown',
-    name: path.name || '',
-    surface: path.surface || '',
-    access: path.access || '',
-    osmid: path.osmid || '',
-    length: path.length || 0
-  })).filter(path => path.geometry.length >= 2);
-  
-  const convertedBarriers = data.barriers.map(barrier => ({
-    geometry: convertGeometryFormat(barrier.geometry),
-    type: 'barrier',
-    barrier_type: barrier.barrier_type || '',
-    natural: barrier.natural || '',
-    waterway: barrier.waterway || '',
-    name: barrier.name || '',
-    osmid: barrier.osmid || ''
-  })).filter(barrier => barrier.geometry.length >= 2);
-  
-  console.log(`✅ OSMnx: конвертировано ${convertedPaths.length} путей и ${convertedBarriers.length} барьеров`);
-  
-  return {
-    paths: convertedPaths,
-    barriers: convertedBarriers
-  };
+    
+    console.log(`✅ OSMnx: загружено ${data.paths_count} путей и ${data.barriers_count} барьеров за ${data.load_time}с`);
+    
+    // Конвертируем данные
+    const convertedPaths = data.paths.map(path => ({
+      geometry: convertGeometryFormat(path.geometry),
+      highway: path.highway || 'unknown',
+      name: path.name || '',
+      surface: path.surface || '',
+      access: path.access || '',
+      osmid: path.osmid || '',
+      length: path.length || 0
+    })).filter(path => path.geometry.length >= 2);
+    
+    const convertedBarriers = data.barriers.map(barrier => ({
+      geometry: convertGeometryFormat(barrier.geometry),
+      type: 'barrier',
+      barrier_type: barrier.barrier_type || '',
+      natural: barrier.natural || '',
+      waterway: barrier.waterway || '',
+      name: barrier.name || '',
+      osmid: barrier.osmid || ''
+    })).filter(barrier => barrier.geometry.length >= 2);
+    
+    console.log(`✅ OSMnx: конвертировано ${convertedPaths.length} путей и ${convertedBarriers.length} барьеров`);
+    
+    return {
+      paths: convertedPaths,
+      barriers: convertedBarriers
+    };
 }
 
 /**
