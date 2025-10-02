@@ -1,35 +1,38 @@
-name: Deploy to GitHub Pages
+name: Deploy to VPS
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+        
+    - name: Deploy to VPS
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          set -e
+          echo 'Updating backend code...'
+          cd ~/rogein/src
+          git fetch --all
+          git reset --hard origin/main
+          
+          echo 'Restarting FastAPI...'
+          pkill -f 'uvicorn.*7001' || true
+          sleep 2
+          
+          cd ~/rogein/src/backend
+          nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6001 >/tmp/fastapi.log 2>&1 &
+          
+          echo 'Deployment completed!'
+          echo 'Backend URL: http://${{ secrets.VPS_HOST }}:6001'
+        "
