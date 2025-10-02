@@ -4,7 +4,7 @@ const isGithub = typeof location !== 'undefined' && location.host.endsWith('gith
 // Временные локальные значения остаются для разработки
 export const BACKEND_SIMPLE_BASE = isGithub
   ? 'https://your-fastapi.example.com'
-  : 'http://38.180.71.138:6001';
+  : 'http://38.180.71.138:6002';
 
 export const OSMNX_API_BASE = isGithub
   ? 'https://your-osmnx.example.com/api'
