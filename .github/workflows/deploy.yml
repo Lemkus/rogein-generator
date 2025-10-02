@@ -50,8 +50,8 @@ jobs:
             git fetch --all
             git reset --hard origin/main
 
-            # перезапускаем FastAPI на 6666
-            pkill -f 'uvicorn.*6666' || true
+            # перезапускаем FastAPI на 6002
+            pkill -f 'uvicorn.*6002' || true
             sleep 2
             cd backend
             nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
