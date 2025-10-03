@@ -60,6 +60,9 @@ jobs:
             ls -la
             ls -la backend/
             ls -la backend/app/
+            echo '=== Проверяем фронтенд файлы ==='
+            ls -la index.html || echo 'index.html не найден'
+            ls -la src/ || echo 'src/ не найден'
             
             echo '=== Проверяем Python и зависимости ==='
             python3 --version

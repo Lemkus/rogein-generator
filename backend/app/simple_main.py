@@ -5,6 +5,8 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import json
@@ -22,7 +24,15 @@ app = FastAPI(
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=[
+        "http://localhost:8000", 
+        "http://127.0.0.1:8000",
+        "https://lemkus.github.io",
+        "https://lemkus.github.io/rogein-generator",
+        "http://38.180.71.138:6002",
+        "http://38.180.71.138:6666",
+        "http://38.180.71.138:7001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +45,19 @@ TRAINING_FILE = os.path.join(DATA_DIR, "training.json")
 
 # Создаем директорию для данных
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# Настройка статических файлов
+FRONTEND_DIR = "../src"  # Путь к фронтенду относительно backend/
+STATIC_DIR = "../"       # Корневая директория проекта
+
+# Проверяем существование директорий
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/src", StaticFiles(directory=FRONTEND_DIR), name="src")
+    print(f"✅ Статические файлы подключены: {FRONTEND_DIR}")
+
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    print(f"✅ Статические файлы подключены: {STATIC_DIR}")
 
 # Инициализируем файлы если их нет
 if not os.path.exists(ROUTES_FILE):
@@ -119,7 +142,25 @@ def save_training_sessions(sessions: List[Dict]):
 # API Endpoints
 @app.get("/")
 async def root():
-    """Корневой эндпоинт"""
+    """Корневой эндпоинт - отдаем главную страницу"""
+    index_path = "../index.html"
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    else:
+        return {
+            "message": "🎯 Рогейн Навигация API (Простая версия) работает!",
+            "version": "1.0.0-simple",
+            "docs": "/docs",
+            "storage": "JSON файлы",
+            "endpoints": {
+                "routes": "/api/routes",
+                "training": "/api/training"
+            }
+        }
+
+@app.get("/api")
+async def api_info():
+    """Информация об API"""
     return {
         "message": "🎯 Рогейн Навигация API (Простая версия) работает!",
         "version": "1.0.0-simple",
@@ -294,3 +335,4 @@ async def create_training_session(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="localhost", port=8001)
+
