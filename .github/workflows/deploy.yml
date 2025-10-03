@@ -87,50 +87,14 @@ jobs:
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
-            echo '=== Останавливаем старые процессы ==='
-            # Проверяем, есть ли процессы uvicorn под текущим пользователем
-            CURRENT_USER=\$(whoami)
-            echo \"Текущий пользователь: \$CURRENT_USER\"
-            
-            # Ищем процессы uvicorn на порту 6002 под текущим пользователем
-            Uvicorn_PROCESSES=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-            if [ -n \"\$Uvicorn_PROCESSES\" ]; then
-              echo \"Найдены процессы uvicorn: \$Uvicorn_PROCESSES\"
-              echo \"Проверяем владельцев процессов:\"
-              
-              # Проверяем каждый процесс и останавливаем только свои
-              for pid in \$Uvicorn_PROCESSES; do
-                PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo \"unknown\")
-                echo \"Процесс \$pid принадлежит пользователю: \$PROCESS_USER\"
-                
-                if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
-                  echo \"Останавливаем свой процесс \$pid\"
-                  echo \"Попытка 1: SIGTERM\"
-                  kill -TERM \$pid 2>&1 || echo \"SIGTERM не сработал для \$pid\" || true
-                  sleep 1
-                  
-                  # Проверяем, остановился ли процесс
-                  if ps -p \$pid > /dev/null 2>&1; then
-                    echo \"Процесс \$pid еще работает, пробуем SIGKILL\"
-                    kill -KILL \$pid 2>&1 || echo \"SIGKILL не сработал для \$pid\" || true
-                  else
-                    echo \"Процесс \$pid успешно остановлен\"
-                  fi
-                else
-                  echo \"Пропускаем процесс \$pid (принадлежит \$PROCESS_USER)\"
-                fi
-              done
-              sleep 3
-              
-              # Проверяем результат
-              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-              if [ -n \"\$REMAINING\" ]; then
-                echo \"Остались процессы: \$REMAINING\"
-              else
-                echo \"Все свои процессы uvicorn остановлены\"
-              fi
+            echo '=== Проверяем порт 6002 ==='
+            # Проверяем, занят ли порт 6002
+            if lsof -i:6002 >/dev/null 2>&1; then
+              echo \"Порт 6002 занят, запускаем на порту 6003\"
+              export FASTAPI_PORT=6003
             else
-              echo \"Процессы uvicorn на порту 6002 не найдены\"
+              echo \"Порт 6002 свободен, запускаем на нем\"
+              export FASTAPI_PORT=6002
             fi
             sleep 2
             
@@ -143,16 +107,16 @@ jobs:
             echo 'Содержимое backend/: \$(ls -la)'
             echo 'Содержимое backend/app/: \$(ls -la app/)'
             
-            nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
+            nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port \$FASTAPI_PORT > /tmp/fastapi.log 2>&1 &
             sleep 3
             
             echo '=== Проверяем запуск ==='
             ps aux | grep uvicorn || echo 'Процесс не найден'
-            curl -s http://localhost:6002/test || echo 'Тестовый маршрут не отвечает'
-            curl -s http://localhost:6002/health || echo 'Health check не отвечает'
+            curl -s http://localhost:\$FASTAPI_PORT/test || echo 'Тестовый маршрут не отвечает'
+            curl -s http://localhost:\$FASTAPI_PORT/health || echo 'Health check не отвечает'
             
             echo '=== Логи запуска ==='
             cat /tmp/fastapi.log || echo 'Лог пуст'
             
-            echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6002/health'
+            echo \"Deployed at: http://${{ secrets.VPS_HOST }}:\$FASTAPI_PORT/health\"
           "
