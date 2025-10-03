@@ -87,31 +87,14 @@ jobs:
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
-            echo '=== Останавливаем старые процессы ==='
-            # Проверяем, есть ли процессы uvicorn
+            echo '=== Проверяем старые процессы ==='
+            # Просто проверяем, есть ли процессы, но не останавливаем их
             Uvicorn_PROCESSES=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
             if [ -n \"\$Uvicorn_PROCESSES\" ]; then
               echo \"Найдены процессы uvicorn: \$Uvicorn_PROCESSES\"
-              echo \"Информация о процессах:\"
-              ps aux | grep uvicorn | grep -v grep || echo \"Не удалось получить информацию о процессах\"
-              
-              # Пытаемся остановить процессы
-              echo \"Попытка остановки через kill\"
-              for pid in \$Uvicorn_PROCESSES; do
-                echo \"Останавливаем процесс \$pid\"
-                kill -TERM \$pid 2>/dev/null || echo \"Не удалось остановить \$pid\"
-              done
-              sleep 3
-              
-              # Проверяем результат
-              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-              if [ -n \"\$REMAINING\" ]; then
-                echo \"Остались процессы: \$REMAINING - не удалось остановить\"
-              else
-                echo \"Все процессы uvicorn остановлены\"
-              fi
+              echo \"Запускаем новый процесс поверх старого\"
             else
-              echo \"Процессы uvicorn на порту 6002 не найдены - ничего останавливать не нужно\"
+              echo \"Процессы uvicorn на порту 6002 не найдены\"
             fi
             sleep 2
             
