@@ -88,31 +88,31 @@ jobs:
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Останавливаем старые процессы ==='
-            # Проверяем, кто владелец процессов
-            echo \"Информация о процессах uvicorn:\"
-            ps aux | grep uvicorn | grep -v grep || echo \"Процессы uvicorn не найдены\"
-            
-            # Пытаемся остановить процессы разными способами
-            echo \"Попытка 1: pkill\"
-            pkill -f 'uvicorn.*6002' 2>/dev/null || echo \"pkill не сработал\"
-            sleep 2
-            
-            echo \"Попытка 2: killall\"
-            killall uvicorn 2>/dev/null || echo \"killall не сработал\"
-            sleep 2
-            
-            echo \"Попытка 3: через lsof и kill\"
-            PORT_PIDS=\$(lsof -ti:6002 2>/dev/null || true)
-            if [ -n \"\$PORT_PIDS\" ]; then
-              echo \"Процессы на порту 6002: \$PORT_PIDS\"
-              for pid in \$PORT_PIDS; do
-                echo \"Пытаемся остановить процесс \$pid\"
+            # Проверяем, есть ли процессы uvicorn
+            Uvicorn_PROCESSES=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
+            if [ -n \"\$Uvicorn_PROCESSES\" ]; then
+              echo \"Найдены процессы uvicorn: \$Uvicorn_PROCESSES\"
+              echo \"Информация о процессах:\"
+              ps aux | grep uvicorn | grep -v grep
+              
+              # Пытаемся остановить процессы
+              echo \"Попытка остановки через kill\"
+              for pid in \$Uvicorn_PROCESSES; do
+                echo \"Останавливаем процесс \$pid\"
                 kill -TERM \$pid 2>/dev/null || echo \"Не удалось остановить \$pid\"
               done
               sleep 3
+              
+              # Проверяем результат
+              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
+              if [ -n \"\$REMAINING\" ]; then
+                echo \"Остались процессы: \$REMAINING - не удалось остановить\"
+              else
+                echo \"Все процессы uvicorn остановлены\"
+              fi
+            else
+              echo \"Процессы uvicorn на порту 6002 не найдены - ничего останавливать не нужно\"
             fi
-            
-            echo \"Процессы остановлены (или не удалось остановить)\"
             sleep 2
             
             echo '=== Запускаем FastAPI ==='
