@@ -101,12 +101,18 @@ jobs:
             sleep 2
             
             echo '=== Запускаем FastAPI ==='
+            cd backend
+            echo 'Текущая директория для запуска: $(pwd)'
+            echo 'Содержимое backend/: $(ls -la)'
+            echo 'Содержимое backend/app/: $(ls -la app/)'
+            
             nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
-            sleep 2
+            sleep 3
             
             echo '=== Проверяем запуск ==='
             ps aux | grep uvicorn || echo 'Процесс не найден'
-            curl -s http://localhost:6002/health || echo 'Сервер не отвечает'
+            curl -s http://localhost:6002/test || echo 'Тестовый маршрут не отвечает'
+            curl -s http://localhost:6002/health || echo 'Health check не отвечает'
             
             echo '=== Логи запуска ==='
             cat /tmp/fastapi.log || echo 'Лог пуст'
