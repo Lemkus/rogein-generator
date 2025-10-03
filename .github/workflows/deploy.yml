@@ -105,7 +105,17 @@ jobs:
                 
                 if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
                   echo \"Останавливаем свой процесс \$pid\"
-                  kill -TERM \$pid 2>/dev/null || echo \"Не удалось остановить \$pid\"
+                  echo \"Попытка 1: SIGTERM\"
+                  kill -TERM \$pid 2>&1 || echo \"SIGTERM не сработал для \$pid\"
+                  sleep 1
+                  
+                  # Проверяем, остановился ли процесс
+                  if ps -p \$pid > /dev/null 2>&1; then
+                    echo \"Процесс \$pid еще работает, пробуем SIGKILL\"
+                    kill -KILL \$pid 2>&1 || echo \"SIGKILL не сработал для \$pid\"
+                  else
+                    echo \"Процесс \$pid успешно остановлен\"
+                  fi
                 else
                   echo \"Пропускаем процесс \$pid (принадлежит \$PROCESS_USER)\"
                 fi
