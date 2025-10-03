@@ -106,13 +106,13 @@ jobs:
                 if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
                   echo \"Останавливаем свой процесс \$pid\"
                   echo \"Попытка 1: SIGTERM\"
-                  kill -TERM \$pid 2>&1 || echo \"SIGTERM не сработал для \$pid\"
+                  kill -TERM \$pid 2>&1 || echo \"SIGTERM не сработал для \$pid\" || true
                   sleep 1
                   
                   # Проверяем, остановился ли процесс
                   if ps -p \$pid > /dev/null 2>&1; then
                     echo \"Процесс \$pid еще работает, пробуем SIGKILL\"
-                    kill -KILL \$pid 2>&1 || echo \"SIGKILL не сработал для \$pid\"
+                    kill -KILL \$pid 2>&1 || echo \"SIGKILL не сработал для \$pid\" || true
                   else
                     echo \"Процесс \$pid успешно остановлен\"
                   fi
