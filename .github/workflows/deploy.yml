@@ -88,24 +88,31 @@ jobs:
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Останавливаем старые процессы ==='
-            # Пытаемся найти и остановить процессы uvicorn на порту 6002
-            PIDS=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-            if [ -n \"\$PIDS\" ]; then
-              echo \"Найдены процессы: \$PIDS\"
-              for pid in \$PIDS; do
-                echo \"Останавливаем процесс \$pid\"
-                kill -TERM \$pid 2>/dev/null || true
+            # Проверяем, кто владелец процессов
+            echo \"Информация о процессах uvicorn:\"
+            ps aux | grep uvicorn | grep -v grep || echo \"Процессы uvicorn не найдены\"
+            
+            # Пытаемся остановить процессы разными способами
+            echo \"Попытка 1: pkill\"
+            pkill -f 'uvicorn.*6002' 2>/dev/null || echo \"pkill не сработал\"
+            sleep 2
+            
+            echo \"Попытка 2: killall\"
+            killall uvicorn 2>/dev/null || echo \"killall не сработал\"
+            sleep 2
+            
+            echo \"Попытка 3: через lsof и kill\"
+            PORT_PIDS=\$(lsof -ti:6002 2>/dev/null || true)
+            if [ -n \"\$PORT_PIDS\" ]; then
+              echo \"Процессы на порту 6002: \$PORT_PIDS\"
+              for pid in \$PORT_PIDS; do
+                echo \"Пытаемся остановить процесс \$pid\"
+                kill -TERM \$pid 2>/dev/null || echo \"Не удалось остановить \$pid\"
               done
               sleep 3
-              # Проверяем, остановились ли процессы
-              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-              if [ -n \"\$REMAINING\" ]; then
-                echo \"Принудительно останавливаем оставшиеся процессы: \$REMAINING\"
-                kill -KILL \$REMAINING 2>/dev/null || true
-              fi
-            else
-              echo \"Процессы uvicorn на порту 6002 не найдены\"
             fi
+            
+            echo \"Процессы остановлены (или не удалось остановить)\"
             sleep 2
             
             echo '=== Запускаем FastAPI ==='
