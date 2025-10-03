@@ -93,7 +93,7 @@ jobs:
             if [ -n \"\$Uvicorn_PROCESSES\" ]; then
               echo \"Найдены процессы uvicorn: \$Uvicorn_PROCESSES\"
               echo \"Информация о процессах:\"
-              ps aux | grep uvicorn | grep -v grep
+              ps aux | grep uvicorn | grep -v grep || echo \"Не удалось получить информацию о процессах\"
               
               # Пытаемся остановить процессы
               echo \"Попытка остановки через kill\"
