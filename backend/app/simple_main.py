@@ -47,17 +47,32 @@ TRAINING_FILE = os.path.join(DATA_DIR, "training.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Настройка статических файлов
-FRONTEND_DIR = "../src"  # Путь к фронтенду относительно backend/
-STATIC_DIR = "../"       # Корневая директория проекта
+# Получаем абсолютные пути
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
+
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, "src")
+STATIC_DIR = PROJECT_ROOT
+
+print(f"🔍 Текущая директория: {CURRENT_DIR}")
+print(f"🔍 Backend директория: {BACKEND_DIR}")
+print(f"🔍 Корень проекта: {PROJECT_ROOT}")
+print(f"🔍 Фронтенд директория: {FRONTEND_DIR}")
+print(f"🔍 Статическая директория: {STATIC_DIR}")
 
 # Проверяем существование директорий
 if os.path.exists(FRONTEND_DIR):
     app.mount("/src", StaticFiles(directory=FRONTEND_DIR), name="src")
     print(f"✅ Статические файлы подключены: {FRONTEND_DIR}")
+else:
+    print(f"❌ Фронтенд директория не найдена: {FRONTEND_DIR}")
 
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     print(f"✅ Статические файлы подключены: {STATIC_DIR}")
+else:
+    print(f"❌ Статическая директория не найдена: {STATIC_DIR}")
 
 # Инициализируем файлы если их нет
 if not os.path.exists(ROUTES_FILE):
@@ -143,10 +158,15 @@ def save_training_sessions(sessions: List[Dict]):
 @app.get("/")
 async def root():
     """Корневой эндпоинт - отдаем главную страницу"""
-    index_path = "../index.html"
+    index_path = os.path.join(PROJECT_ROOT, "index.html")
+    print(f"🔍 Ищем index.html по пути: {index_path}")
+    print(f"🔍 Файл существует: {os.path.exists(index_path)}")
+    
     if os.path.exists(index_path):
+        print(f"✅ Отдаем index.html")
         return FileResponse(index_path)
     else:
+        print(f"❌ index.html не найден, показываем API info")
         return {
             "message": "🎯 Рогейн Навигация API (Простая версия) работает!",
             "version": "1.0.0-simple",
@@ -155,6 +175,11 @@ async def root():
             "endpoints": {
                 "routes": "/api/routes",
                 "training": "/api/training"
+            },
+            "debug": {
+                "project_root": PROJECT_ROOT,
+                "index_path": index_path,
+                "files_in_root": os.listdir(PROJECT_ROOT) if os.path.exists(PROJECT_ROOT) else "PROJECT_ROOT не существует"
             }
         }
 
@@ -170,6 +195,22 @@ async def api_info():
             "routes": "/api/routes",
             "training": "/api/training"
         }
+    }
+
+@app.get("/debug")
+async def debug_info():
+    """Отладочная информация о файлах"""
+    return {
+        "current_dir": CURRENT_DIR,
+        "backend_dir": BACKEND_DIR,
+        "project_root": PROJECT_ROOT,
+        "frontend_dir": FRONTEND_DIR,
+        "static_dir": STATIC_DIR,
+        "index_exists": os.path.exists(os.path.join(PROJECT_ROOT, "index.html")),
+        "frontend_exists": os.path.exists(FRONTEND_DIR),
+        "static_exists": os.path.exists(STATIC_DIR),
+        "files_in_project_root": os.listdir(PROJECT_ROOT) if os.path.exists(PROJECT_ROOT) else "PROJECT_ROOT не существует",
+        "files_in_frontend": os.listdir(FRONTEND_DIR) if os.path.exists(FRONTEND_DIR) else "FRONTEND_DIR не существует"
     }
 
 
