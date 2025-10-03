@@ -37,6 +37,8 @@ jobs:
           PORT_OPT=${SSH_PORT:+-p $SSH_PORT}
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             set -e
+            echo '=== Начинаем деплой ==='
+            
             # подготовить каталог с кодом
             mkdir -p \"$VPS_PATH\"
             if [ ! -d \"$VPS_PATH/.git\" ]; then
@@ -47,13 +49,44 @@ jobs:
             fi
 
             cd \"$VPS_PATH\"
+            echo '=== Обновляем код ==='
             git fetch --all
             git reset --hard origin/main
-
-            # перезапускаем FastAPI на 6002
-            pkill -f 'uvicorn.*6002' || true
-            sleep 2
+            
+            echo '=== Проверяем структуру файлов ==='
+            ls -la
+            ls -la backend/
+            ls -la backend/app/
+            
+            echo '=== Проверяем Python и зависимости ==='
+            python3 --version
+            python3 -c 'import uvicorn; print(\"uvicorn OK\")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
+            python3 -c 'import fastapi; print(\"fastapi OK\")' || echo 'fastapi НЕ УСТАНОВЛЕН'
+            
+            echo '=== Устанавливаем зависимости если нужно ==='
+            if ! python3 -c 'import uvicorn' 2>/dev/null; then
+              echo 'Устанавливаем uvicorn...'
+              pip3 install --user uvicorn fastapi
+            fi
+            
+            echo '=== Проверяем модуль ==='
             cd backend
+            python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
+
+            echo '=== Останавливаем старые процессы ==='
+            pkill -f 'uvicorn.*6002' || true
+            sleep 3
+            
+            echo '=== Запускаем FastAPI ==='
             nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
+            sleep 2
+            
+            echo '=== Проверяем запуск ==='
+            ps aux | grep uvicorn || echo 'Процесс не найден'
+            curl -s http://localhost:6002/health || echo 'Сервер не отвечает'
+            
+            echo '=== Логи запуска ==='
+            cat /tmp/fastapi.log || echo 'Лог пуст'
+            
             echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6002/health'
           "
