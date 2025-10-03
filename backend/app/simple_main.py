@@ -3,16 +3,45 @@
 Только основная функциональность для сохранения маршрутов
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+print("🚀 Загружаем модули...")
+
+try:
+    from fastapi import FastAPI, HTTPException
+    print("✅ FastAPI импортирован")
+except Exception as e:
+    print(f"❌ Ошибка импорта FastAPI: {e}")
+
+try:
+    from fastapi.middleware.cors import CORSMiddleware
+    print("✅ CORSMiddleware импортирован")
+except Exception as e:
+    print(f"❌ Ошибка импорта CORSMiddleware: {e}")
+
+try:
+    from fastapi.staticfiles import StaticFiles
+    print("✅ StaticFiles импортирован")
+except Exception as e:
+    print(f"❌ Ошибка импорта StaticFiles: {e}")
+
+try:
+    from fastapi.responses import FileResponse
+    print("✅ FileResponse импортирован")
+except Exception as e:
+    print(f"❌ Ошибка импорта FileResponse: {e}")
+
+try:
+    from pydantic import BaseModel, Field
+    print("✅ Pydantic импортирован")
+except Exception as e:
+    print(f"❌ Ошибка импорта Pydantic: {e}")
+
 from typing import List, Optional, Dict, Any
 import json
 import os
 import uuid
 from datetime import datetime
+
+print("✅ Все модули загружены успешно")
 
 # Создаем FastAPI приложение
 app = FastAPI(
@@ -155,6 +184,11 @@ def save_training_sessions(sessions: List[Dict]):
 
 
 # API Endpoints
+@app.get("/test")
+async def test():
+    """Простой тестовый маршрут"""
+    return {"message": "FastAPI работает!", "status": "ok"}
+
 @app.get("/")
 async def root():
     """Корневой эндпоинт - отдаем главную страницу"""
