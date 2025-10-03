@@ -43,7 +43,7 @@ jobs:
           echo "🔍 Тестируем SSH соединение..."
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает!'"
           echo "🔍 Начинаем деплой через SSH..."
-          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -e
             echo '=== Начинаем деплой ==='
             echo 'Пользователь: $(whoami)'
@@ -51,15 +51,15 @@ jobs:
             echo 'Права на /tmp: $(ls -ld /tmp)'
             
             # подготовить каталог с кодом
-            mkdir -p \"$VPS_PATH\"
-            if [ ! -d \"$VPS_PATH/.git\" ]; then
-              cd \"$(dirname \"$VPS_PATH\")\"
+            mkdir -p "$VPS_PATH"
+            if [ ! -d "$VPS_PATH/.git" ]; then
+              cd "$(dirname "$VPS_PATH")"
               if [ -d rogein-generator ]; then rm -rf rogein-generator; fi
               git clone https://github.com/${{ github.repository }} rogein-generator
-              mv rogein-generator \"$(basename \"$VPS_PATH\")\"
+              mv rogein-generator "$(basename "$VPS_PATH")"
             fi
 
-            cd \"$VPS_PATH\"
+            cd "$VPS_PATH"
             echo '=== Обновляем код ==='
             git fetch --all
             git reset --hard origin/main
@@ -74,8 +74,8 @@ jobs:
             
             echo '=== Проверяем Python и зависимости ==='
             python3 --version
-            python3 -c 'import uvicorn; print(\"uvicorn OK\")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
-            python3 -c 'import fastapi; print(\"fastapi OK\")' || echo 'fastapi НЕ УСТАНОВЛЕН'
+            python3 -c 'import uvicorn; print("uvicorn OK")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
+            python3 -c 'import fastapi; print("fastapi OK")' || echo 'fastapi НЕ УСТАНОВЛЕН'
             
             echo '=== Устанавливаем зависимости если нужно ==='
             if ! python3 -c 'import uvicorn' 2>/dev/null; then
@@ -85,7 +85,7 @@ jobs:
             
             echo '=== Проверяем модуль ==='
             cd backend
-            python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
+            python3 -c 'import app.simple_main; print("Модуль app.simple_main найден")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Останавливаем старые процессы ==='
             # Пытаемся найти и остановить процессы uvicorn на порту 6002
@@ -129,4 +129,4 @@ jobs:
             cat /tmp/fastapi.log || echo 'Лог пуст'
             
             echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6002/health'
-          "
+EOF
