@@ -87,12 +87,38 @@ jobs:
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
-            echo '=== Проверяем старые процессы ==='
-            # Просто проверяем, есть ли процессы, но не останавливаем их
+            echo '=== Останавливаем старые процессы ==='
+            # Проверяем, есть ли процессы uvicorn под текущим пользователем
+            CURRENT_USER=\$(whoami)
+            echo \"Текущий пользователь: \$CURRENT_USER\"
+            
+            # Ищем процессы uvicorn на порту 6002 под текущим пользователем
             Uvicorn_PROCESSES=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
             if [ -n \"\$Uvicorn_PROCESSES\" ]; then
               echo \"Найдены процессы uvicorn: \$Uvicorn_PROCESSES\"
-              echo \"Запускаем новый процесс поверх старого\"
+              echo \"Проверяем владельцев процессов:\"
+              
+              # Проверяем каждый процесс и останавливаем только свои
+              for pid in \$Uvicorn_PROCESSES; do
+                PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo \"unknown\")
+                echo \"Процесс \$pid принадлежит пользователю: \$PROCESS_USER\"
+                
+                if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
+                  echo \"Останавливаем свой процесс \$pid\"
+                  kill -TERM \$pid 2>/dev/null || echo \"Не удалось остановить \$pid\"
+                else
+                  echo \"Пропускаем процесс \$pid (принадлежит \$PROCESS_USER)\"
+                fi
+              done
+              sleep 3
+              
+              # Проверяем результат
+              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
+              if [ -n \"\$REMAINING\" ]; then
+                echo \"Остались процессы: \$REMAINING\"
+              else
+                echo \"Все свои процессы uvicorn остановлены\"
+              fi
             else
               echo \"Процессы uvicorn на порту 6002 не найдены\"
             fi
