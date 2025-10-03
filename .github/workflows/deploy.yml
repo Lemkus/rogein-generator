@@ -44,7 +44,7 @@ jobs:
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает!'"
           echo "🔍 Начинаем деплой через SSH..."
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            set -e
+            # Не используем set -e, чтобы команды с ошибками не прерывали скрипт
             echo '=== Начинаем деплой ==='
             echo 'Пользователь: \$(whoami)'
             echo 'UID: \$(id -u)'
