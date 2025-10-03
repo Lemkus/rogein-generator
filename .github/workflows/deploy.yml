@@ -101,8 +101,11 @@ jobs:
             sleep 2
             
             echo '=== Запускаем FastAPI ==='
+            echo 'Текущая директория: $(pwd)'
+            echo 'Содержимое текущей директории: $(ls -la)'
+            echo 'Переходим в backend/'
             cd backend
-            echo 'Текущая директория для запуска: $(pwd)'
+            echo 'Текущая директория после cd backend: $(pwd)'
             echo 'Содержимое backend/: $(ls -la)'
             echo 'Содержимое backend/app/: $(ls -la app/)'
             
