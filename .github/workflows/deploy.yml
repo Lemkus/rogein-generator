@@ -43,23 +43,23 @@ jobs:
           echo "🔍 Тестируем SSH соединение..."
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает!'"
           echo "🔍 Начинаем деплой через SSH..."
-          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             set -e
             echo '=== Начинаем деплой ==='
-            echo 'Пользователь: $(whoami)'
-            echo 'UID: $(id -u)'
-            echo 'Права на /tmp: $(ls -ld /tmp)'
+            echo 'Пользователь: \$(whoami)'
+            echo 'UID: \$(id -u)'
+            echo 'Права на /tmp: \$(ls -ld /tmp)'
             
             # подготовить каталог с кодом
-            mkdir -p "$VPS_PATH"
-            if [ ! -d "$VPS_PATH/.git" ]; then
-              cd "$(dirname "$VPS_PATH")"
+            mkdir -p \"$VPS_PATH\"
+            if [ ! -d \"$VPS_PATH/.git\" ]; then
+              cd \"\$(dirname \"$VPS_PATH\")\"
               if [ -d rogein-generator ]; then rm -rf rogein-generator; fi
               git clone https://github.com/${{ github.repository }} rogein-generator
-              mv rogein-generator "$(basename "$VPS_PATH")"
+              mv rogein-generator \"\$(basename \"$VPS_PATH\")\"
             fi
 
-            cd "$VPS_PATH"
+            cd \"$VPS_PATH\"
             echo '=== Обновляем код ==='
             git fetch --all
             git reset --hard origin/main
@@ -74,8 +74,8 @@ jobs:
             
             echo '=== Проверяем Python и зависимости ==='
             python3 --version
-            python3 -c 'import uvicorn; print("uvicorn OK")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
-            python3 -c 'import fastapi; print("fastapi OK")' || echo 'fastapi НЕ УСТАНОВЛЕН'
+            python3 -c 'import uvicorn; print(\"uvicorn OK\")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
+            python3 -c 'import fastapi; print(\"fastapi OK\")' || echo 'fastapi НЕ УСТАНОВЛЕН'
             
             echo '=== Устанавливаем зависимости если нужно ==='
             if ! python3 -c 'import uvicorn' 2>/dev/null; then
@@ -85,37 +85,37 @@ jobs:
             
             echo '=== Проверяем модуль ==='
             cd backend
-            python3 -c 'import app.simple_main; print("Модуль app.simple_main найден")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
+            python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Останавливаем старые процессы ==='
             # Пытаемся найти и остановить процессы uvicorn на порту 6002
-            PIDS=$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-            if [ -n "$PIDS" ]; then
-              echo "Найдены процессы: $PIDS"
-              for pid in $PIDS; do
-                echo "Останавливаем процесс $pid"
-                kill -TERM $pid 2>/dev/null || true
+            PIDS=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
+            if [ -n \"\$PIDS\" ]; then
+              echo \"Найдены процессы: \$PIDS\"
+              for pid in \$PIDS; do
+                echo \"Останавливаем процесс \$pid\"
+                kill -TERM \$pid 2>/dev/null || true
               done
               sleep 3
               # Проверяем, остановились ли процессы
-              REMAINING=$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
-              if [ -n "$REMAINING" ]; then
-                echo "Принудительно останавливаем оставшиеся процессы: $REMAINING"
-                kill -KILL $REMAINING 2>/dev/null || true
+              REMAINING=\$(pgrep -f 'uvicorn.*6002' 2>/dev/null || true)
+              if [ -n \"\$REMAINING\" ]; then
+                echo \"Принудительно останавливаем оставшиеся процессы: \$REMAINING\"
+                kill -KILL \$REMAINING 2>/dev/null || true
               fi
             else
-              echo "Процессы uvicorn на порту 6002 не найдены"
+              echo \"Процессы uvicorn на порту 6002 не найдены\"
             fi
             sleep 2
             
             echo '=== Запускаем FastAPI ==='
-            echo 'Текущая директория: $(pwd)'
-            echo 'Содержимое текущей директории: $(ls -la)'
+            echo 'Текущая директория: \$(pwd)'
+            echo 'Содержимое текущей директории: \$(ls -la)'
             echo 'Переходим в backend/'
             cd backend
-            echo 'Текущая директория после cd backend: $(pwd)'
-            echo 'Содержимое backend/: $(ls -la)'
-            echo 'Содержимое backend/app/: $(ls -la app/)'
+            echo 'Текущая директория после cd backend: \$(pwd)'
+            echo 'Содержимое backend/: \$(ls -la)'
+            echo 'Содержимое backend/app/: \$(ls -la app/)'
             
             nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port 6002 > /tmp/fastapi.log 2>&1 &
             sleep 3
@@ -129,4 +129,4 @@ jobs:
             cat /tmp/fastapi.log || echo 'Лог пуст'
             
             echo 'Deployed at: http://${{ secrets.VPS_HOST }}:6002/health'
-EOF
+          "
