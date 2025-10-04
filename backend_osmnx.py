@@ -240,13 +240,10 @@ def test_osmnx():
         try:
             # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
             bbox = tuple([test_bbox[2], test_bbox[0], test_bbox[3], test_bbox[1]])  # north, south, east, west
-            graph = ox.graph_from_bbox(
-                bbox,
-                network_type='all',
-                simplify=True,
-                retain_all=False,
-                truncate_by_edge=True
-            )
+            logger.info(f"Конвертированный bbox: {bbox}")
+            
+            # Попробуем простой запрос без дополнительных параметров
+            graph = ox.graph_from_bbox(bbox)
             logger.info(f"✅ Граф загружен: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
             
             # Тестируем конвертацию
