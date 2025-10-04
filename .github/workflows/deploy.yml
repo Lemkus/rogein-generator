@@ -72,6 +72,11 @@ jobs:
             
             echo '=== Проверяем модуль ==='
             cd backend
+            echo 'Содержимое backend/:'
+            ls -la
+            echo 'Содержимое backend/app/:'
+            ls -la app/
+            echo 'Проверяем импорт модуля:'
             python3 -c 'import app.simple_main; print("Модуль OK")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Проверяем текущие процессы ==='
