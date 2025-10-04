@@ -102,50 +102,61 @@ jobs:
             echo \"Текущий пользователь: \$CURRENT_USER\"
             
             echo 'Процессы uvicorn:'
-            ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
+            ps aux | grep uvicorn | grep -v grep || true
             
             echo 'Процессы python (osmnx):'
-            ps aux | grep 'backend_osmnx.py' | grep -v grep || echo 'osmnx не найден'
+            ps aux | grep 'backend_osmnx.py' | grep -v grep || true
             
-            echo 'Попытка остановить старые процессы (может не сработать из-за прав):'
-            pkill -u \$CURRENT_USER -f 'uvicorn.*simple_main' 2>/dev/null || echo 'Не удалось остановить uvicorn (нет прав)'
-            pkill -u \$CURRENT_USER -f 'backend_osmnx.py' 2>/dev/null || echo 'Не удалось остановить osmnx (нет прав)'
-            sleep 3
+            echo '=== Останавливаем старые процессы через PID файлы ==='
+            # Останавливаем FastAPI если есть PID файл
+            if [ -f /tmp/fastapi.pid ]; then
+              OLD_PID=\$(cat /tmp/fastapi.pid)
+              echo \"Найден PID файл FastAPI: \$OLD_PID\"
+              if ps -p \$OLD_PID >/dev/null 2>&1; then
+                echo \"Пытаемся остановить процесс \$OLD_PID\"
+                kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
+                sleep 2
+              else
+                echo \"Процесс \$OLD_PID уже не существует\"
+              fi
+              rm -f /tmp/fastapi.pid
+            else
+              echo \"PID файл FastAPI не найден\"
+            fi
             
-            echo '=== Проверяем порты ==='
-            # Ищем свободный порт для FastAPI (6002-6010)
+            # Останавливаем OSMnx если есть PID файл
+            if [ -f /tmp/osmnx.pid ]; then
+              OLD_PID=\$(cat /tmp/osmnx.pid)
+              echo \"Найден PID файл OSMnx: \$OLD_PID\"
+              if ps -p \$OLD_PID >/dev/null 2>&1; then
+                echo \"Пытаемся остановить процесс \$OLD_PID\"
+                kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
+                sleep 2
+              else
+                echo \"Процесс \$OLD_PID уже не существует\"
+              fi
+              rm -f /tmp/osmnx.pid
+            else
+              echo \"PID файл OSMnx не найден\"
+            fi
+            
+            sleep 2
+            
+            echo '=== Используем фиксированные порты ==='
             export FASTAPI_PORT=6002
-            for port in 6002 6003 6004 6005 6006 6007 6008 6009 6010; do
-              if ! lsof -i:\$port >/dev/null 2>&1; then
-                echo \"Найден свободный порт \$port для FastAPI\"
-                export FASTAPI_PORT=\$port
-                break
-              else
-                echo \"Порт \$port занят\"
-              fi
-            done
-            
-            # Ищем свободный порт для OSMnx (6011-6020)
-            export OSMNX_PORT=6011
-            for port in 6011 6012 6013 6014 6015 6016 6017 6018 6019 6020; do
-              if ! lsof -i:\$port >/dev/null 2>&1; then
-                echo \"Найден свободный порт \$port для OSMnx\"
-                export OSMNX_PORT=\$port
-                break
-              else
-                echo \"Порт \$port занят\"
-              fi
-            done
+            export OSMNX_PORT=6004
             
             echo \"Будем запускать FastAPI на порту \$FASTAPI_PORT\"
             echo \"Будем запускать OSMnx на порту \$OSMNX_PORT\"
-            sleep 2
             
             echo '=== Запускаем FastAPI ==='
             cd backend
             echo 'Текущая директория: \$(pwd)'
             
             nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port \$FASTAPI_PORT > /tmp/fastapi.log 2>&1 &
+            FASTAPI_PID=\$!
+            echo \$FASTAPI_PID > /tmp/fastapi.pid
+            echo \"FastAPI запущен с PID: \$FASTAPI_PID\"
             sleep 3
             
             echo '=== Запускаем OSMnx Backend ==='
@@ -155,7 +166,12 @@ jobs:
             
             # Модифицируем backend_osmnx.py для использования нужного порта
             sed -i \"s/port=5000/port=\$OSMNX_PORT/g\" backend_osmnx.py
+            sed -i \"s/port=6004/port=\$OSMNX_PORT/g\" backend_osmnx.py
+            sed -i \"s/port=[0-9]*/port=\$OSMNX_PORT/g\" backend_osmnx.py
             nohup python3 backend_osmnx.py > /tmp/osmnx.log 2>&1 &
+            OSMNX_PID=\$!
+            echo \$OSMNX_PID > /tmp/osmnx.pid
+            echo \"OSMnx запущен с PID: \$OSMNX_PID\"
             sleep 3
             
             echo '=== Проверяем запуск сервисов ==='
