@@ -291,9 +291,20 @@ def test_osmnx():
             # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
             bbox = tuple([test_bbox[2], test_bbox[0], test_bbox[3], test_bbox[1]])  # north, south, east, west
             logger.info(f"Конвертированный bbox: {bbox}")
+            logger.info(f"Тип bbox: {type(bbox)}, содержимое: {bbox}")
+            
+            # Логируем настройки OSMnx
+            logger.info(f"OSMnx settings: use_cache={ox.settings.use_cache}, timeout={ox.settings.timeout}")
+            
+            logger.info("🚀 Начинаем вызов ox.graph_from_bbox()...")
+            import time
+            start = time.time()
             
             # Попробуем простой запрос без дополнительных параметров
             graph = ox.graph_from_bbox(bbox)
+            
+            elapsed = time.time() - start
+            logger.info(f"✅ ox.graph_from_bbox() завершен за {elapsed:.2f}с")
             logger.info(f"✅ Граф загружен: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
             
             # Тестируем конвертацию
