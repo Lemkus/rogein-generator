@@ -281,8 +281,9 @@ def test_osmnx():
     try:
         logger.info("=== ТЕСТ OSMnx ===")
 
-        # Тестируем простой запрос к OSMnx
-        test_bbox = (60.11, 30.23, 60.12, 30.26)  # south, west, north, east
+        # Тестируем простой запрос к OSMnx с ОЧЕНЬ маленькой областью
+        # Уменьшаем область в 10 раз для быстрого теста
+        test_bbox = (60.11, 30.23, 60.111, 30.231)  # south, west, north, east (100x100м примерно)
         
         logger.info(f"Тестируем загрузку графа для bbox: {test_bbox}")
         
