@@ -185,6 +185,22 @@ def get_barriers(south: float, west: float, north: float, east: float) -> List[D
         logger.error(f"Ошибка загрузки барьеров: {e}")
         return []
 
+@app.route('/', methods=['GET'])
+def root():
+    """Корневой маршрут для диагностики"""
+    return jsonify({
+        'message': 'OSMnx Backend работает!',
+        'service': 'osmnx-backend',
+        'version': '1.0.0',
+        'endpoints': [
+            '/api/health',
+            '/api/paths?bbox=south,west,north,east',
+            '/api/barriers?bbox=south,west,north,east',
+            '/api/all?bbox=south,west,north,east'
+        ],
+        'example': '/api/health'
+    })
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Проверка состояния сервера"""
