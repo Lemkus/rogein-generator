@@ -318,36 +318,54 @@ def get_paths():
         
         # Выполняем запрос с коротким таймаутом (10 секунд)
         try:
-            import signal
+            import threading
+            import queue
             
-            def timeout_handler(signum, frame):
-                raise TimeoutError("OSMnx запрос превысил таймаут")
+            result_queue = queue.Queue()
             
-            # Устанавливаем таймаут 5 секунд
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(5)
+            def worker():
+                try:
+                    start_time = time.time()
+                    paths = get_walking_network(south, west, north, east)
+                    load_time = time.time() - start_time
+                    result_queue.put(('success', paths, load_time))
+                except Exception as e:
+                    result_queue.put(('error', str(e)))
             
+            # Запускаем в отдельном потоке
+            thread = threading.Thread(target=worker)
+            thread.daemon = True
+            thread.start()
+            
+            # Ждем результат максимум 5 секунд
             try:
-                start_time = time.time()
-                paths = get_walking_network(south, west, north, east)
-                load_time = time.time() - start_time
-                signal.alarm(0)  # Отменяем таймаут
+                result_type, *result_data = result_queue.get(timeout=5)
                 
-                return jsonify({
-                    'success': True,
-                    'data': paths,
-                    'count': len(paths),
-                    'bbox': bbox,
-                    'load_time': round(load_time, 2),
-                    'timestamp': time.time()
-                })
-            except TimeoutError:
-                signal.alarm(0)  # Отменяем таймаут
-                logger.warning("OSMnx запрос превысил таймаут 10 секунд")
+                if result_type == 'success':
+                    paths, load_time = result_data
+                    return jsonify({
+                        'success': True,
+                        'data': paths,
+                        'count': len(paths),
+                        'bbox': bbox,
+                        'load_time': round(load_time, 2),
+                        'timestamp': time.time()
+                    })
+                else:
+                    error_msg = result_data[0]
+                    logger.error(f"Ошибка при загрузке пешеходных маршрутов: {error_msg}")
+                    return jsonify({
+                        'success': False,
+                        'error': error_msg,
+                        'message': 'Ошибка загрузки пешеходных маршрутов'
+                    }), 500
+                    
+            except queue.Empty:
+                logger.warning("OSMnx запрос превысил таймаут 5 секунд")
                 return jsonify({
                     'success': False,
                     'error': 'Таймаут OSMnx',
-                    'message': 'OSMnx не успел загрузить данные за 10 секунд'
+                    'message': 'OSMnx не успел загрузить данные за 5 секунд'
                 }), 408
                 
         except Exception as e:
@@ -381,31 +399,49 @@ def get_barriers():
         
         # Выполняем запрос с коротким таймаутом (5 секунд)
         try:
-            import signal
+            import threading
+            import queue
             
-            def timeout_handler(signum, frame):
-                raise TimeoutError("OSMnx запрос превысил таймаут")
+            result_queue = queue.Queue()
             
-            # Устанавливаем таймаут 5 секунд
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(5)
+            def worker():
+                try:
+                    start_time = time.time()
+                    barriers = fetch_barriers(south, west, north, east)
+                    load_time = time.time() - start_time
+                    result_queue.put(('success', barriers, load_time))
+                except Exception as e:
+                    result_queue.put(('error', str(e)))
             
+            # Запускаем в отдельном потоке
+            thread = threading.Thread(target=worker)
+            thread.daemon = True
+            thread.start()
+            
+            # Ждем результат максимум 5 секунд
             try:
-                start_time = time.time()
-                barriers = fetch_barriers(south, west, north, east)
-                load_time = time.time() - start_time
-                signal.alarm(0)  # Отменяем таймаут
+                result_type, *result_data = result_queue.get(timeout=5)
                 
-                return jsonify({
-                    'success': True,
-                    'data': barriers,
-                    'count': len(barriers),
-                    'bbox': bbox,
-                    'load_time': round(load_time, 2),
-                    'timestamp': time.time()
-                })
-            except TimeoutError:
-                signal.alarm(0)  # Отменяем таймаут
+                if result_type == 'success':
+                    barriers, load_time = result_data
+                    return jsonify({
+                        'success': True,
+                        'data': barriers,
+                        'count': len(barriers),
+                        'bbox': bbox,
+                        'load_time': round(load_time, 2),
+                        'timestamp': time.time()
+                    })
+                else:
+                    error_msg = result_data[0]
+                    logger.error(f"Ошибка при загрузке барьеров: {error_msg}")
+                    return jsonify({
+                        'success': False,
+                        'error': error_msg,
+                        'message': 'Ошибка загрузки барьеров'
+                    }), 500
+                    
+            except queue.Empty:
                 logger.warning("OSMnx запрос превысил таймаут 5 секунд")
                 return jsonify({
                     'success': False,
