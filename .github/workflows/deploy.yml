@@ -97,81 +97,38 @@ jobs:
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
-            echo '=== Останавливаем старые процессы ==='
-            # Убиваем только uvicorn процессы под текущим пользователем
+            echo '=== Проверяем текущие процессы ==='
             CURRENT_USER=\$(whoami)
             echo \"Текущий пользователь: \$CURRENT_USER\"
             
-            # Находим uvicorn процессы под нашим пользователем
-            UVICORN_PIDS=\$(pgrep -u \$CURRENT_USER -f 'uvicorn.*simple_main' || true)
-            if [ -n \"\$UVICORN_PIDS\" ]; then
-              echo \"Найдены процессы uvicorn: \$UVICORN_PIDS\"
-              for pid in \$UVICORN_PIDS; do
-                # Проверяем, что процесс все еще существует
-                if ps -p \$pid >/dev/null 2>&1; then
-                  # Проверяем, что процесс действительно принадлежит нам
-                  PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo '')
-                  if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
-                    echo \"Останавливаем наш процесс \$pid (пользователь: \$PROCESS_USER)\"
-                    kill -TERM \$pid 2>/dev/null || echo \"Процесс \$pid уже завершился\"
-                    sleep 1
-                    kill -KILL \$pid 2>/dev/null || echo \"Процесс \$pid уже завершился\"
-                  else
-                    echo \"Пропускаем процесс \$pid (пользователь: \$PROCESS_USER, не наш)\"
-                  fi
-                else
-                  echo \"Процесс \$pid уже не существует\"
-                fi
-              done
-              sleep 2
-            else
-              echo \"Процессы uvicorn не найдены\"
-            fi
+            echo 'Процессы uvicorn:'
+            ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
             
-            # Находим python процессы с backend_osmnx.py под нашим пользователем
-            OSMNX_PIDS=\$(pgrep -u \$CURRENT_USER -f 'backend_osmnx.py' || true)
-            if [ -n \"\$OSMNX_PIDS\" ]; then
-              echo \"Найдены процессы osmnx: \$OSMNX_PIDS\"
-              for pid in \$OSMNX_PIDS; do
-                # Проверяем, что процесс все еще существует
-                if ps -p \$pid >/dev/null 2>&1; then
-                  # Проверяем, что процесс действительно принадлежит нам
-                  PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo '')
-                  if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
-                    echo \"Останавливаем наш процесс \$pid (пользователь: \$PROCESS_USER)\"
-                    kill -TERM \$pid 2>/dev/null || echo \"Процесс \$pid уже завершился\"
-                    sleep 1
-                    kill -KILL \$pid 2>/dev/null || echo \"Процесс \$pid уже завершился\"
-                  else
-                    echo \"Пропускаем процесс \$pid (пользователь: \$PROCESS_USER, не наш)\"
-                  fi
-                else
-                  echo \"Процесс \$pid уже не существует\"
-                fi
-              done
-              sleep 2
-            else
-              echo \"Процессы osmnx не найдены\"
-            fi
+            echo 'Процессы python (osmnx):'
+            ps aux | grep 'backend_osmnx.py' | grep -v grep || echo 'osmnx не найден'
             
             echo '=== Проверяем порты ==='
-            # Проверяем порт для FastAPI (6002/6003)
-            if lsof -i:6002 >/dev/null 2>&1; then
-              echo \"Порт 6002 занят, используем 6003\"
-              export FASTAPI_PORT=6003
-            else
-              echo \"Порт 6002 свободен\"
-              export FASTAPI_PORT=6002
-            fi
+            # Проверяем порты для FastAPI (6002, 6003, 6004, 6005)
+            for port in 6002 6003 6004 6005; do
+              if ! lsof -i:\$port >/dev/null 2>&1; then
+                echo \"Порт \$port свободен для FastAPI\"
+                export FASTAPI_PORT=\$port
+                break
+              else
+                echo \"Порт \$port занят\"
+              fi
+            done
             
-            # Проверяем порт для OSMnx (6004/6005)
-            if lsof -i:6004 >/dev/null 2>&1; then
-              echo \"Порт 6004 занят, используем 6005\"
-              export OSMNX_PORT=6005
-            else
-              echo \"Порт 6004 свободен\"
-              export OSMNX_PORT=6004
-            fi
+            # Проверяем порты для OSMnx (6006, 6007, 6008, 6009)
+            for port in 6006 6007 6008 6009; do
+              if ! lsof -i:\$port >/dev/null 2>&1; then
+                echo \"Порт \$port свободен для OSMnx\"
+                export OSMNX_PORT=\$port
+                break
+              else
+                echo \"Порт \$port занят\"
+              fi
+            done
             
             echo \"Будем запускать FastAPI на порту \$FASTAPI_PORT\"
             echo \"Будем запускать OSMnx на порту \$OSMNX_PORT\"
