@@ -222,6 +222,59 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
         logger.error(f"Ошибка загрузки барьеров: {e}")
         return []
 
+@app.route('/api/test', methods=['GET'])
+def test_osmnx():
+    """Тестовый endpoint для диагностики OSMnx"""
+    try:
+        logger.info("=== ТЕСТ OSMnx ===")
+        
+        # Тестируем простой запрос к OSMnx
+        test_bbox = (60.11, 30.23, 60.12, 30.26)  # south, west, north, east
+        
+        logger.info(f"Тестируем загрузку графа для bbox: {test_bbox}")
+        
+        try:
+            graph = ox.graph_from_bbox(
+                test_bbox[2], test_bbox[0], test_bbox[3], test_bbox[1],  # north, south, east, west
+                network_type='all',
+                simplify=True,
+                retain_all=False,
+                truncate_by_edge=True
+            )
+            logger.info(f"✅ Граф загружен: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
+            
+            # Тестируем конвертацию
+            edges_gdf = ox.graph_to_gdfs(graph, edges=True, nodes=False)
+            logger.info(f"✅ GeoDataFrame создан: {len(edges_gdf)} рёбер")
+            
+            # Проверяем типы дорог
+            highway_types = edges_gdf['highway'].value_counts() if not edges_gdf.empty else {}
+            logger.info(f"✅ Типы дорог: {dict(highway_types)}")
+            
+            return jsonify({
+                'success': True,
+                'nodes': len(graph.nodes),
+                'edges': len(graph.edges),
+                'highway_types': dict(highway_types),
+                'message': 'OSMnx работает корректно'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка загрузки графа: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'OSMnx не может загрузить данные'
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Общая ошибка теста: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Ошибка выполнения теста'
+        })
+
 @app.route('/', methods=['GET'])
 def root():
     """Корневой маршрут для диагностики"""
@@ -231,6 +284,7 @@ def root():
         'version': '1.0.0',
         'endpoints': [
             '/api/health',
+            '/api/test',
             '/api/paths?bbox=south,west,north,east',
             '/api/barriers?bbox=south,west,north,east',
             '/api/all?bbox=south,west,north,east'
