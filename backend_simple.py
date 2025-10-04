@@ -176,6 +176,96 @@ def get_barriers_data(south: float, west: float, north: float, east: float) -> L
         logger.error(f"Ошибка загрузки барьеров: {e}")
         return []
 
+def get_closed_areas_data(south: float, west: float, north: float, east: float) -> List[Dict]:
+    """
+    Получает закрытые зоны в заданной области
+    """
+    try:
+        logger.info(f"Загружаем закрытые зоны для области: {south},{west},{north},{east}")
+        
+        query = f"""[out:json][timeout:{TIMEOUT}];
+        (
+          way["military"="yes"]({south},{west},{north},{east});
+          way["access"="no"]({south},{west},{north},{east});
+          way["access"="private"]({south},{west},{north},{east});
+          way["access"="restricted"]({south},{west},{north},{east});
+        );
+        out geom;"""
+        
+        elements = execute_overpass_query(query)
+        
+        # Конвертируем в нужный формат
+        closed_areas = []
+        for element in elements:
+            if element.get('type') == 'way' and 'geometry' in element:
+                geometry = []
+                for coord in element['geometry']:
+                    if 'lat' in coord and 'lon' in coord:
+                        geometry.append([coord['lat'], coord['lon']])
+                
+                if len(geometry) >= 2:
+                    area_obj = {
+                        'geometry': geometry,
+                        'type': 'closed_area',
+                        'military': element.get('tags', {}).get('military', ''),
+                        'access': element.get('tags', {}).get('access', ''),
+                        'name': element.get('tags', {}).get('name', ''),
+                        'osmid': str(element.get('id', ''))
+                    }
+                    closed_areas.append(area_obj)
+        
+        logger.info(f"Конвертировано {len(closed_areas)} закрытых зон")
+        return closed_areas
+        
+    except Exception as e:
+        logger.error(f"Ошибка загрузки закрытых зон: {e}")
+        return []
+
+def get_water_areas_data(south: float, west: float, north: float, east: float) -> List[Dict]:
+    """
+    Получает водоёмы в заданной области
+    """
+    try:
+        logger.info(f"Загружаем водоёмы для области: {south},{west},{north},{east}")
+        
+        query = f"""[out:json][timeout:{TIMEOUT}];
+        (
+          way["natural"="water"]({south},{west},{north},{east});
+          way["waterway"="river"]({south},{west},{north},{east});
+          way["waterway"="stream"]({south},{west},{north},{east});
+          way["waterway"="canal"]({south},{west},{north},{east});
+        );
+        out geom;"""
+        
+        elements = execute_overpass_query(query)
+        
+        # Конвертируем в нужный формат
+        water_areas = []
+        for element in elements:
+            if element.get('type') == 'way' and 'geometry' in element:
+                geometry = []
+                for coord in element['geometry']:
+                    if 'lat' in coord and 'lon' in coord:
+                        geometry.append([coord['lat'], coord['lon']])
+                
+                if len(geometry) >= 2:
+                    water_obj = {
+                        'geometry': geometry,
+                        'type': 'water_area',
+                        'natural': element.get('tags', {}).get('natural', ''),
+                        'waterway': element.get('tags', {}).get('waterway', ''),
+                        'name': element.get('tags', {}).get('name', ''),
+                        'osmid': str(element.get('id', ''))
+                    }
+                    water_areas.append(water_obj)
+        
+        logger.info(f"Конвертировано {len(water_areas)} водоёмов")
+        return water_areas
+        
+    except Exception as e:
+        logger.error(f"Ошибка загрузки водоёмов: {e}")
+        return []
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Проверка состояния сервера"""
@@ -286,6 +376,70 @@ def get_all():
         logger.error(f"Ошибка API all: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
+@app.route('/api/closed-areas', methods=['GET'])
+def get_closed_areas():
+    """API для получения закрытых зон"""
+    try:
+        # Получаем параметры
+        bbox = request.args.get('bbox')
+        if not bbox:
+            return jsonify({'error': 'Параметр bbox обязателен'}), 400
+        
+        # Парсим bbox
+        south, west, north, east = parse_bbox(bbox)
+        
+        # Получаем данные
+        start_time = time.time()
+        closed_areas = get_closed_areas_data(south, west, north, east)
+        load_time = time.time() - start_time
+        
+        return jsonify({
+            'success': True,
+            'data': closed_areas,
+            'count': len(closed_areas),
+            'bbox': bbox,
+            'load_time': round(load_time, 2),
+            'timestamp': time.time()
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Ошибка API closed-areas: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/water-areas', methods=['GET'])
+def get_water_areas():
+    """API для получения водоёмов"""
+    try:
+        # Получаем параметры
+        bbox = request.args.get('bbox')
+        if not bbox:
+            return jsonify({'error': 'Параметр bbox обязателен'}), 400
+        
+        # Парсим bbox
+        south, west, north, east = parse_bbox(bbox)
+        
+        # Получаем данные
+        start_time = time.time()
+        water_areas = get_water_areas_data(south, west, north, east)
+        load_time = time.time() - start_time
+        
+        return jsonify({
+            'success': True,
+            'data': water_areas,
+            'count': len(water_areas),
+            'bbox': bbox,
+            'load_time': round(load_time, 2),
+            'timestamp': time.time()
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Ошибка API water-areas: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'API endpoint не найден'}), 404
@@ -300,6 +454,8 @@ if __name__ == '__main__':
     logger.info("  GET /api/health - проверка состояния")
     logger.info("  GET /api/paths?bbox=south,west,north,east - пешеходные маршруты")
     logger.info("  GET /api/barriers?bbox=south,west,north,east - барьеры")
+    logger.info("  GET /api/closed-areas?bbox=south,west,north,east - закрытые зоны")
+    logger.info("  GET /api/water-areas?bbox=south,west,north,east - водоёмы")
     logger.info("  GET /api/all?bbox=south,west,north,east - все данные")
     
     # Запускаем сервер

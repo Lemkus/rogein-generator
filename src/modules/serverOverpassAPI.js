@@ -185,6 +185,46 @@ export async function fetchAllWithServerOverpass(bbox) {
 }
 
 /**
+ * Получает закрытые зоны через серверный Overpass API
+ * @param {string} bbox - строка bbox в формате 'south,west,north,east'
+ * @param {string} areaType - тип зон для логирования
+ * @returns {Promise<Array>}
+ */
+export async function fetchClosedAreasWithServerOverpass(bbox, areaType = 'закрытые зоны') {
+  console.log(`🚧 Загружаем ${areaType} через серверный Overpass API...`);
+  
+  const endpoint = `/closed-areas?bbox=${bbox}`;
+  const data = await executeServerOverpassRequest(endpoint, `Серверный Overpass ${areaType}`);
+  
+  if (data.success && data.data) {
+    console.log(`✅ Серверный Overpass вернул ${data.count} ${areaType}`);
+    return data.data;
+  } else {
+    throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
+  }
+}
+
+/**
+ * Получает водоёмы через серверный Overpass API
+ * @param {string} bbox - строка bbox в формате 'south,west,north,east'
+ * @param {string} waterType - тип водоёмов для логирования
+ * @returns {Promise<Array>}
+ */
+export async function fetchWaterAreasWithServerOverpass(bbox, waterType = 'водоёмы') {
+  console.log(`💧 Загружаем ${waterType} через серверный Overpass API...`);
+  
+  const endpoint = `/water-areas?bbox=${bbox}`;
+  const data = await executeServerOverpassRequest(endpoint, `Серверный Overpass ${waterType}`);
+  
+  if (data.success && data.data) {
+    console.log(`✅ Серверный Overpass вернул ${data.count} ${waterType}`);
+    return data.data;
+  } else {
+    throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
+  }
+}
+
+/**
  * Конвертирует bounds в строку bbox
  * @param {Object} bounds - объект bounds с методами getSouth(), getWest(), getNorth(), getEast()
  * @returns {string} строка bbox в формате 'south,west,north,east'

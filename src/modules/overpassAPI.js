@@ -7,7 +7,9 @@ import {
   isServerOverpassAvailable,
   fetchPathsWithServerOverpass,
   fetchBarriersWithServerOverpass,
-  fetchAllWithServerOverpass
+  fetchAllWithServerOverpass,
+  fetchClosedAreasWithServerOverpass,
+  fetchWaterAreasWithServerOverpass
 } from './serverOverpassAPI.js';
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
@@ -124,10 +126,16 @@ export async function fetchClosedAreas(bounds) {
       const bbox = getBboxString(bounds);
       console.log('🚀 Загрузка закрытых зон через серверный Overpass API...');
       
-      // Серверный Overpass API пока не поддерживает закрытые зоны, используем клиентский Overpass API
-      console.log('⚠️ Серверный Overpass не поддерживает закрытые зоны, используем клиентский Overpass API');
+      const closedAreas = await fetchClosedAreasWithServerOverpass(bbox);
+      
+      if (closedAreas.length > 0) {
+        console.log(`✅ Серверный Overpass: загружено ${closedAreas.length} закрытых зон`);
+        return closedAreas;
+      } else {
+        console.log('⚠️ Серверный Overpass вернул пустой результат для закрытых зон, используем клиентский Overpass API');
+      }
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API для закрытых зон:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для закрытых зон, используем клиентский Overpass API:', error.message);
     }
   }
 
@@ -161,10 +169,16 @@ export async function fetchWaterAreas(bounds) {
       const bbox = getBboxString(bounds);
       console.log('🚀 Загрузка водоёмов через серверный Overpass API...');
       
-      // Серверный Overpass API пока не поддерживает водоёмы, используем клиентский Overpass API
-      console.log('⚠️ Серверный Overpass не поддерживает водоёмы, используем клиентский Overpass API');
+      const waterAreas = await fetchWaterAreasWithServerOverpass(bbox);
+      
+      if (waterAreas.length > 0) {
+        console.log(`✅ Серверный Overpass: загружено ${waterAreas.length} водоёмов`);
+        return waterAreas;
+      } else {
+        console.log('⚠️ Серверный Overpass вернул пустой результат для водоёмов, используем клиентский Overpass API');
+      }
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API для водоёмов:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для водоёмов, используем клиентский Overpass API:', error.message);
     }
   }
 
