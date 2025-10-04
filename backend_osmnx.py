@@ -111,19 +111,32 @@ def convert_graph_to_geojson(graph) -> List[Dict]:
 
 def get_walking_network(south: float, west: float, north: float, east: float) -> List[Dict]:
     """
-    Получает пешеходную сеть в заданной области
+    Получает пешеходную сеть в заданной области (оптимизированная версия)
     """
     import time
     start_time = time.time()
     
     try:
+        # Проверяем размер области - если слишком большая, уменьшаем
+        lat_diff = north - south
+        lon_diff = east - west
+        
         logger.info(f"Загружаем пешеходную сеть для области: {south},{west},{north},{east}")
-
-        # Загружаем граф пешеходных маршрутов
-        logger.info(f"Параметры запроса: north={north}, south={south}, east={east}, west={west}")
-
-        # Используем network_type='walk' для оптимизации
-        logger.info("Загружаем пешеходную сеть с network_type='walk'")
+        logger.info(f"Размер области: {lat_diff:.4f}° x {lon_diff:.4f}°")
+        
+        # Если область слишком большая (>0.01° ≈ 1км), уменьшаем её
+        if lat_diff > 0.01 or lon_diff > 0.01:
+            logger.warning(f"Область слишком большая ({lat_diff:.4f}° x {lon_diff:.4f}°), уменьшаем до 0.01° x 0.01°")
+            center_lat = (north + south) / 2
+            center_lon = (east + west) / 2
+            half_size = 0.005  # 0.01° / 2
+            
+            south = center_lat - half_size
+            north = center_lat + half_size
+            west = center_lon - half_size
+            east = center_lon + half_size
+            
+            logger.info(f"Уменьшенная область: {south},{west},{north},{east}")
 
         try:
             # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
@@ -131,20 +144,22 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
             logger.info(f"Начинаем загрузку графа для bbox: {bbox}")
             
             graph_start = time.time()
-            graph = ox.graph_from_bbox(
-                bbox,
-                network_type='walk',  # Используем 'walk' вместо 'all' для оптимизации
-                simplify=True,
-                retain_all=False,
-                truncate_by_edge=True
-            )
+            
+            # Упрощенный запрос без дополнительных параметров для скорости
+            graph = ox.graph_from_bbox(bbox)
+            
             graph_time = time.time() - graph_start
             logger.info(f"Загружен граф за {graph_time:.2f}с: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
+            
+            # Если граф слишком большой, возвращаем пустой результат
+            if len(graph.nodes) > 10000 or len(graph.edges) > 20000:
+                logger.warning(f"Граф слишком большой ({len(graph.nodes)} узлов, {len(graph.edges)} рёбер), возвращаем пустой результат")
+                return []
+                
         except Exception as graph_error:
-            logger.error(f"Ошибка загрузки графа через ox.graph_from_bbox: {graph_error}", exc_info=True)
-            logger.info("Возвращаем пустой результат из-за ошибки загрузки графа")
+            logger.error(f"Ошибка загрузки графа: {graph_error}", exc_info=True)
             return []
-        
+
         # Конвертируем в нужный формат
         logger.info("Начинаем конвертацию графа в geojson")
         convert_start = time.time()
@@ -154,21 +169,40 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         total_time = time.time() - start_time
         logger.info(f"Конвертировано {len(paths)} путей за {convert_time:.2f}с. Общее время: {total_time:.2f}с")
         return paths
-        
+
     except Exception as e:
         total_time = time.time() - start_time
-        logger.error(f"Ошибка загрузки пешеходной сети (общая) за {total_time:.2f}с: {e}", exc_info=True)
+        logger.error(f"Ошибка загрузки пешеходной сети за {total_time:.2f}с: {e}", exc_info=True)
         return []
 
 def fetch_barriers(south: float, west: float, north: float, east: float) -> List[Dict]:
     """
-    Получает барьеры (стены, заборы, водоёмы) в заданной области
+    Получает барьеры (стены, заборы, водоёмы) в заданной области (оптимизированная версия)
     """
     import time
     start_time = time.time()
     
     try:
+        # Проверяем размер области - если слишком большая, уменьшаем
+        lat_diff = north - south
+        lon_diff = east - west
+        
         logger.info(f"Загружаем барьеры для области: {south},{west},{north},{east}")
+        logger.info(f"Размер области: {lat_diff:.4f}° x {lon_diff:.4f}°")
+        
+        # Если область слишком большая (>0.01° ≈ 1км), уменьшаем её
+        if lat_diff > 0.01 or lon_diff > 0.01:
+            logger.warning(f"Область слишком большая ({lat_diff:.4f}° x {lon_diff:.4f}°), уменьшаем до 0.01° x 0.01°")
+            center_lat = (north + south) / 2
+            center_lon = (east + west) / 2
+            half_size = 0.005  # 0.01° / 2
+            
+            south = center_lat - half_size
+            north = center_lat + half_size
+            west = center_lon - half_size
+            east = center_lon + half_size
+            
+            logger.info(f"Уменьшенная область: {south},{west},{north},{east}")
         
         # Используем тот же подход, что и Overpass API для барьеров
         # ТОЛЬКО элементы с ЯВНЫМ запретом доступа + стены
@@ -195,9 +229,9 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
                 bbox,
                 tags=barrier_tags
             )
-        
+
         logger.info(f"Загружено {len(barriers_gdf)} объектов барьеров")
-        
+
         if barriers_gdf.empty:
             logger.info("Барьеры не найдены - пустой результат")
             return []
@@ -244,101 +278,6 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
         logger.error(f"Ошибка загрузки барьеров за {total_time:.2f}с: {e}", exc_info=True)
         return []
 
-@app.route('/api/test-connection', methods=['GET'])
-def test_connection():
-    """Тест подключения к Overpass API"""
-    try:
-        import requests
-        import time
-        
-        logger.info("=== ТЕСТ ПОДКЛЮЧЕНИЯ К OVERPASS API ===")
-        
-        start_time = time.time()
-        response = requests.get('https://overpass-api.de/api/status', timeout=10)
-        elapsed = time.time() - start_time
-        
-        logger.info(f"✅ Подключение к Overpass API успешно за {elapsed:.2f}с")
-        logger.info(f"Status code: {response.status_code}")
-        
-        return jsonify({
-            'success': True,
-            'status_code': response.status_code,
-            'elapsed_time': f"{elapsed:.2f}s",
-            'message': 'OSMnx может подключиться к Overpass API',
-            'response_preview': response.text[:200]
-        })
-    except Exception as e:
-        logger.error(f"❌ Ошибка подключения к Overpass API: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Не удалось подключиться к Overpass API'
-        })
-
-@app.route('/api/test', methods=['GET'])
-def test_osmnx():
-    """Тестовый endpoint для диагностики OSMnx"""
-    try:
-        logger.info("=== ТЕСТ OSMnx ===")
-
-        # Тестируем простой запрос к OSMnx с ОЧЕНЬ маленькой областью
-        # Уменьшаем область в 10 раз для быстрого теста
-        test_bbox = (60.11, 30.23, 60.111, 30.231)  # south, west, north, east (100x100м примерно)
-        
-        logger.info(f"Тестируем загрузку графа для bbox: {test_bbox}")
-        
-        try:
-            # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
-            bbox = tuple([test_bbox[2], test_bbox[0], test_bbox[3], test_bbox[1]])  # north, south, east, west
-            logger.info(f"Конвертированный bbox: {bbox}")
-            logger.info(f"Тип bbox: {type(bbox)}, содержимое: {bbox}")
-            
-            # Логируем настройки OSMnx
-            logger.info(f"OSMnx settings: use_cache={ox.settings.use_cache}, timeout={ox.settings.timeout}")
-            
-            logger.info("🚀 Начинаем вызов ox.graph_from_bbox()...")
-            import time
-            start = time.time()
-            
-            # Попробуем простой запрос без дополнительных параметров
-            graph = ox.graph_from_bbox(bbox)
-            
-            elapsed = time.time() - start
-            logger.info(f"✅ ox.graph_from_bbox() завершен за {elapsed:.2f}с")
-            logger.info(f"✅ Граф загружен: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
-            
-            # Тестируем конвертацию
-            edges_gdf = ox.graph_to_gdfs(graph, edges=True, nodes=False)
-            logger.info(f"✅ GeoDataFrame создан: {len(edges_gdf)} рёбер")
-            
-            # Проверяем типы дорог
-            highway_types = edges_gdf['highway'].value_counts() if not edges_gdf.empty else {}
-            logger.info(f"✅ Типы дорог: {dict(highway_types)}")
-            
-            return jsonify({
-                'success': True,
-                'nodes': len(graph.nodes),
-                'edges': len(graph.edges),
-                'highway_types': dict(highway_types),
-                'message': 'OSMnx работает корректно'
-            })
-            
-        except Exception as e:
-            logger.error(f"❌ Ошибка загрузки графа: {e}", exc_info=True)
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'message': 'OSMnx не может загрузить данные'
-            })
-            
-    except Exception as e:
-        logger.error(f"❌ Общая ошибка теста: {e}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'message': 'Ошибка выполнения теста'
-        })
-
 @app.route('/', methods=['GET'])
 def root():
     """Корневой маршрут для диагностики"""
@@ -367,7 +306,7 @@ def health_check():
 
 @app.route('/api/paths', methods=['GET'])
 def get_paths():
-    """API для получения пешеходных маршрутов"""
+    """API для получения пешеходных маршрутов с коротким таймаутом"""
     try:
         # Получаем параметры
         bbox = request.args.get('bbox')
@@ -377,19 +316,47 @@ def get_paths():
         # Парсим bbox
         south, west, north, east = parse_bbox(bbox)
         
-        # Получаем данные
-        start_time = time.time()
-        paths = get_walking_network(south, west, north, east)
-        load_time = time.time() - start_time
-        
-        return jsonify({
-            'success': True,
-            'data': paths,
-            'count': len(paths),
-            'bbox': bbox,
-            'load_time': round(load_time, 2),
-            'timestamp': time.time()
-        })
+        # Выполняем запрос с коротким таймаутом (10 секунд)
+        try:
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("OSMnx запрос превысил таймаут")
+            
+            # Устанавливаем таймаут 5 секунд
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)
+            
+            try:
+                start_time = time.time()
+                paths = get_walking_network(south, west, north, east)
+                load_time = time.time() - start_time
+                signal.alarm(0)  # Отменяем таймаут
+                
+                return jsonify({
+                    'success': True,
+                    'data': paths,
+                    'count': len(paths),
+                    'bbox': bbox,
+                    'load_time': round(load_time, 2),
+                    'timestamp': time.time()
+                })
+            except TimeoutError:
+                signal.alarm(0)  # Отменяем таймаут
+                logger.warning("OSMnx запрос превысил таймаут 10 секунд")
+                return jsonify({
+                    'success': False,
+                    'error': 'Таймаут OSMnx',
+                    'message': 'OSMnx не успел загрузить данные за 10 секунд'
+                }), 408
+                
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке пешеходных маршрутов: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Ошибка загрузки пешеходных маршрутов'
+            }), 500
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
@@ -412,21 +379,47 @@ def get_barriers():
         south, west, north, east = parse_bbox(bbox)
         logger.info(f"API barriers: распарсен bbox south={south}, west={west}, north={north}, east={east}")
         
-        # Получаем данные
-        start_time = time.time()
-        barriers = fetch_barriers(south, west, north, east)
-        load_time = time.time() - start_time
-        
-        logger.info(f"API barriers: получено {len(barriers)} барьеров за {load_time:.2f}с")
-        
-        return jsonify({
-            'success': True,
-            'data': barriers,
-            'count': len(barriers),
-            'bbox': bbox,
-            'load_time': round(load_time, 2),
-            'timestamp': time.time()
-        })
+        # Выполняем запрос с коротким таймаутом (5 секунд)
+        try:
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("OSMnx запрос превысил таймаут")
+            
+            # Устанавливаем таймаут 5 секунд
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)
+            
+            try:
+                start_time = time.time()
+                barriers = fetch_barriers(south, west, north, east)
+                load_time = time.time() - start_time
+                signal.alarm(0)  # Отменяем таймаут
+                
+                return jsonify({
+                    'success': True,
+                    'data': barriers,
+                    'count': len(barriers),
+                    'bbox': bbox,
+                    'load_time': round(load_time, 2),
+                    'timestamp': time.time()
+                })
+            except TimeoutError:
+                signal.alarm(0)  # Отменяем таймаут
+                logger.warning("OSMnx запрос превысил таймаут 5 секунд")
+                return jsonify({
+                    'success': False,
+                    'error': 'Таймаут OSMnx',
+                    'message': 'OSMnx не успел загрузить данные за 5 секунд'
+                }), 408
+                
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке барьеров: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Ошибка загрузки барьеров'
+            }), 500
         
     except ValueError as e:
         logger.error(f"API barriers: ошибка валидации bbox: {e}")
