@@ -121,7 +121,7 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         logger.info("Загружаем все дороги с network_type='all'")
         
         try:
-            # OSMnx 2.x API - используем bbox как кортеж
+            # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
             bbox = (north, south, east, west)
             graph = ox.graph_from_bbox(
                 bbox,
@@ -236,7 +236,7 @@ def test_osmnx():
         logger.info(f"Тестируем загрузку графа для bbox: {test_bbox}")
         
         try:
-            # OSMnx 2.x API - используем bbox как кортеж
+            # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
             bbox = (test_bbox[2], test_bbox[0], test_bbox[3], test_bbox[1])  # north, south, east, west
             graph = ox.graph_from_bbox(
                 bbox,
