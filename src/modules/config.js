@@ -6,16 +6,12 @@ export const BACKEND_SIMPLE_BASE = isGithub
   ? 'https://your-fastapi.example.com'
   : 'http://38.180.71.138:6002';
 
-export const OSMNX_API_BASE = isGithub
-  ? 'https://your-osmnx.example.com/api'
-  : 'http://38.180.71.138:6004/api';
-
 // Server-side Overpass API (Simple Backend)
 export const OVERPASS_API_BASE = isGithub
   ? 'https://your-overpass.example.com/api'
   : 'http://38.180.71.138:6005/api';
 
 // Версия конфигурации для принудительного обновления кэша
-export const CONFIG_VERSION = 'v1.4.0'; // Server-side Overpass API
+export const CONFIG_VERSION = 'v1.5.0'; // OSMnx removed, only Overpass API
 
 

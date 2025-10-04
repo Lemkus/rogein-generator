@@ -1,15 +1,7 @@
 /**
- * Модуль для работы с Overpass API и OSMnx Backend
- * Загружает данные из OpenStreetMap с приоритетом: Server Overpass -> OSMnx -> Client Overpass
+ * Модуль для работы с Overpass API
+ * Загружает данные из OpenStreetMap с приоритетом: Server Overpass -> Client Overpass
  */
-
-import { 
-  isOSMnxBackendAvailable, 
-  fetchPathsWithOSMnx, 
-  fetchBarriersWithOSMnx, 
-  fetchAllWithOSMnx,
-  getBboxString 
-} from './osmnxAPI.js';
 
 import {
   isServerOverpassAvailable,
@@ -24,8 +16,7 @@ const TIMEOUT = 60; // Увеличиваем таймаут для мобиль
 // Простой кэш для избежания повторных запросов
 const queryCache = new Map();
 
-// Флаги доступности backend'ов (кэшируются на время сессии)
-let osmnxAvailable = null;
+// Флаг доступности серверного Overpass API (кэшируется на время сессии)
 let serverOverpassAvailable = null;
 
 // Определяем мобильную сеть
@@ -41,25 +32,6 @@ function isMobileNetwork() {
 export function clearQueryCache() {
   queryCache.clear();
   console.log('Кэш Overpass API очищен');
-}
-
-/**
- * Проверяет доступность OSMnx backend с кэшированием
- * @returns {Promise<boolean>}
- */
-async function checkOSMnxAvailability() {
-  if (osmnxAvailable === null) {
-    console.log('🔍 Проверяем доступность OSMnx backend...');
-    osmnxAvailable = await isOSMnxBackendAvailable();
-    
-    if (osmnxAvailable) {
-      console.log('✅ OSMnx backend доступен - будет использован для загрузки данных');
-    } else {
-      console.log('⚠️ OSMnx backend недоступен - используется Overpass API');
-    }
-  }
-  
-  return osmnxAvailable;
 }
 
 /**
@@ -79,6 +51,20 @@ async function checkServerOverpassAvailability() {
   }
   
   return serverOverpassAvailable;
+}
+
+/**
+ * Конвертирует bounds в строку bbox
+ * @param {Object} bounds - объект bounds с методами getSouth(), getWest(), getNorth(), getEast()
+ * @returns {string} строка bbox в формате 'south,west,north,east'
+ */
+function getBboxString(bounds) {
+  const south = bounds.getSouth();
+  const west = bounds.getWest();
+  const north = bounds.getNorth();
+  const east = bounds.getEast();
+  
+  return `${south},${west},${north},${east}`;
 }
 
 // Базовая функция для выполнения запросов к Overpass API
@@ -220,33 +206,14 @@ export async function fetchBarriers(bounds) {
         console.log(`✅ Серверный Overpass: загружено ${barriers.length} барьеров`);
         return barriers;
       } else {
-        console.log('⚠️ Серверный Overpass вернул пустой результат для барьеров, пробуем OSMnx');
+        console.log('⚠️ Серверный Overpass вернул пустой результат для барьеров, используем клиентский Overpass API');
       }
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API для барьеров, пробуем OSMnx:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для барьеров, используем клиентский Overpass API:', error.message);
     }
   }
 
-  // Приоритет 2: OSMnx backend
-  if (await checkOSMnxAvailability()) {
-    try {
-      const bbox = getBboxString(bounds);
-      console.log('🚀 Загрузка барьеров через OSMnx backend...');
-      
-      const barriers = await fetchBarriersWithOSMnx(bbox);
-      
-      if (barriers.length > 0) {
-        console.log(`✅ OSMnx: загружено ${barriers.length} барьеров`);
-        return barriers;
-      } else {
-        console.log('⚠️ OSMnx вернул пустой результат для барьеров, переключаемся на клиентский Overpass API');
-      }
-    } catch (error) {
-      console.log('❌ Ошибка OSMnx backend для барьеров, переключаемся на клиентский Overpass API:', error.message);
-    }
-  }
-
-  // Приоритет 3: Клиентский Overpass API
+  // Приоритет 2: Клиентский Overpass API
   const s = bounds.getSouth();
   const w = bounds.getWest();
   const n = bounds.getNorth();
@@ -410,44 +377,16 @@ export async function fetchPaths(bounds, statusCallback) {
         statusCallback(`✅ Серверный Overpass: загружено ${paths.length} маршрутов`);
         return paths;
       } else {
-        console.log('⚠️ Серверный Overpass вернул пустой результат, пробуем OSMnx');
-        statusCallback('⚠️ Серверный Overpass: пустой результат, пробуем OSMnx');
+        console.log('⚠️ Серверный Overpass вернул пустой результат, используем клиентский Overpass API');
+        statusCallback('⚠️ Серверный Overpass: пустой результат, используем клиентский Overpass API');
       }
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API, пробуем OSMnx:', error.message);
-      statusCallback('⚠️ Серверный Overpass недоступен, пробуем OSMnx');
+      console.log('❌ Ошибка серверного Overpass API, используем клиентский Overpass API:', error.message);
+      statusCallback('⚠️ Серверный Overpass недоступен, используем клиентский Overpass API');
     }
   }
 
-  // Приоритет 2: OSMnx backend
-  if (await checkOSMnxAvailability()) {
-    try {
-      const bbox = getBboxString(bounds);
-      statusCallback('🚀 Загрузка через OSMnx backend...');
-      
-      const paths = await fetchPathsWithOSMnx(bbox, 'пешеходные маршруты');
-      
-      console.log('🔍 OSMnx вернул данные:', {
-        isArray: Array.isArray(paths),
-        length: paths?.length,
-        firstItem: paths?.[0],
-        type: typeof paths
-      });
-      
-      if (paths && paths.length > 0) {
-        statusCallback(`✅ OSMnx: загружено ${paths.length} маршрутов`);
-        return paths;
-      } else {
-        console.log('⚠️ OSMnx вернул пустой результат, переключаемся на клиентский Overpass API');
-        statusCallback('⚠️ OSMnx: пустой результат, используем клиентский Overpass API');
-      }
-    } catch (error) {
-      console.log('❌ Ошибка OSMnx backend, переключаемся на клиентский Overpass API:', error.message);
-      statusCallback('⚠️ OSMnx недоступен, используем клиентский Overpass API');
-    }
-  }
-
-  // Приоритет 3: Клиентский Overpass API с оптимизированной группировкой запросов
+  // Приоритет 2: Клиентский Overpass API с оптимизированной группировкой запросов
   statusCallback('🚀 Используем клиентский Overpass API...');
   return await fetchPathsGrouped(bounds, statusCallback);
 }
@@ -554,4 +493,5 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
   }
   
   return allPaths;
+} 
 } 
