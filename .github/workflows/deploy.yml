@@ -107,10 +107,16 @@ jobs:
             if [ -n \"\$UVICORN_PIDS\" ]; then
               echo \"Найдены процессы uvicorn: \$UVICORN_PIDS\"
               for pid in \$UVICORN_PIDS; do
-                echo \"Останавливаем процесс \$pid\"
-                kill -TERM \$pid || true
-                sleep 1
-                kill -KILL \$pid || true
+                # Проверяем, что процесс действительно принадлежит нам
+                PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo '')
+                if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
+                  echo \"Останавливаем наш процесс \$pid (пользователь: \$PROCESS_USER)\"
+                  kill -TERM \$pid || true
+                  sleep 1
+                  kill -KILL \$pid || true
+                else
+                  echo \"Пропускаем процесс \$pid (пользователь: \$PROCESS_USER, не наш)\"
+                fi
               done
               sleep 2
             else
@@ -122,10 +128,16 @@ jobs:
             if [ -n \"\$OSMNX_PIDS\" ]; then
               echo \"Найдены процессы osmnx: \$OSMNX_PIDS\"
               for pid in \$OSMNX_PIDS; do
-                echo \"Останавливаем процесс \$pid\"
-                kill -TERM \$pid || true
-                sleep 1
-                kill -KILL \$pid || true
+                # Проверяем, что процесс действительно принадлежит нам
+                PROCESS_USER=\$(ps -o user= -p \$pid 2>/dev/null || echo '')
+                if [ \"\$PROCESS_USER\" = \"\$CURRENT_USER\" ]; then
+                  echo \"Останавливаем наш процесс \$pid (пользователь: \$PROCESS_USER)\"
+                  kill -TERM \$pid || true
+                  sleep 1
+                  kill -KILL \$pid || true
+                else
+                  echo \"Пропускаем процесс \$pid (пользователь: \$PROCESS_USER, не наш)\"
+                fi
               done
               sleep 2
             else
