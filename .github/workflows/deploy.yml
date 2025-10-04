@@ -83,6 +83,16 @@ jobs:
               pip3 install --user uvicorn fastapi
             fi
             
+            if ! python3 -c 'import flask' 2>/dev/null; then
+              echo 'Устанавливаем Flask для OSMnx...'
+              pip3 install --user flask flask-cors
+            fi
+            
+            if ! python3 -c 'import osmnx' 2>/dev/null; then
+              echo 'Устанавливаем OSMnx...'
+              pip3 install --user osmnx geopandas
+            fi
+            
             echo '=== Проверяем модуль ==='
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
