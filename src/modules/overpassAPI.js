@@ -494,4 +494,3 @@ export async function fetchPathsInChunks(bounds, statusCallback) {
   
   return allPaths;
 } 
-} 
