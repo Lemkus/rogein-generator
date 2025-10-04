@@ -164,10 +164,7 @@ jobs:
             echo 'Текущая директория: \$(pwd)'
             echo 'Содержимое корневой директории: \$(ls -la)'
             
-            # Модифицируем backend_osmnx.py для использования нужного порта
-            sed -i \"s/port=5000/port=\$OSMNX_PORT/g\" backend_osmnx.py
-            sed -i \"s/port=6004/port=\$OSMNX_PORT/g\" backend_osmnx.py
-            sed -i \"s/port=[0-9]*/port=\$OSMNX_PORT/g\" backend_osmnx.py
+            # Порт уже настроен в коде (6004)
             nohup python3 backend_osmnx.py > /tmp/osmnx.log 2>&1 &
             OSMNX_PID=\$!
             echo \$OSMNX_PID > /tmp/osmnx.pid
