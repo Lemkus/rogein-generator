@@ -97,6 +97,41 @@ jobs:
             cd backend
             python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
+            echo '=== Останавливаем старые процессы ==='
+            # Убиваем только uvicorn процессы под текущим пользователем
+            CURRENT_USER=\$(whoami)
+            echo \"Текущий пользователь: \$CURRENT_USER\"
+            
+            # Находим uvicorn процессы под нашим пользователем
+            UVICORN_PIDS=\$(pgrep -u \$CURRENT_USER -f 'uvicorn.*simple_main' || true)
+            if [ -n \"\$UVICORN_PIDS\" ]; then
+              echo \"Найдены процессы uvicorn: \$UVICORN_PIDS\"
+              for pid in \$UVICORN_PIDS; do
+                echo \"Останавливаем процесс \$pid\"
+                kill -TERM \$pid || true
+                sleep 1
+                kill -KILL \$pid || true
+              done
+              sleep 2
+            else
+              echo \"Процессы uvicorn не найдены\"
+            fi
+            
+            # Находим python процессы с backend_osmnx.py под нашим пользователем
+            OSMNX_PIDS=\$(pgrep -u \$CURRENT_USER -f 'backend_osmnx.py' || true)
+            if [ -n \"\$OSMNX_PIDS\" ]; then
+              echo \"Найдены процессы osmnx: \$OSMNX_PIDS\"
+              for pid in \$OSMNX_PIDS; do
+                echo \"Останавливаем процесс \$pid\"
+                kill -TERM \$pid || true
+                sleep 1
+                kill -KILL \$pid || true
+              done
+              sleep 2
+            else
+              echo \"Процессы osmnx не найдены\"
+            fi
+            
             echo '=== Проверяем порты ==='
             # Проверяем порт для FastAPI (6002/6003)
             if lsof -i:6002 >/dev/null 2>&1; then
@@ -130,6 +165,7 @@ jobs:
             echo '=== Запускаем OSMnx Backend ==='
             cd ..
             echo 'Текущая директория: \$(pwd)'
+            echo 'Содержимое корневой директории: \$(ls -la)'
             
             # Модифицируем backend_osmnx.py для использования нужного порта
             sed -i \"s/port=5000/port=\$OSMNX_PORT/g\" backend_osmnx.py
@@ -148,6 +184,16 @@ jobs:
             
             echo '=== Проверяем OSMnx ==='
             curl -s http://localhost:\$OSMNX_PORT/api/health || echo 'OSMnx health не отвечает'
+            
+            echo '=== Проверяем файл backend_osmnx.py ==='
+            if [ -f \"backend_osmnx.py\" ]; then
+              echo \"Файл backend_osmnx.py найден\"
+              echo \"Размер файла: \$(wc -l < backend_osmnx.py) строк\"
+              echo \"Последние 5 строк файла:\"
+              tail -5 backend_osmnx.py
+            else
+              echo \"Файл backend_osmnx.py НЕ НАЙДЕН\"
+            fi
             
             echo '=== Логи FastAPI ==='
             cat /tmp/fastapi.log || echo 'FastAPI лог пуст'
