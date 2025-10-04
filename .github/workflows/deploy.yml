@@ -184,22 +184,6 @@ jobs:
             echo '=== Проверяем OSMnx ==='
             curl -s http://localhost:\$OSMNX_PORT/api/health || echo 'OSMnx health не отвечает'
             
-            echo '=== Проверяем подключение OSMnx к Overpass API ==='
-            curl -s http://localhost:\$OSMNX_PORT/api/test-connection || echo 'OSMnx test-connection не отвечает'
-            
-            echo '=== Прямой тест OSMnx без сервера ==='
-            python3 test_osmnx_direct.py || echo 'Прямой тест OSMnx не прошел'
-            
-            echo '=== Проверяем файл backend_osmnx.py ==='
-            if [ -f \"backend_osmnx.py\" ]; then
-              echo \"Файл backend_osmnx.py найден\"
-              echo \"Размер файла: \$(wc -l < backend_osmnx.py) строк\"
-              echo \"Последние 5 строк файла:\"
-              tail -5 backend_osmnx.py
-            else
-              echo \"Файл backend_osmnx.py НЕ НАЙДЕН\"
-            fi
-            
             echo '=== Логи FastAPI ==='
             cat /tmp/fastapi.log || echo 'FastAPI лог пуст'
             
