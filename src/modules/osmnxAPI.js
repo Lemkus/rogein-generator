@@ -20,17 +20,24 @@ console.log(`🌐 OSMNX_API_BASE: ${OSMNX_API_BASE}`);
  * @param {number} maxRetries - максимальное количество попыток
  * @returns {Promise<Object>}
  */
-async function executeOSMnxRequest(endpoint, description, timeout = REQUEST_TIMEOUT, maxRetries = MAX_RETRIES) {
-  let lastError;
+async function executeOSMnxRequest(endpoint, description, timeout = REQUEST_TIMEOUT, maxRetries = 1) {
+  console.log(`🚀 === НАЧАЛО ЗАПРОСА OSMnx ===`);
+  console.log(`🔗 URL: ${OSMNX_API_BASE}${endpoint}`);
+  console.log(`📝 Описание: ${description}`);
+  console.log(`⏱️ Таймаут: ${timeout}мс`);
+  console.log(`🔄 Максимум попыток: ${maxRetries}`);
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
   try {
     const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      console.log(`🔄 ${description}: попытка ${attempt}/${maxRetries} - ${OSMNX_API_BASE}${endpoint}`);
+    const timeoutId = setTimeout(() => {
+      console.log(`⏰ Таймаут ${timeout}мс превышен, прерываем запрос`);
+      controller.abort();
+    }, timeout);
     
-      const response = await fetch(`${OSMNX_API_BASE}${endpoint}`, {
+    console.log(`📤 Отправляем запрос...`);
+    const startTime = Date.now();
+    
+    const response = await fetch(`${OSMNX_API_BASE}${endpoint}`, {
       method: 'GET',
       signal: controller.signal,
       headers: {
@@ -38,96 +45,62 @@ async function executeOSMnxRequest(endpoint, description, timeout = REQUEST_TIME
       }
     });
     
+    const elapsedTime = Date.now() - startTime;
     clearTimeout(timeoutId);
     
-      console.log(`📡 ${description}: получен ответ HTTP ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        // Попробуем прочитать текст ошибки для диагностики
-        let errorText = '';
-        try {
-          errorText = await response.text();
-          console.log(`📄 ${description}: тело ответа ошибки:`, errorText);
-        } catch (textError) {
-          console.log(`📄 ${description}: не удалось прочитать тело ответа ошибки:`, textError.message);
-        }
-        
-        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
-      }
-      
-      // Попытка парсинга JSON с детальной диагностикой
-      let data;
+    console.log(`📡 Получен ответ за ${elapsedTime}мс:`);
+    console.log(`   Status: ${response.status} ${response.statusText}`);
+    console.log(`   Headers:`, Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      let errorText = '';
       try {
-        const responseText = await response.text();
-        console.log(`📄 ${description}: тело ответа:`, responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
-        
-        data = JSON.parse(responseText);
-        console.log(`📊 ${description}: парсинг JSON успешен, структура:`, Object.keys(data));
-        
-      } catch (jsonError) {
-        console.log(`❌ ${description}: ошибка парсинга JSON:`, jsonError.message);
-        throw new Error(`Неверный формат ответа JSON: ${jsonError.message}`);
+        errorText = await response.text();
+        console.log(`📄 Тело ответа ошибки (${errorText.length} символов):`, errorText);
+      } catch (textError) {
+        console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
       }
       
-      // Проверяем структуру ответа - поддерживаем разные форматы backend
-      if (data.success !== undefined) {
-        // Формат OSMnx backend: {success: true/false, ...}
-        if (!data.success) {
-          const errorMsg = data.error || data.message || 'Неизвестная ошибка API';
-          console.log(`❌ ${description}: API вернул success=false, ошибка:`, errorMsg);
-          throw new Error(errorMsg);
-        }
-        console.log(`✅ ${description}: OSMnx backend формат`);
-      } else if (data.status !== undefined) {
-        // Формат simple backend: {status: "healthy", backend_type: "simple_overpass", ...}
-        if (data.status !== 'healthy') {
-          const errorMsg = `Backend статус: ${data.status}`;
-          console.log(`❌ ${description}: простой backend вернул нездоровый статус:`, data.status);
-          throw new Error(errorMsg);
-        }
-        console.log(`✅ ${description}: простой backend формат (${data.backend_type})`);
-        
-        // Преобразуем в стандартный формат для совместимости
-        data.success = true;
-        data.message = `Simple backend (${data.backend_type}) is healthy`;
-      } else {
-        // Неизвестный формат
-        console.log(`⚠️ ${description}: неизвестная структура ответа:`, data);
-        throw new Error(`Неожиданная структура ответа API - отсутствуют поля 'success' и 'status'`);
-      }
-      
-      // Успешный запрос
-      if (attempt > 1) {
-        console.log(`✅ ${description}: успех с ${attempt}-й попытки`);
-      } else {
-        console.log(`✅ ${description}: успех с первой попытки`);
-      }
-      
-      return data;
-      
-    } catch (error) {
-      lastError = error;
-      
-      if (error.name === 'AbortError') {
-        console.log(`⏰ ${description}: таймаут ${timeout}мс (попытка ${attempt}/${maxRetries})`);
-      } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        console.log(`🌐 ${description}: ошибка сети - возможно backend не запущен (попытка ${attempt}/${maxRetries}):`, error.message);
-      } else {
-        console.log(`❌ ${description}: ошибка (попытка ${attempt}/${maxRetries}):`, error.message);
-      }
-      
-      // Если это не последняя попытка, ждем перед повтором
-      if (attempt < maxRetries) {
-        const delay = RETRY_DELAY * attempt;
-        console.log(`⏳ ${description}: ожидание ${delay}мс перед повтором...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
     }
+    
+    // Читаем и парсим ответ
+    const responseText = await response.text();
+    console.log(`📄 Получен ответ длиной ${responseText.length} символов`);
+    console.log(`📄 Первые 500 символов ответа:`, responseText.substring(0, 500));
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log(`✅ JSON успешно распарсен, тип данных:`, typeof data);
+      if (data && typeof data === 'object') {
+        console.log(`📊 Ключи в ответе:`, Object.keys(data));
+        if (data.success !== undefined) {
+          console.log(`🎯 success:`, data.success);
+        }
+        if (data.count !== undefined) {
+          console.log(`📊 count:`, data.count);
+        }
+        if (data.error !== undefined) {
+          console.log(`❌ error:`, data.error);
+        }
+      }
+    } catch (parseError) {
+      console.error(`❌ Ошибка парсинга JSON:`, parseError);
+      console.log(`📄 Сырой ответ:`, responseText);
+      throw new Error(`Не удалось распарсить JSON: ${parseError.message}`);
+    }
+    
+    console.log(`✅ === ЗАПРОС OSMnx УСПЕШЕН ===`);
+    return data;
+    
+  } catch (error) {
+    console.log(`❌ === ОШИБКА ЗАПРОСА OSMnx ===`);
+    console.log(`❌ Тип ошибки:`, error.name);
+    console.log(`❌ Сообщение:`, error.message);
+    console.log(`❌ Стек:`, error.stack);
+    throw error;
   }
-  
-  // Все попытки исчерпаны
-  console.log(`💥 ${description}: все ${maxRetries} попыток исчерпаны, последняя ошибка:`, lastError.message);
-  throw lastError;
 }
 
 /**
