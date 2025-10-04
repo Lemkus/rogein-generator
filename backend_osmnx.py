@@ -122,7 +122,7 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         
         try:
             # OSMnx 2.x API - используем bbox как кортеж (west, south, east, north)
-            bbox = (west, south, east, north)
+            bbox = tuple([west, south, east, north])
             graph = ox.graph_from_bbox(
                 bbox,
                 network_type='all',
@@ -237,7 +237,7 @@ def test_osmnx():
         
         try:
             # OSMnx 2.x API - используем bbox как кортеж (west, south, east, north)
-            bbox = (test_bbox[1], test_bbox[0], test_bbox[3], test_bbox[2])  # west, south, east, north
+            bbox = tuple([test_bbox[1], test_bbox[0], test_bbox[3], test_bbox[2]])  # west, south, east, north
             graph = ox.graph_from_bbox(
                 bbox,
                 network_type='all',
