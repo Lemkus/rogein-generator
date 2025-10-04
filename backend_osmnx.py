@@ -99,15 +99,29 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         logger.info(f"Загружаем пешеходную сеть для области: {south},{west},{north},{east}")
         
         # Загружаем граф пешеходных маршрутов
-        graph = ox.graph_from_bbox(
-            north, south, east, west,
-            network_type='walk',  # Только пешеходные маршруты
-            simplify=True,        # Упрощаем граф
-            retain_all=False,     # Удаляем изолированные узлы
-            truncate_by_edge=True # Обрезаем по границам
-        )
+        logger.info(f"Параметры запроса: north={north}, south={south}, east={east}, west={west}")
         
-        logger.info(f"Загружен граф с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+        try:
+            # Сначала пробуем только пешеходные маршруты
+            graph = ox.graph_from_bbox(
+                north, south, east, west,
+                network_type='walk',
+                simplify=True,
+                retain_all=False,
+                truncate_by_edge=True
+            )
+            logger.info(f"Загружен граф (walk) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+        except Exception as e:
+            logger.warning(f"Ошибка загрузки walk сети: {e}, пробуем all_private")
+            # Если walk не работает, пробуем all_private
+            graph = ox.graph_from_bbox(
+                north, south, east, west,
+                network_type='all_private',
+                simplify=True,
+                retain_all=False,
+                truncate_by_edge=True
+            )
+            logger.info(f"Загружен граф (all_private) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
         
         # Конвертируем в нужный формат
         paths = convert_graph_to_geojson(graph)
@@ -126,13 +140,17 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
     try:
         logger.info(f"Загружаем барьеры для области: {south},{west},{north},{east}")
         
-        # Определяем теги для барьеров
+        # Определяем теги для барьеров (расширенный список)
         barrier_tags = {
-            'barrier': ['wall', 'fence', 'hedge', 'retaining_wall'],
-            'natural': ['water', 'cliff', 'rock'],
-            'waterway': ['river', 'stream', 'canal', 'ditch'],
-            'landuse': ['military', 'industrial']
+            'barrier': ['wall', 'fence', 'hedge', 'retaining_wall', 'gate', 'bollard', 'block'],
+            'natural': ['water', 'cliff', 'rock', 'coastline'],
+            'waterway': ['river', 'stream', 'canal', 'ditch', 'drain'],
+            'landuse': ['military', 'industrial', 'quarry'],
+            'amenity': ['prison', 'detention_centre'],
+            'highway': ['footway', 'path', 'track']  # Добавляем пути как потенциальные барьеры
         }
+        
+        logger.info(f"Ищем барьеры с тегами: {barrier_tags}")
         
         # Загружаем барьеры
         try:
@@ -148,8 +166,10 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
                 tags=barrier_tags
             )
         
+        logger.info(f"Загружено {len(barriers_gdf)} объектов барьеров")
+        
         if barriers_gdf.empty:
-            logger.info("Барьеры не найдены")
+            logger.info("Барьеры не найдены - пустой результат")
             return []
         
         # Конвертируем в нужный формат
