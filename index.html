@@ -254,7 +254,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.1.0';
+    const APP_VERSION = '1.3.0'; // OSMnx с одной попыткой и логированием
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
