@@ -119,7 +119,7 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         logger.error(f"Ошибка загрузки пешеходной сети: {e}")
         return []
 
-def get_barriers(south: float, west: float, north: float, east: float) -> List[Dict]:
+def fetch_barriers(south: float, west: float, north: float, east: float) -> List[Dict]:
     """
     Получает барьеры (стены, заборы, водоёмы) в заданной области
     """
@@ -266,7 +266,7 @@ def get_barriers():
         
         # Получаем данные
         start_time = time.time()
-        barriers = get_barriers(south, west, north, east)
+        barriers = fetch_barriers(south, west, north, east)
         load_time = time.time() - start_time
         
         logger.info(f"API barriers: получено {len(barriers)} барьеров за {load_time:.2f}с")
@@ -303,7 +303,7 @@ def get_all():
         start_time = time.time()
         
         paths = get_walking_network(south, west, north, east)
-        barriers = get_barriers(south, west, north, east)
+        barriers = fetch_barriers(south, west, north, east)
         
         load_time = time.time() - start_time
         
