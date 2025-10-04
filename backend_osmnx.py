@@ -120,23 +120,29 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         # Загружаем все дороги, а потом фильтруем как в Overpass
         logger.info("Загружаем все дороги с network_type='all'")
         
-        graph = ox.graph_from_bbox(
-            north, south, east, west,
-            network_type='all',
-            simplify=True,
-            retain_all=False,
-            truncate_by_edge=True
-        )
-        logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+        try:
+            graph = ox.graph_from_bbox(
+                north, south, east, west,
+                network_type='all',
+                simplify=True,
+                retain_all=False,
+                truncate_by_edge=True
+            )
+            logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+        except Exception as graph_error:
+            logger.error(f"Ошибка загрузки графа через ox.graph_from_bbox: {graph_error}", exc_info=True)
+            logger.info("Возвращаем пустой результат из-за ошибки загрузки графа")
+            return []
         
         # Конвертируем в нужный формат
+        logger.info("Начинаем конвертацию графа в geojson")
         paths = convert_graph_to_geojson(graph)
         
         logger.info(f"Конвертировано {len(paths)} путей")
         return paths
         
     except Exception as e:
-        logger.error(f"Ошибка загрузки пешеходной сети: {e}")
+        logger.error(f"Ошибка загрузки пешеходной сети (общая): {e}", exc_info=True)
         return []
 
 def fetch_barriers(south: float, west: float, north: float, east: float) -> List[Dict]:
