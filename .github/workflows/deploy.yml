@@ -81,7 +81,7 @@ jobs:
 
             echo '=== Проверяем текущие процессы ==='
             ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
-            ps aux | grep 'backend_osmnx.py' | grep -v grep || echo 'osmnx не найден'
+            ps aux | grep 'backend_simple.py' | grep -v grep || echo 'overpass не найден'
             
             echo '=== Останавливаем старые процессы через PID файлы ==='
             # Останавливаем FastAPI если есть PID файл
@@ -100,30 +100,14 @@ jobs:
               echo \"PID файл FastAPI не найден\"
             fi
             
-            # Останавливаем OSMnx если есть PID файл
-            if [ -f /tmp/osmnx.pid ]; then
-              OLD_PID=\$(cat /tmp/osmnx.pid)
-              echo \"Найден PID файл OSMnx: \$OLD_PID\"
-              if ps -p \$OLD_PID >/dev/null 2>&1; then
-                echo \"Пытаемся остановить процесс \$OLD_PID\"
-                kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
-                sleep 1
-              else
-                echo \"Процесс \$OLD_PID уже не существует\"
-              fi
-              rm -f /tmp/osmnx.pid
-            else
-              echo \"PID файл OSMnx не найден\"
-            fi
-            
             sleep 1
             
             echo '=== Используем фиксированные порты ==='
             export FASTAPI_PORT=6002
-            export OSMNX_PORT=6004
-            
+            export OVERPASS_PORT=6005
+
             echo \"Будем запускать FastAPI на порту \$FASTAPI_PORT\"
-            echo \"Будем запускать OSMnx на порту \$OSMNX_PORT\"
+            echo \"Будем запускать Server Overpass API на порту \$OVERPASS_PORT\"
             
             echo '=== Запускаем FastAPI ==='
             cd backend
@@ -135,21 +119,10 @@ jobs:
             echo \"FastAPI запущен с PID: \$FASTAPI_PID\"
             sleep 2
             
-            echo '=== Запускаем OSMnx Backend ==='
+            echo '=== Запускаем Server Overpass API ==='
             cd ..
             echo 'Текущая директория: \$(pwd)'
             echo 'Содержимое корневой директории: \$(ls -la)'
-            
-            # Порт уже настроен в коде (6004)
-            nohup python3 backend_osmnx.py > /tmp/osmnx.log 2>&1 &
-            OSMNX_PID=\$!
-            echo \$OSMNX_PID > /tmp/osmnx.pid
-            echo \"OSMnx запущен с PID: \$OSMNX_PID\"
-            sleep 2
-            
-            echo '=== Запускаем Server Overpass API ==='
-            export OVERPASS_PORT=6005
-            echo \"Будем запускать Server Overpass API на порту \$OVERPASS_PORT\"
             
             # Останавливаем старый Server Overpass API если есть PID файл
             if [ -f /tmp/overpass.pid ]; then
@@ -176,8 +149,6 @@ jobs:
             echo '=== Проверяем запуск сервисов ==='
             echo 'Процессы uvicorn:'
             ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
-            echo 'Процессы python (osmnx):'
-            ps aux | grep 'backend_osmnx.py' | grep -v grep || echo 'osmnx не найден'
             echo 'Процессы python (overpass):'
             ps aux | grep 'backend_simple.py' | grep -v grep || echo 'overpass не найден'
             
@@ -185,22 +156,15 @@ jobs:
             curl -s http://localhost:\$FASTAPI_PORT/test || echo 'FastAPI test не отвечает'
             curl -s http://localhost:\$FASTAPI_PORT/health || echo 'FastAPI health не отвечает'
             
-            echo '=== Проверяем OSMnx ==='
-            curl -s http://localhost:\$OSMNX_PORT/api/health || echo 'OSMnx health не отвечает'
-            
             echo '=== Проверяем Server Overpass API ==='
             curl -s http://localhost:\$OVERPASS_PORT/api/health || echo 'Server Overpass API health не отвечает'
             
             echo '=== Логи FastAPI ==='
             cat /tmp/fastapi.log || echo 'FastAPI лог пуст'
             
-            echo '=== Логи OSMnx ==='
-            cat /tmp/osmnx.log || echo 'OSMnx лог пуст'
-            
             echo '=== Логи Server Overpass API ==='
             cat /tmp/overpass.log || echo 'Server Overpass API лог пуст'
             
             echo \"Deployed FastAPI at: http://${{ secrets.VPS_HOST }}:\$FASTAPI_PORT/health\"
-            echo \"Deployed OSMnx at: http://${{ secrets.VPS_HOST }}:\$OSMNX_PORT/api/health\"
             echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:\$OVERPASS_PORT/api/health\"
           "

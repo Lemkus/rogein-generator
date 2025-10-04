@@ -254,7 +254,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.4.0'; // Server-side Overpass API
+    const APP_VERSION = '1.5.0'; // OSMnx removed, only Overpass API
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
