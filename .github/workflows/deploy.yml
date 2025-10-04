@@ -65,29 +65,18 @@ jobs:
             git reset --hard origin/main
             
             echo '=== Проверяем структуру файлов ==='
-            ls -la
-            ls -la backend/
-            ls -la backend/app/
-            echo '=== Проверяем фронтенд файлы ==='
-            ls -la index.html || echo 'index.html не найден'
-            ls -la src/ || echo 'src/ не найден'
+            ls -la backend/app/ || echo 'backend/app/ не найден'
             
             echo '=== Проверяем зависимости ==='
-            python3 -c 'import uvicorn, fastapi, flask, osmnx; print("Все зависимости OK")' || echo 'Некоторые зависимости НЕ УСТАНОВЛЕНЫ'
+            python3 -c 'import uvicorn, fastapi, flask; print("Основные зависимости OK")' || echo 'Основные зависимости НЕ УСТАНОВЛЕНЫ'
             
             echo '=== Проверяем модуль ==='
             cd backend
             python3 -c 'import app.simple_main; print("Модуль OK")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Проверяем текущие процессы ==='
-            CURRENT_USER=\$(whoami)
-            echo \"Текущий пользователь: \$CURRENT_USER\"
-            
-            echo 'Процессы uvicorn:'
-            ps aux | grep uvicorn | grep -v grep || true
-            
-            echo 'Процессы python (osmnx):'
-            ps aux | grep 'backend_osmnx.py' | grep -v grep || true
+            ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
+            ps aux | grep 'backend_osmnx.py' | grep -v grep || echo 'osmnx не найден'
             
             echo '=== Останавливаем старые процессы через PID файлы ==='
             # Останавливаем FastAPI если есть PID файл
@@ -97,7 +86,7 @@ jobs:
               if ps -p \$OLD_PID >/dev/null 2>&1; then
                 echo \"Пытаемся остановить процесс \$OLD_PID\"
                 kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
-                sleep 2
+                sleep 1
               else
                 echo \"Процесс \$OLD_PID уже не существует\"
               fi
@@ -113,7 +102,7 @@ jobs:
               if ps -p \$OLD_PID >/dev/null 2>&1; then
                 echo \"Пытаемся остановить процесс \$OLD_PID\"
                 kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
-                sleep 2
+                sleep 1
               else
                 echo \"Процесс \$OLD_PID уже не существует\"
               fi
@@ -122,7 +111,7 @@ jobs:
               echo \"PID файл OSMnx не найден\"
             fi
             
-            sleep 2
+            sleep 1
             
             echo '=== Используем фиксированные порты ==='
             export FASTAPI_PORT=6002
@@ -139,7 +128,7 @@ jobs:
             FASTAPI_PID=\$!
             echo \$FASTAPI_PID > /tmp/fastapi.pid
             echo \"FastAPI запущен с PID: \$FASTAPI_PID\"
-            sleep 3
+            sleep 2
             
             echo '=== Запускаем OSMnx Backend ==='
             cd ..
@@ -151,7 +140,7 @@ jobs:
             OSMNX_PID=\$!
             echo \$OSMNX_PID > /tmp/osmnx.pid
             echo \"OSMnx запущен с PID: \$OSMNX_PID\"
-            sleep 3
+            sleep 2
             
             echo '=== Проверяем запуск сервисов ==='
             echo 'Процессы uvicorn:'
