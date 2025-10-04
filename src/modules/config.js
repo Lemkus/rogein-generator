@@ -8,6 +8,6 @@ export const BACKEND_SIMPLE_BASE = isGithub
 
 export const OSMNX_API_BASE = isGithub
   ? 'https://your-osmnx.example.com/api'
-  : 'http://localhost:5000/api';
+  : 'http://38.180.71.138:6004/api';
 
 
