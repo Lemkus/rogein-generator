@@ -244,12 +244,43 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
         logger.error(f"Ошибка загрузки барьеров за {total_time:.2f}с: {e}", exc_info=True)
         return []
 
+@app.route('/api/test-connection', methods=['GET'])
+def test_connection():
+    """Тест подключения к Overpass API"""
+    try:
+        import requests
+        import time
+        
+        logger.info("=== ТЕСТ ПОДКЛЮЧЕНИЯ К OVERPASS API ===")
+        
+        start_time = time.time()
+        response = requests.get('https://overpass-api.de/api/status', timeout=10)
+        elapsed = time.time() - start_time
+        
+        logger.info(f"✅ Подключение к Overpass API успешно за {elapsed:.2f}с")
+        logger.info(f"Status code: {response.status_code}")
+        
+        return jsonify({
+            'success': True,
+            'status_code': response.status_code,
+            'elapsed_time': f"{elapsed:.2f}s",
+            'message': 'OSMnx может подключиться к Overpass API',
+            'response_preview': response.text[:200]
+        })
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения к Overpass API: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Не удалось подключиться к Overpass API'
+        })
+
 @app.route('/api/test', methods=['GET'])
 def test_osmnx():
     """Тестовый endpoint для диагностики OSMnx"""
     try:
         logger.info("=== ТЕСТ OSMnx ===")
-        
+
         # Тестируем простой запрос к OSMnx
         test_bbox = (60.11, 30.23, 60.12, 30.26)  # south, west, north, east
         
