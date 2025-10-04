@@ -101,27 +101,33 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         # Загружаем граф пешеходных маршрутов
         logger.info(f"Параметры запроса: north={north}, south={south}, east={east}, west={west}")
         
+        # Используем тот же подход, что и Overpass API
+        # Загружаем все типы дорог, которые могут быть пешеходными
+        custom_filter = (
+            '["highway"~"^(path|footway|cycleway|track|service|bridleway|'
+            'unclassified|residential|living_street|steps|pedestrian)$"]'
+        )
+        
         try:
-            # Сначала пробуем только пешеходные маршруты
             graph = ox.graph_from_bbox(
                 north, south, east, west,
-                network_type='walk',
+                custom_filter=custom_filter,
                 simplify=True,
                 retain_all=False,
                 truncate_by_edge=True
             )
-            logger.info(f"Загружен граф (walk) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+            logger.info(f"Загружен граф (custom_filter) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
         except Exception as e:
-            logger.warning(f"Ошибка загрузки walk сети: {e}, пробуем all_private")
-            # Если walk не работает, пробуем all_private
+            logger.warning(f"Ошибка загрузки custom_filter сети: {e}, пробуем all")
+            # Если custom_filter не работает, пробуем all
             graph = ox.graph_from_bbox(
                 north, south, east, west,
-                network_type='all_private',
+                network_type='all',
                 simplify=True,
                 retain_all=False,
                 truncate_by_edge=True
             )
-            logger.info(f"Загружен граф (all_private) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+            logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
         
         # Конвертируем в нужный формат
         paths = convert_graph_to_geojson(graph)
@@ -140,17 +146,15 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
     try:
         logger.info(f"Загружаем барьеры для области: {south},{west},{north},{east}")
         
-        # Определяем теги для барьеров (расширенный список)
+        # Используем тот же подход, что и Overpass API для барьеров
+        # ТОЛЬКО элементы с ЯВНЫМ запретом доступа + стены
         barrier_tags = {
-            'barrier': ['wall', 'fence', 'hedge', 'retaining_wall', 'gate', 'bollard', 'block'],
-            'natural': ['water', 'cliff', 'rock', 'coastline'],
-            'waterway': ['river', 'stream', 'canal', 'ditch', 'drain'],
-            'landuse': ['military', 'industrial', 'quarry'],
-            'amenity': ['prison', 'detention_centre'],
-            'highway': ['footway', 'path', 'track']  # Добавляем пути как потенциальные барьеры
+            'access': ['no', 'private'],
+            'foot': ['no'],
+            'barrier': ['wall']  # Стены - обычно непроходимы по определению
         }
         
-        logger.info(f"Ищем барьеры с тегами: {barrier_tags}")
+        logger.info(f"Ищем барьеры с тегами (как в Overpass): {barrier_tags}")
         
         # Загружаем барьеры
         try:
