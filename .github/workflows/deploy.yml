@@ -72,28 +72,12 @@ jobs:
             ls -la index.html || echo 'index.html не найден'
             ls -la src/ || echo 'src/ не найден'
             
-            echo '=== Проверяем Python и зависимости ==='
-            python3 --version
-            python3 -c 'import uvicorn; print(\"uvicorn OK\")' || echo 'uvicorn НЕ УСТАНОВЛЕН'
-            python3 -c 'import fastapi; print(\"fastapi OK\")' || echo 'fastapi НЕ УСТАНОВЛЕН'
-            
-            echo '=== Устанавливаем зависимости если нужно ==='
-            if ! python3 -c 'import uvicorn' 2>/dev/null; then
-              echo 'Устанавливаем uvicorn...'
-              pip3 install --user uvicorn fastapi
-            fi
-            
-            if ! python3 -c 'import flask' 2>/dev/null; then
-              echo 'Устанавливаем Flask для OSMnx...'
-              pip3 install --user flask flask-cors
-            fi
-            
-            # OSMnx уже установлен, пропускаем установку
-            python3 -c 'import osmnx; print("OSMnx OK")' || echo 'OSMnx НЕ УСТАНОВЛЕН (но это нормально)'
+            echo '=== Проверяем зависимости ==='
+            python3 -c 'import uvicorn, fastapi, flask, osmnx; print("Все зависимости OK")' || echo 'Некоторые зависимости НЕ УСТАНОВЛЕНЫ'
             
             echo '=== Проверяем модуль ==='
             cd backend
-            python3 -c 'import app.simple_main; print(\"Модуль app.simple_main найден\")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
+            python3 -c 'import app.simple_main; print("Модуль OK")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
 
             echo '=== Проверяем текущие процессы ==='
             CURRENT_USER=\$(whoami)
