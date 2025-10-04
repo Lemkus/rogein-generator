@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Включаем CORS для работы с frontend
 
-# Конфигурация OSMnx
-ox.config(use_cache=True, log_console=True)
+# Конфигурация OSMnx (для версии 2.x используем settings)
+ox.settings.use_cache = True
+ox.settings.log_console = True
 
 def parse_bbox(bbox_string: str) -> Tuple[float, float, float, float]:
     """
