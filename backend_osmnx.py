@@ -23,6 +23,8 @@ CORS(app)  # Включаем CORS для работы с frontend
 # Конфигурация OSMnx (для версии 2.x используем settings)
 ox.settings.use_cache = True
 ox.settings.log_console = True
+ox.settings.timeout = 30  # Таймаут для запросов к Overpass API (секунды)
+ox.settings.requests_timeout = 30  # Таймаут для HTTP запросов
 
 def parse_bbox(bbox_string: str) -> Tuple[float, float, float, float]:
     """
@@ -111,26 +113,33 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
     """
     Получает пешеходную сеть в заданной области
     """
+    import time
+    start_time = time.time()
+    
     try:
         logger.info(f"Загружаем пешеходную сеть для области: {south},{west},{north},{east}")
-        
+
         # Загружаем граф пешеходных маршрутов
         logger.info(f"Параметры запроса: north={north}, south={south}, east={east}, west={west}")
-        
-        # Загружаем все дороги, а потом фильтруем как в Overpass
-        logger.info("Загружаем все дороги с network_type='all'")
-        
+
+        # Используем network_type='walk' для оптимизации
+        logger.info("Загружаем пешеходную сеть с network_type='walk'")
+
         try:
             # OSMnx 2.x API - используем bbox как кортеж (north, south, east, west)
             bbox = tuple([north, south, east, west])
+            logger.info(f"Начинаем загрузку графа для bbox: {bbox}")
+            
+            graph_start = time.time()
             graph = ox.graph_from_bbox(
                 bbox,
-                network_type='all',
+                network_type='walk',  # Используем 'walk' вместо 'all' для оптимизации
                 simplify=True,
                 retain_all=False,
                 truncate_by_edge=True
             )
-            logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+            graph_time = time.time() - graph_start
+            logger.info(f"Загружен граф за {graph_time:.2f}с: {len(graph.nodes)} узлов, {len(graph.edges)} рёбер")
         except Exception as graph_error:
             logger.error(f"Ошибка загрузки графа через ox.graph_from_bbox: {graph_error}", exc_info=True)
             logger.info("Возвращаем пустой результат из-за ошибки загрузки графа")
@@ -138,19 +147,26 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         
         # Конвертируем в нужный формат
         logger.info("Начинаем конвертацию графа в geojson")
+        convert_start = time.time()
         paths = convert_graph_to_geojson(graph)
+        convert_time = time.time() - convert_start
         
-        logger.info(f"Конвертировано {len(paths)} путей")
+        total_time = time.time() - start_time
+        logger.info(f"Конвертировано {len(paths)} путей за {convert_time:.2f}с. Общее время: {total_time:.2f}с")
         return paths
         
     except Exception as e:
-        logger.error(f"Ошибка загрузки пешеходной сети (общая): {e}", exc_info=True)
+        total_time = time.time() - start_time
+        logger.error(f"Ошибка загрузки пешеходной сети (общая) за {total_time:.2f}с: {e}", exc_info=True)
         return []
 
 def fetch_barriers(south: float, west: float, north: float, east: float) -> List[Dict]:
     """
     Получает барьеры (стены, заборы, водоёмы) в заданной области
     """
+    import time
+    start_time = time.time()
+    
     try:
         logger.info(f"Загружаем барьеры для области: {south},{west},{north},{east}")
         
@@ -219,11 +235,13 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
                 logger.warning(f"Ошибка обработки барьера {idx}: {e}")
                 continue
         
-        logger.info(f"Найдено {len(barriers)} барьеров")
+        total_time = time.time() - start_time
+        logger.info(f"Найдено {len(barriers)} барьеров за {total_time:.2f}с")
         return barriers
         
     except Exception as e:
-        logger.error(f"Ошибка загрузки барьеров: {e}")
+        total_time = time.time() - start_time
+        logger.error(f"Ошибка загрузки барьеров за {total_time:.2f}с: {e}", exc_info=True)
         return []
 
 @app.route('/api/test', methods=['GET'])
