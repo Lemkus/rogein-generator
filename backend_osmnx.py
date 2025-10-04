@@ -166,15 +166,17 @@ def fetch_barriers(south: float, west: float, north: float, east: float) -> List
         
         # Загружаем барьеры
         try:
+            # OSMnx 2.x API - используем bbox как кортеж (west, south, east, north)
+            bbox = tuple([west, south, east, north])
             barriers_gdf = ox.geometries_from_bbox(
-                north, south, east, west,
+                bbox,
                 tags=barrier_tags
             )
         except Exception as e:
             logger.error(f"Ошибка загрузки барьеров через geometries_from_bbox: {e}")
             # Попробуем альтернативный метод
             barriers_gdf = ox.features_from_bbox(
-                north, south, east, west,
+                bbox,
                 tags=barrier_tags
             )
         
