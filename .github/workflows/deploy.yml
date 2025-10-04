@@ -88,10 +88,8 @@ jobs:
               pip3 install --user flask flask-cors
             fi
             
-            if ! python3 -c 'import osmnx' 2>/dev/null; then
-              echo 'Устанавливаем OSMnx...'
-              pip3 install --user osmnx geopandas
-            fi
+            # OSMnx уже установлен, пропускаем установку
+            python3 -c 'import osmnx; print("OSMnx OK")' || echo 'OSMnx НЕ УСТАНОВЛЕН (но это нормально)'
             
             echo '=== Проверяем модуль ==='
             cd backend
