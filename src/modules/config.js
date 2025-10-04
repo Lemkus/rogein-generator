@@ -10,4 +10,7 @@ export const OSMNX_API_BASE = isGithub
   ? 'https://your-osmnx.example.com/api'
   : 'http://38.180.71.138:6004/api';
 
+// Версия конфигурации для принудительного обновления кэша
+export const CONFIG_VERSION = 'v1.1.0';
+
 
