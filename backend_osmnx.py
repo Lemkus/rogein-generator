@@ -135,11 +135,18 @@ def get_barriers(south: float, west: float, north: float, east: float) -> List[D
         }
         
         # Загружаем барьеры
-        barriers_gdf = ox.geometries_from_bbox(
-            north, south, east, west,
-            tags=barrier_tags,
-            geom_type='polygon'  # Только полигоны для барьеров
-        )
+        try:
+            barriers_gdf = ox.geometries_from_bbox(
+                north, south, east, west,
+                tags=barrier_tags
+            )
+        except Exception as e:
+            logger.error(f"Ошибка загрузки барьеров через geometries_from_bbox: {e}")
+            # Попробуем альтернативный метод
+            barriers_gdf = ox.features_from_bbox(
+                north, south, east, west,
+                tags=barrier_tags
+            )
         
         if barriers_gdf.empty:
             logger.info("Барьеры не найдены")
@@ -251,13 +258,18 @@ def get_barriers():
         if not bbox:
             return jsonify({'error': 'Параметр bbox обязателен'}), 400
         
+        logger.info(f"API barriers: получен запрос с bbox={bbox}")
+        
         # Парсим bbox
         south, west, north, east = parse_bbox(bbox)
+        logger.info(f"API barriers: распарсен bbox south={south}, west={west}, north={north}, east={east}")
         
         # Получаем данные
         start_time = time.time()
         barriers = get_barriers(south, west, north, east)
         load_time = time.time() - start_time
+        
+        logger.info(f"API barriers: получено {len(barriers)} барьеров за {load_time:.2f}с")
         
         return jsonify({
             'success': True,
@@ -269,10 +281,11 @@ def get_barriers():
         })
         
     except ValueError as e:
+        logger.error(f"API barriers: ошибка валидации bbox: {e}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        logger.error(f"Ошибка API barriers: {e}")
-        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+        logger.error(f"API barriers: внутренняя ошибка: {e}", exc_info=True)
+        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
 
 @app.route('/api/all', methods=['GET'])
 def get_all():
