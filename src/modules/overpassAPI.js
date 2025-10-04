@@ -118,20 +118,20 @@ async function executeOverpassQuery(query, errorMessage, customTimeout = TIMEOUT
 
 // Загрузка закрытых зон (военные объекты, частные территории)
 export async function fetchClosedAreas(bounds) {
-  // Сначала пытаемся использовать OSMnx backend
-  if (await checkOSMnxAvailability()) {
+  // Приоритет 1: Серверный Overpass API
+  if (await checkServerOverpassAvailability()) {
     try {
       const bbox = getBboxString(bounds);
-      console.log('🚀 Загрузка закрытых зон через OSMnx backend...');
+      console.log('🚀 Загрузка закрытых зон через серверный Overpass API...');
       
-      // OSMnx backend пока не поддерживает закрытые зоны, используем Overpass API
-      console.log('⚠️ OSMnx не поддерживает закрытые зоны, используем Overpass API');
+      // Серверный Overpass API пока не поддерживает закрытые зоны, используем клиентский Overpass API
+      console.log('⚠️ Серверный Overpass не поддерживает закрытые зоны, используем клиентский Overpass API');
     } catch (error) {
-      console.log('❌ Ошибка OSMnx backend для закрытых зон:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для закрытых зон:', error.message);
     }
   }
 
-  // Fallback на Overpass API
+  // Приоритет 2: Клиентский Overpass API
   const s = bounds.getSouth();
   const w = bounds.getWest();
   const n = bounds.getNorth();
@@ -155,20 +155,20 @@ export async function fetchClosedAreas(bounds) {
 
 // Загрузка водоёмов
 export async function fetchWaterAreas(bounds) {
-  // Сначала пытаемся использовать OSMnx backend
-  if (await checkOSMnxAvailability()) {
+  // Приоритет 1: Серверный Overpass API
+  if (await checkServerOverpassAvailability()) {
     try {
       const bbox = getBboxString(bounds);
-      console.log('🚀 Загрузка водоёмов через OSMnx backend...');
+      console.log('🚀 Загрузка водоёмов через серверный Overpass API...');
       
-      // OSMnx backend пока не поддерживает водоёмы, используем Overpass API
-      console.log('⚠️ OSMnx не поддерживает водоёмы, используем Overpass API');
+      // Серверный Overpass API пока не поддерживает водоёмы, используем клиентский Overpass API
+      console.log('⚠️ Серверный Overpass не поддерживает водоёмы, используем клиентский Overpass API');
     } catch (error) {
-      console.log('❌ Ошибка OSMnx backend для водоёмов:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для водоёмов:', error.message);
     }
   }
 
-  // Fallback на Overpass API
+  // Приоритет 2: Клиентский Overpass API
   const s = bounds.getSouth();
   const w = bounds.getWest();
   const n = bounds.getNorth();
