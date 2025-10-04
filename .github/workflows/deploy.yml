@@ -187,6 +187,9 @@ jobs:
             echo '=== Проверяем OSMnx ==='
             curl -s http://localhost:\$OSMNX_PORT/api/health || echo 'OSMnx health не отвечает'
             
+            echo '=== Проверяем подключение OSMnx к Overpass API ==='
+            curl -s http://localhost:\$OSMNX_PORT/api/test-connection || echo 'OSMnx test-connection не отвечает'
+            
             echo '=== Проверяем файл backend_osmnx.py ==='
             if [ -f \"backend_osmnx.py\" ]; then
               echo \"Файл backend_osmnx.py найден\"
