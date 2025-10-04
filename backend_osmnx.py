@@ -62,9 +62,23 @@ def convert_graph_to_geojson(graph) -> List[Dict]:
         if edges_gdf.empty:
             return []
         
+        # Фильтруем только пешеходные типы дорог (как в Overpass)
+        pedestrian_types = {
+            'path', 'footway', 'cycleway', 'track', 'service', 'bridleway',
+            'unclassified', 'residential', 'living_street', 'steps', 'pedestrian'
+        }
+        
         # Конвертируем в формат, ожидаемый frontend
         paths = []
+        filtered_count = 0
         for idx, edge in edges_gdf.iterrows():
+            highway_type = edge.get('highway', 'unknown')
+            
+            # Фильтруем только пешеходные типы дорог
+            if highway_type not in pedestrian_types:
+                filtered_count += 1
+                continue
+            
             # Получаем геометрию как список координат
             if hasattr(edge.geometry, 'coords'):
                 coords = list(edge.geometry.coords)
@@ -76,7 +90,7 @@ def convert_graph_to_geojson(graph) -> List[Dict]:
             # Создаем объект пути
             path_obj = {
                 'geometry': geometry,
-                'highway': edge.get('highway', 'unknown'),
+                'highway': highway_type,
                 'name': edge.get('name', ''),
                 'surface': edge.get('surface', ''),
                 'access': edge.get('access', ''),
@@ -85,6 +99,8 @@ def convert_graph_to_geojson(graph) -> List[Dict]:
             }
             
             paths.append(path_obj)
+        
+        logger.info(f"Отфильтровано {filtered_count} непешеходных дорог из {len(edges_gdf)}")
         
         return paths
     except Exception as e:
@@ -101,33 +117,17 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         # Загружаем граф пешеходных маршрутов
         logger.info(f"Параметры запроса: north={north}, south={south}, east={east}, west={west}")
         
-        # Используем тот же подход, что и Overpass API
-        # Загружаем все типы дорог, которые могут быть пешеходными
-        custom_filter = (
-            '["highway"~"^(path|footway|cycleway|track|service|bridleway|'
-            'unclassified|residential|living_street|steps|pedestrian)$"]'
-        )
+        # Загружаем все дороги, а потом фильтруем как в Overpass
+        logger.info("Загружаем все дороги с network_type='all'")
         
-        try:
-            graph = ox.graph_from_bbox(
-                north, south, east, west,
-                custom_filter=custom_filter,
-                simplify=True,
-                retain_all=False,
-                truncate_by_edge=True
-            )
-            logger.info(f"Загружен граф (custom_filter) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
-        except Exception as e:
-            logger.warning(f"Ошибка загрузки custom_filter сети: {e}, пробуем all")
-            # Если custom_filter не работает, пробуем all
-            graph = ox.graph_from_bbox(
-                north, south, east, west,
-                network_type='all',
-                simplify=True,
-                retain_all=False,
-                truncate_by_edge=True
-            )
-            logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
+        graph = ox.graph_from_bbox(
+            north, south, east, west,
+            network_type='all',
+            simplify=True,
+            retain_all=False,
+            truncate_by_edge=True
+        )
+        logger.info(f"Загружен граф (all) с {len(graph.nodes)} узлами и {len(graph.edges)} рёбрами")
         
         # Конвертируем в нужный формат
         paths = convert_graph_to_geojson(graph)
