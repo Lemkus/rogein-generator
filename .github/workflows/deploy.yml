@@ -110,61 +110,6 @@ jobs:
             echo '=== Логи Server Overpass API ==='
             cat /tmp/overpass.log || echo 'Server Overpass API лог пуст'
             
-            echo '=== Создаем конфигурацию Nginx ==='
-            # Создать конфигурацию Nginx для trailspot.app
-            cat > /tmp/nginx_config.conf << 'EOF'
-server {
-    listen 80;
-    server_name trailspot.app www.trailspot.app;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    location /api/ {
-        proxy_pass http://127.0.0.1:5000/api/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    location /src/ {
-        proxy_pass http://127.0.0.1:8080/src/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    location /static/ {
-        proxy_pass http://127.0.0.1:8080/static/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-            sudo cp /tmp/nginx_config.conf /etc/nginx/sites-available/trailspot.app
-            
-            # Активировать конфигурацию
-            sudo ln -sf /etc/nginx/sites-available/trailspot.app /etc/nginx/sites-enabled/trailspot.app
-            
-            # Проверить конфигурацию Nginx
-            sudo nginx -t
-            
-            # Перезагрузить Nginx
-            sudo systemctl reload nginx
-            
-            echo '=== Проверяем работу через Nginx ==='
-            curl -s http://localhost/ || echo 'Nginx не отвечает'
-            curl -s http://localhost/api/health || echo 'Nginx API не отвечает'
-            
             echo \"Deployed FastAPI at: http://${{ secrets.VPS_HOST }}:8080/health\"
             echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:5000/api/health\"
             echo \"TrailSpot website: http://trailspot.app\"
