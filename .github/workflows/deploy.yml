@@ -112,12 +112,11 @@ jobs:
             
             echo '=== Создаем конфигурацию Nginx ==='
             # Создать конфигурацию Nginx для trailspot.app
-            sudo tee /etc/nginx/sites-available/trailspot.app > /dev/null << 'NGINX_EOF'
+            cat > /tmp/nginx_config.conf << 'EOF'
 server {
     listen 80;
     server_name trailspot.app www.trailspot.app;
     
-    # Проксируем основной сайт на FastAPI (порт 8080)
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
@@ -126,7 +125,6 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
-    # Проксируем API на Server Overpass API (порт 5000)
     location /api/ {
         proxy_pass http://127.0.0.1:5000/api/;
         proxy_set_header Host \$host;
@@ -135,7 +133,6 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
-    # Статические файлы
     location /src/ {
         proxy_pass http://127.0.0.1:8080/src/;
         proxy_set_header Host \$host;
@@ -152,7 +149,8 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-NGINX_EOF
+EOF
+            sudo cp /tmp/nginx_config.conf /etc/nginx/sites-available/trailspot.app
             
             # Активировать конфигурацию
             sudo ln -sf /etc/nginx/sites-available/trailspot.app /etc/nginx/sites-enabled/trailspot.app
