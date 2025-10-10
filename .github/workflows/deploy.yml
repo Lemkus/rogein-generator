@@ -112,7 +112,7 @@ jobs:
             
             echo '=== Создаем конфигурацию Nginx ==='
             # Создать конфигурацию Nginx для trailspot.app
-            sudo tee /etc/nginx/sites-available/trailspot.app > /dev/null << 'EOF'
+            sudo tee /etc/nginx/sites-available/trailspot.app > /dev/null << 'NGINX_EOF'
 server {
     listen 80;
     server_name trailspot.app www.trailspot.app;
@@ -152,7 +152,7 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOF
+NGINX_EOF
             
             # Активировать конфигурацию
             sudo ln -sf /etc/nginx/sites-available/trailspot.app /etc/nginx/sites-enabled/trailspot.app
