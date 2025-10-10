@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy to REG.RU Hosting
 
 on:
   push:
@@ -22,13 +22,6 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: SSH debug (verbose)
-        env:
-          SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-        run: |
-          PORT_OPT=${SSH_PORT:+-p $SSH_PORT}
-          ssh -vvv -i key.pem -o StrictHostKeyChecking=no $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH OK'"
-
       - name: Deploy over SSH
         env:
           SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
@@ -39,125 +32,77 @@ jobs:
           echo "  Host: ${{ secrets.VPS_HOST }}"
           echo "  User: ${{ secrets.VPS_USER }}"
           echo "  Port: ${{ secrets.VPS_SSH_PORT }}"
-          echo "  Key file exists: $(ls -la key.pem)"
+          echo "  Path: ${{ secrets.VPS_PATH }}"
           echo "🔍 Тестируем SSH соединение..."
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает!'"
           echo "🔍 Начинаем деплой через SSH..."
           ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            # Не используем set -e, чтобы команды с ошибками не прерывали скрипт
-            echo '=== Начинаем деплой ==='
+            echo '=== Начинаем деплой на REG.RU хостинг ==='
             echo 'Пользователь: \$(whoami)'
             echo 'UID: \$(id -u)'
-            echo 'Права на /tmp: \$(ls -ld /tmp)'
+            echo 'Текущая директория: \$(pwd)'
             
-            # подготовить каталог с кодом
+            # Создать директорию проекта
             mkdir -p \"$VPS_PATH\"
-            if [ ! -d \"$VPS_PATH/.git\" ]; then
-              cd \"\$(dirname \"$VPS_PATH\")\"
-              if [ -d rogein-generator ]; then rm -rf rogein-generator; fi
-              git clone https://github.com/${{ github.repository }} rogein-generator
-              mv rogein-generator \"\$(basename \"$VPS_PATH\")\"
-            fi
-
             cd \"$VPS_PATH\"
-            echo '=== Обновляем код ==='
-            git fetch --all
-            git reset --hard origin/main
+            echo 'Рабочая директория: \$(pwd)'
             
-            echo '=== Проверяем структуру файлов ==='
+            # Установить зависимости в пользовательскую директорию
+            echo '=== Устанавливаем зависимости ==='
+            pip3 install --user uvicorn fastapi flask requests
+            
+            # Клонировать или обновить код
+            if [ ! -d \".git\" ]; then
+              echo '=== Клонируем репозиторий ==='
+              git clone https://github.com/${{ github.repository }} .
+            else
+              echo '=== Обновляем код ==='
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            # Проверить зависимости
+            echo '=== Проверяем зависимости ==='
+            python3 -c 'import uvicorn, fastapi, flask; print(\"Зависимости OK\")' || echo 'Зависимости НЕ УСТАНОВЛЕНЫ'
+            
+            # Проверить структуру проекта
+            echo '=== Проверяем структуру проекта ==='
+            ls -la
+            ls -la backend/ || echo 'backend/ не найден'
             ls -la backend/app/ || echo 'backend/app/ не найден'
             
-            echo '=== Проверяем зависимости ==='
-            python3 -c 'import uvicorn, fastapi, flask; print("Основные зависимости OK")' || echo 'Основные зависимости НЕ УСТАНОВЛЕНЫ'
+            # Остановить старые процессы
+            echo '=== Останавливаем старые процессы ==='
+            pkill -f 'uvicorn.*simple_main' || echo 'uvicorn не найден'
+            pkill -f 'backend_simple.py' || echo 'backend_simple.py не найден'
+            sleep 2
             
-            echo '=== Проверяем модуль ==='
-            cd backend
-            echo 'Содержимое backend/:'
-            ls -la
-            echo 'Содержимое backend/app/:'
-            ls -la app/
-            echo 'Проверяем импорт модуля:'
-            python3 -c 'import app.simple_main; print("Модуль OK")' || echo 'МОДУЛЬ НЕ НАЙДЕН'
-
-            echo '=== Проверяем текущие процессы ==='
-            ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
-            ps aux | grep 'backend_simple.py' | grep -v grep || echo 'overpass не найден'
-            
-            echo '=== Останавливаем старые процессы через PID файлы ==='
-            # Останавливаем FastAPI если есть PID файл
-            if [ -f /tmp/fastapi.pid ]; then
-              OLD_PID=\$(cat /tmp/fastapi.pid)
-              echo \"Найден PID файл FastAPI: \$OLD_PID\"
-              if ps -p \$OLD_PID >/dev/null 2>&1; then
-                echo \"Пытаемся остановить процесс \$OLD_PID\"
-                kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
-                sleep 1
-              else
-                echo \"Процесс \$OLD_PID уже не существует\"
-              fi
-              rm -f /tmp/fastapi.pid
-            else
-              echo \"PID файл FastAPI не найден\"
-            fi
-            
-            sleep 1
-            
-            echo '=== Используем фиксированные порты ==='
-            export FASTAPI_PORT=6002
-            export OVERPASS_PORT=6005
-
-            echo \"Будем запускать FastAPI на порту \$FASTAPI_PORT\"
-            echo \"Будем запускать Server Overpass API на порту \$OVERPASS_PORT\"
-            
+            # Запустить FastAPI (будет доступен через Nginx)
             echo '=== Запускаем FastAPI ==='
             cd backend
-            echo 'Текущая директория: \$(pwd)'
-            
-            nohup python3 -m uvicorn app.simple_main:app --host 0.0.0.0 --port \$FASTAPI_PORT > /tmp/fastapi.log 2>&1 &
+            nohup python3 -m uvicorn app.simple_main:app --host 127.0.0.1 --port 8080 > /tmp/fastapi.log 2>&1 &
             FASTAPI_PID=\$!
-            echo \$FASTAPI_PID > /tmp/fastapi.pid
-            echo \"FastAPI запущен с PID: \$FASTAPI_PID\"
-            sleep 2
+            echo \"FastAPI запущен с PID: \$FASTAPI_PID на порту 8080\"
+            sleep 3
             
+            # Запустить Server Overpass API
             echo '=== Запускаем Server Overpass API ==='
             cd ..
-            echo 'Текущая директория: \$(pwd)'
-            echo 'Содержимое корневой директории: \$(ls -la)'
-            
-            # Останавливаем старый Server Overpass API если есть PID файл
-            if [ -f /tmp/overpass.pid ]; then
-              OLD_PID=\$(cat /tmp/overpass.pid)
-              echo \"Найден PID файл Server Overpass API: \$OLD_PID\"
-              if ps -p \$OLD_PID >/dev/null 2>&1; then
-                echo \"Пытаемся остановить процесс \$OLD_PID\"
-                kill \$OLD_PID 2>/dev/null && echo \"Процесс \$OLD_PID остановлен\" || echo \"Не удалось остановить процесс \$OLD_PID\"
-                sleep 1
-              else
-                echo \"Процесс \$OLD_PID уже не существует\"
-              fi
-              rm -f /tmp/overpass.pid
-            else
-              echo \"PID файл Server Overpass API не найден\"
-            fi
-            
             nohup python3 backend_simple.py > /tmp/overpass.log 2>&1 &
             OVERPASS_PID=\$!
-            echo \$OVERPASS_PID > /tmp/overpass.pid
-            echo \"Server Overpass API запущен с PID: \$OVERPASS_PID\"
-            sleep 2
+            echo \"Server Overpass API запущен с PID: \$OVERPASS_PID на порту 5000\"
+            sleep 3
             
-            echo '=== Проверяем запуск сервисов ==='
-            echo 'Процессы uvicorn:'
-            ps aux | grep uvicorn | grep -v grep || echo 'uvicorn не найден'
-            echo 'Процессы python (overpass):'
-            ps aux | grep 'backend_simple.py' | grep -v grep || echo 'overpass не найден'
+            # Проверить работу сервисов
+            echo '=== Проверяем работу сервисов ==='
+            echo 'Процессы Python:'
+            ps aux | grep python | grep -v grep || echo 'Python процессы не найдены'
             
             echo '=== Проверяем FastAPI ==='
-            curl -s http://localhost:\$FASTAPI_PORT/test || echo 'FastAPI test не отвечает'
-            curl -s http://localhost:\$FASTAPI_PORT/health || echo 'FastAPI health не отвечает'
+            curl -s http://127.0.0.1:8080/health || echo 'FastAPI не отвечает'
             
             echo '=== Проверяем Server Overpass API ==='
-            curl -s http://localhost:\$OVERPASS_PORT/api/health || echo 'Server Overpass API health не отвечает'
+            curl -s http://127.0.0.1:5000/api/health || echo 'Server Overpass API не отвечает'
             
             echo '=== Логи FastAPI ==='
             cat /tmp/fastapi.log || echo 'FastAPI лог пуст'
@@ -165,6 +110,65 @@ jobs:
             echo '=== Логи Server Overpass API ==='
             cat /tmp/overpass.log || echo 'Server Overpass API лог пуст'
             
-            echo \"Deployed FastAPI at: http://${{ secrets.VPS_HOST }}:\$FASTAPI_PORT/health\"
-            echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:\$OVERPASS_PORT/api/health\"
+            echo '=== Создаем конфигурацию Nginx ==='
+            # Создать конфигурацию Nginx для trailspot.app
+            sudo tee /etc/nginx/sites-available/trailspot.app > /dev/null << 'EOF'
+server {
+    listen 80;
+    server_name trailspot.app www.trailspot.app;
+    
+    # Проксируем основной сайт на FastAPI (порт 8080)
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # Проксируем API на Server Overpass API (порт 5000)
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000/api/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    # Статические файлы
+    location /src/ {
+        proxy_pass http://127.0.0.1:8080/src/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    location /static/ {
+        proxy_pass http://127.0.0.1:8080/static/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+            
+            # Активировать конфигурацию
+            sudo ln -sf /etc/nginx/sites-available/trailspot.app /etc/nginx/sites-enabled/trailspot.app
+            
+            # Проверить конфигурацию Nginx
+            sudo nginx -t
+            
+            # Перезагрузить Nginx
+            sudo systemctl reload nginx
+            
+            echo '=== Проверяем работу через Nginx ==='
+            curl -s http://localhost/ || echo 'Nginx не отвечает'
+            curl -s http://localhost/api/health || echo 'Nginx API не отвечает'
+            
+            echo \"Deployed FastAPI at: http://${{ secrets.VPS_HOST }}:8080/health\"
+            echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:5000/api/health\"
+            echo \"TrailSpot website: http://trailspot.app\"
+            echo \"TrailSpot API: http://trailspot.app/api/health\"
           "

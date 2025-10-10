@@ -1,7 +1,7 @@
 {
-  "name": "Генератор точек на тропах OSM",
-  "short_name": "Рогейн",
-  "description": "Генератор контрольных точек на тропах OpenStreetMap с звуковой навигацией",
+  "name": "TrailSpot - Find Your Spots on the Trail",
+  "short_name": "TrailSpot",
+  "description": "Generate navigation points on hiking trails with audio hot-cold navigation using OpenStreetMap data",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
