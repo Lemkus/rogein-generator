@@ -2,13 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Генератор точек на тропах OSM</title>
+  <title>TrailSpot - Find Your Spots on the Trail</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#4CAF50">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Рогейн">
+  <meta name="apple-mobile-web-app-title" content="TrailSpot">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -183,10 +183,43 @@
         font-size: 1rem;
       }
     }
+    
+    /* Footer styles */
+    footer {
+      text-align: center;
+      padding: 20px 10px;
+      background: white;
+      margin: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      font-size: 14px;
+      color: #666;
+    }
+    
+    footer a {
+      color: #4CAF50;
+      text-decoration: none;
+    }
+    
+    footer a:hover {
+      text-decoration: underline;
+    }
+    
+    .copyright {
+      margin: 5px 0;
+    }
+    
+    .legal-links {
+      margin: 10px 0;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
-  <h2>Генератор контрольных точек на тропах (OSM)</h2>
+  <h2>TrailSpot — Find Your Spots on the Trail</h2>
   
 
   
@@ -266,5 +299,21 @@
       console.error('Ошибка загрузки модуля:', error);
     });
   </script>
+  
+  <!-- Footer with copyright and legal info -->
+  <footer>
+    <div class="copyright">
+      © 2025 <strong>TrailSpot</strong>. All rights reserved.
+    </div>
+    <div class="legal-links">
+      <a href="#" id="termsLink">Terms of Use</a>
+      <a href="#" id="privacyLink">Privacy Policy</a>
+      <a href="https://github.com/yourusername/trailspot" target="_blank">GitHub</a>
+      <a href="LICENSE" target="_blank">MIT License</a>
+    </div>
+    <div style="margin-top: 10px; font-size: 12px; color: #999;">
+      Made with 💚 for outdoor enthusiasts
+    </div>
+  </footer>
 </body>
 </html> 
