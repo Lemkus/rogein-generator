@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 WSGI файл для запуска Flask приложения на REG.RU Passenger
+Исправленная версия с правильной активацией виртуального окружения
 """
 
 import sys
@@ -10,9 +11,8 @@ import os
 project_path = os.path.dirname(os.path.abspath(__file__))
 venv_path = os.path.join(project_path, 'venv')
 
-# Активируем виртуальное окружение
+# Добавляем путь к библиотекам виртуального окружения
 if os.path.exists(venv_path):
-    # Добавляем путь к библиотекам виртуального окружения
     venv_lib_path = os.path.join(venv_path, 'lib', 'python3.*', 'site-packages')
     import glob
     site_packages = glob.glob(venv_lib_path)
