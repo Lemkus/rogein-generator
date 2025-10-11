@@ -141,11 +141,16 @@ jobs:
             # Создаем Flask приложение для REG.RU (Passenger WSGI)
             echo '=== Создаем Flask приложение для REG.RU ==='
             
-            # Создаем основной Flask файл
-            echo 'from flask import Flask, send_from_directory, jsonify' > hello.py
+            # Создаем основной Flask файл с интегрированным Overpass API
+            echo 'from flask import Flask, send_from_directory, jsonify, request' > hello.py
             echo 'import os' >> hello.py
+            echo 'import requests' >> hello.py
+            echo 'import json' >> hello.py
             echo '' >> hello.py
             echo 'application = Flask(__name__)' >> hello.py
+            echo '' >> hello.py
+            echo '# Overpass API URL' >> hello.py
+            echo 'OVERPASS_URL = \"https://overpass-api.de/api/interpreter\"' >> hello.py
             echo '' >> hello.py
             echo '@application.route(\"/\")' >> hello.py
             echo 'def index():' >> hello.py
@@ -158,6 +163,28 @@ jobs:
             echo '@application.route(\"/api/health\")' >> hello.py
             echo 'def health():' >> hello.py
             echo '    return jsonify({\"status\": \"ok\", \"message\": \"TrailSpot API работает\"})' >> hello.py
+            echo '' >> hello.py
+            echo '@application.route(\"/api/overpass/paths\", methods=[\"POST\"])' >> hello.py
+            echo 'def overpass_paths():' >> hello.py
+            echo '    try:' >> hello.py
+            echo '        data = request.get_json()' >> hello.py
+            echo '        bbox = data.get(\"bbox\", \"\")' >> hello.py
+            echo '        query = f\"[out:json][timeout:25];(way[highway=path][bbox:{bbox}];);out geom;\"' >> hello.py
+            echo '        response = requests.post(OVERPASS_URL, data=query, timeout=30)' >> hello.py
+            echo '        return jsonify(response.json())' >> hello.py
+            echo '    except Exception as e:' >> hello.py
+            echo '        return jsonify({\"error\": str(e)}), 500' >> hello.py
+            echo '' >> hello.py
+            echo '@application.route(\"/api/overpass/barriers\", methods=[\"POST\"])' >> hello.py
+            echo 'def overpass_barriers():' >> hello.py
+            echo '    try:' >> hello.py
+            echo '        data = request.get_json()' >> hello.py
+            echo '        bbox = data.get(\"bbox\", \"\")' >> hello.py
+            echo '        query = f\"[out:json][timeout:25];(way[barrier][bbox:{bbox}];);out geom;\"' >> hello.py
+            echo '        response = requests.post(OVERPASS_URL, data=query, timeout=30)' >> hello.py
+            echo '        return jsonify(response.json())' >> hello.py
+            echo '    except Exception as e:' >> hello.py
+            echo '        return jsonify({\"error\": str(e)}), 500' >> hello.py
             echo '' >> hello.py
             echo 'if __name__ == \"__main__\":' >> hello.py
             echo '    application.run(host=\"0.0.0.0\")' >> hello.py
@@ -173,30 +200,24 @@ jobs:
 
             echo 'Flask приложение создано для Passenger WSGI'
             
-            # Запустить только Server Overpass API (Flask работает через Passenger)
-            echo '=== Запускаем Server Overpass API ==='
-            echo 'Запускаем Server Overpass API на порту 5000...'
-            nohup python3 backend_simple.py > /tmp/overpass.log 2>&1 &
-            OVERPASS_PID=\$!
-            echo \"Server Overpass API запущен с PID: \$OVERPASS_PID на порту 5000\"
-            sleep 3
+            # Создаем файл перезапуска для Passenger
+            echo '=== Создаем файл перезапуска ==='
+            touch .restart-app
+            echo 'Файл .restart-app создан для перезапуска Passenger'
             
             # Проверить работу сервисов
             echo '=== Проверяем работу сервисов ==='
             echo 'Процессы Python:'
             ps aux | grep python | grep -v grep || echo 'Python процессы не найдены'
             
-            echo '=== Проверяем Server Overpass API ==='
-            curl -s http://127.0.0.1:5000/api/health || echo 'Server Overpass API не отвечает'
-            
-            echo '=== Логи Server Overpass API ==='
-            cat /tmp/overpass.log || echo 'Server Overpass API лог пуст'
+            echo '=== Проверяем работу Flask приложения ==='
+            echo 'Проверяем файлы:'
+            ls -la hello.py passenger_wsgi.py || echo 'Файлы не найдены'
             
             echo '=== Создаем файл перезапуска ==='
             touch .restart-app
             echo 'Файл .restart-app создан для перезапуска Passenger'
             
-            echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:5000/api/health\"
             echo \"TrailSpot website: http://trailspot.app\"
             echo \"TrailSpot API: http://trailspot.app/api/health\"
           "
