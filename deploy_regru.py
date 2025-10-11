@@ -71,7 +71,8 @@ def deploy_to_regru():
         'favicon.svg',
         'manifest.json',
         '.htaccess',
-        'setup_venv.sh'
+        'setup_venv.sh',
+        'debug_server.sh'
     ]
     
     # Создаем команды для загрузки
