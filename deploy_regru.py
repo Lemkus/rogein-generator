@@ -15,30 +15,30 @@ def load_config():
         with open('deploy_config.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        print(f"❌ Ошибка загрузки конфигурации: {e}")
+        print(f"Ошибка загрузки конфигурации: {e}")
         return None
 
 def run_command(command, description):
     """Выполняет команду и выводит результат"""
-    print(f"🔄 {description}...")
+    print(f"[{description}]...")
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"✅ {description} - успешно")
+            print(f"[{description}] - успешно")
             if result.stdout:
-                print(f"📄 Вывод: {result.stdout.strip()}")
+                print(f"Вывод: {result.stdout.strip()}")
             return True
         else:
-            print(f"❌ {description} - ошибка")
-            print(f"📄 Ошибка: {result.stderr.strip()}")
+            print(f"[{description}] - ошибка")
+            print(f"Ошибка: {result.stderr.strip()}")
             return False
     except Exception as e:
-        print(f"❌ {description} - исключение: {e}")
+        print(f"[{description}] - исключение: {e}")
         return False
 
 def deploy_to_regru():
     """Основная функция деплоя"""
-    print("🚀 Начинаем деплой на REG.RU...")
+    print("Начинаем деплой на REG.RU...")
     
     # Загружаем конфигурацию
     config = load_config()
@@ -48,7 +48,7 @@ def deploy_to_regru():
     server = config['server']
     ssh_key_path = os.path.expanduser("~/.ssh/trailspot_deploy")
     
-    print(f"📋 Конфигурация:")
+    print(f"Конфигурация:")
     print(f"   Сервер: {server['host']}")
     print(f"   Пользователь: {server['user']}")
     print(f"   Путь: {server['path']}")
@@ -56,8 +56,8 @@ def deploy_to_regru():
     
     # Проверяем SSH ключ
     if not os.path.exists(ssh_key_path):
-        print(f"❌ SSH ключ не найден: {ssh_key_path}")
-        print("💡 Создайте SSH ключ командой:")
+        print(f"SSH ключ не найден: {ssh_key_path}")
+        print("Создайте SSH ключ командой:")
         print(f"   ssh-keygen -t rsa -b 4096 -f {ssh_key_path} -N ''")
         return False
     
@@ -86,7 +86,7 @@ def deploy_to_regru():
                 cmd = f"scp -i {ssh_key_path} {file_path} {server['user']}@{server['host']}:{server['path']}/"
             upload_commands.append((cmd, f"Загрузка {file_path}"))
         else:
-            print(f"⚠️  Файл не найден: {file_path}")
+            print(f"Файл не найден: {file_path}")
     
     # Выполняем загрузку
     success_count = 0
@@ -94,16 +94,16 @@ def deploy_to_regru():
         if run_command(cmd, description):
             success_count += 1
     
-    print(f"\n📊 Результат деплоя:")
+    print(f"\nРезультат деплоя:")
     print(f"   Успешно загружено: {success_count}/{len(upload_commands)} файлов")
     
     if success_count == len(upload_commands):
-        print("🎉 Деплой завершен успешно!")
-        print(f"🌐 Приложение должно быть доступно по адресу:")
+        print("Деплой завершен успешно!")
+        print(f"Приложение должно быть доступно по адресу:")
         print(f"   http://{server['host']}")
         return True
     else:
-        print("❌ Деплой завершен с ошибками")
+        print("Деплой завершен с ошибками")
         return False
 
 if __name__ == "__main__":
