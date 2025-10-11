@@ -39,6 +39,8 @@ jobs:
           echo "  User: ${{ secrets.VPS_USER }}"
           echo "  Port: ${{ secrets.VPS_SSH_PORT }}"
           echo "  Path: ${{ secrets.VPS_PATH }}"
+          echo "🔍 IP адрес GitHub Actions:"
+          curl -s https://ipinfo.io/ip || echo "Не удалось получить IP"
           echo "🔍 Тестируем SSH соединение..."
           echo "Проверяем доступность сервера..."
           ping -c 3 ${{ secrets.VPS_HOST }} || echo "Ping не работает"
