@@ -4,12 +4,13 @@
 Использует прямые запросы к Overpass API без сложных зависимостей
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 import requests
 import json
 import time
 import logging
+import os
 from typing import Dict, List, Tuple, Optional
 
 # Настройка логирования
@@ -22,6 +23,10 @@ CORS(app)  # Включаем CORS для работы с frontend
 # Конфигурация Overpass API
 OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
 TIMEOUT = 60
+
+# Получаем путь к корневой директории проекта
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+logger.info(f"Корневая директория проекта: {PROJECT_ROOT}")
 
 def parse_bbox(bbox_string: str) -> Tuple[float, float, float, float]:
     """
@@ -447,6 +452,23 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+# Маршруты для статических файлов (должны быть в конце)
+@app.route('/')
+def serve_index():
+    """Обслуживает главную страницу"""
+    return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """Обслуживает статические файлы"""
+    # Проверяем существование файла
+    file_path = os.path.join(PROJECT_ROOT, filename)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_file(file_path)
+    else:
+        # Если файл не найден, возвращаем главную страницу (для SPA)
+        return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
 
 if __name__ == '__main__':
     logger.info("Запуск Simple Backend сервера...")

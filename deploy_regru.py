@@ -69,7 +69,8 @@ def deploy_to_regru():
         'index.html',
         'src/',
         'favicon.svg',
-        'manifest.json'
+        'manifest.json',
+        '.htaccess'
     ]
     
     # Создаем команды для загрузки
