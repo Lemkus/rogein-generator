@@ -34,9 +34,28 @@ jobs:
           echo "  Port: ${{ secrets.VPS_SSH_PORT }}"
           echo "  Path: ${{ secrets.VPS_PATH }}"
           echo "🔍 Тестируем SSH соединение..."
-          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает!'"
-          echo "🔍 Начинаем деплой через SSH..."
-          ssh -i key.pem $PORT_OPT ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          echo "Проверяем доступность сервера..."
+          ping -c 3 ${{ secrets.VPS_HOST }} || echo "Ping не работает"
+          
+          # Попробуем разные порты SSH
+          for port in 22 2222 2200 22000; do
+            echo "Пробуем порт $port..."
+            echo "Команда: ssh -i key.pem -p $port -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+            if timeout 15 ssh -i key.pem -p $port -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o LogLevel=DEBUG3 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH соединение работает на порту $port!'" 2>&1; then
+              echo "✅ SSH работает на порту $port"
+              export WORKING_SSH_PORT=$port
+              break
+            else
+              echo "❌ Порт $port не работает"
+            fi
+          done
+          
+          if [ -z "$WORKING_SSH_PORT" ]; then
+            echo "❌ SSH не работает ни на одном порту!"
+            exit 1
+          fi
+          echo "🔍 Начинаем деплой через SSH на порту $WORKING_SSH_PORT..."
+          ssh -i key.pem -p $WORKING_SSH_PORT -o ConnectTimeout=30 -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             echo '=== Начинаем деплой на REG.RU хостинг ==='
             echo 'Пользователь: \$(whoami)'
             echo 'UID: \$(id -u)'
