@@ -79,8 +79,8 @@ def deploy_to_regru():
     for file_path in files_to_upload:
         if os.path.exists(file_path):
             if os.path.isdir(file_path):
-                # Для директорий используем rsync
-                cmd = f"rsync -avz -e 'ssh -i {ssh_key_path}' {file_path}/ {server['user']}@{server['host']}:{server['path']}/{file_path}/"
+                # Для директорий используем scp с рекурсией
+                cmd = f"scp -r -i {ssh_key_path} {file_path} {server['user']}@{server['host']}:{server['path']}/"
             else:
                 # Для файлов используем scp
                 cmd = f"scp -i {ssh_key_path} {file_path} {server['user']}@{server['host']}:{server['path']}/"

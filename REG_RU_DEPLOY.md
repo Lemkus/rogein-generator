@@ -73,7 +73,7 @@ scp -i ~/.ssh/trailspot_deploy requirements.txt u3288673@31.31.196.9:www/trailsp
 scp -i ~/.ssh/trailspot_deploy index.html u3288673@31.31.196.9:www/trailspot.app/
 
 # Загрузите директорию src
-rsync -avz -e 'ssh -i ~/.ssh/trailspot_deploy' src/ u3288673@31.31.196.9:www/trailspot.app/src/
+scp -r -i ~/.ssh/trailspot_deploy src u3288673@31.31.196.9:www/trailspot.app/
 ```
 
 ## Настройка на сервере
@@ -89,7 +89,19 @@ pip3 install -r requirements.txt
 
 # Проверьте права на файлы
 chmod +x passenger_wsgi.py
+
+# Перезапустите Passenger (если нужно)
+touch passenger_wsgi.py
 ```
+
+### Важно: Настройка Passenger
+
+REG.RU использует Passenger для Python приложений. Убедитесь что:
+
+1. **Файл `passenger_wsgi.py` существует** и содержит правильную конфигурацию
+2. **Переменная `application` определена** в файле
+3. **Все зависимости установлены** через `pip3 install -r requirements.txt`
+4. **Passenger перезапущен** после изменений (touch файла)
 
 ## Структура проекта на сервере
 
