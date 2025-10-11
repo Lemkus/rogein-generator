@@ -1,0 +1,11 @@
+build:
+  commands:
+    - pip install -r requirements.txt
+    - echo "Build completed"
+
+run:
+  command: uvicorn backend.app.simple_main:app --host 0.0.0.0 --port 5000
+  port: 5000
+
+environment:
+  PYTHONPATH: "/app"
