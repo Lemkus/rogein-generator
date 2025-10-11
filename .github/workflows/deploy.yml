@@ -54,7 +54,20 @@ jobs:
             # Клонировать или обновить код
             if [ ! -d \".git\" ]; then
               echo '=== Клонируем репозиторий ==='
-              git clone https://github.com/${{ github.repository }} .
+              # Если директория не пустая, создаем временную папку
+              if [ \"\$(ls -A .)\" ]; then
+                echo 'Директория не пустая, создаем временную папку'
+                mkdir -p temp_repo
+                cd temp_repo
+                git clone https://github.com/${{ github.repository }} .
+                # Копируем файлы обратно
+                cp -r * ../
+                cp -r .git ../
+                cd ..
+                rm -rf temp_repo
+              else
+                git clone https://github.com/${{ github.repository }} .
+              fi
             else
               echo '=== Обновляем код ==='
               git fetch --all
@@ -68,8 +81,20 @@ jobs:
             # Проверить структуру проекта
             echo '=== Проверяем структуру проекта ==='
             ls -la
-            ls -la backend/ || echo 'backend/ не найден'
-            ls -la backend/app/ || echo 'backend/app/ не найден'
+            if [ -d \"backend/\" ]; then
+              echo 'backend/ найден'
+              ls -la backend/
+              if [ -d \"backend/app/\" ]; then
+                echo 'backend/app/ найден'
+                ls -la backend/app/
+              else
+                echo 'backend/app/ не найден'
+              fi
+            else
+              echo 'backend/ не найден - попробуем создать структуру'
+              mkdir -p backend/app
+              echo 'Создана структура backend/app/'
+            fi
             
             # Остановить старые процессы
             echo '=== Останавливаем старые процессы ==='
