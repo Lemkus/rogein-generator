@@ -84,13 +84,28 @@ scp -r -i ~/.ssh/trailspot_deploy src u3288673@31.31.196.9:www/trailspot.app/
 ssh -i ~/.ssh/trailspot_deploy u3288673@31.31.196.9
 cd www/trailspot.app
 
+# Запустите скрипт настройки виртуального окружения
+chmod +x setup_venv.sh
+./setup_venv.sh
+```
+
+### Альтернативная настройка вручную:
+
+```bash
+# Создайте виртуальное окружение
+python3 -m venv venv
+
+# Активируйте виртуальное окружение
+source venv/bin/activate
+
 # Установите зависимости
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 
 # Проверьте права на файлы
-chmod +x passenger_wsgi.py
+chmod 644 passenger_wsgi.py
+chmod 644 backend_simple.py
 
-# Перезапустите Passenger (если нужно)
+# Перезапустите Passenger
 touch passenger_wsgi.py
 ```
 
