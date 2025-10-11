@@ -138,23 +138,43 @@ jobs:
             echo 'Проверяем, что процессы остановлены...'
             ps aux | grep -E '(uvicorn|backend_simple)' | grep -v grep || echo 'Все процессы остановлены'
             
-            # Запустить FastAPI (будет доступен через Nginx)
-            echo '=== Запускаем FastAPI ==='
-            echo 'Проверяем порт 8080...'
-            netstat -tlnp | grep :8080 || echo 'Порт 8080 свободен'
-            echo 'Проверяем порт 5000...'
-            netstat -tlnp | grep :5000 || echo 'Порт 5000 свободен'
+            # Создаем Flask приложение для REG.RU (Passenger WSGI)
+            echo '=== Создаем Flask приложение для REG.RU ==='
             
-            cd backend
-            echo 'Запускаем FastAPI на порту 8080...'
-            nohup python3 -m uvicorn app.simple_main:app --host 127.0.0.1 --port 8080 > /tmp/fastapi.log 2>&1 &
-            FASTAPI_PID=\$!
-            echo \"FastAPI запущен с PID: \$FASTAPI_PID на порту 8080\"
-            sleep 3
+            # Создаем основной Flask файл
+            echo 'from flask import Flask, send_from_directory, jsonify' > hello.py
+            echo 'import os' >> hello.py
+            echo '' >> hello.py
+            echo 'application = Flask(__name__)' >> hello.py
+            echo '' >> hello.py
+            echo '@application.route(\"/\")' >> hello.py
+            echo 'def index():' >> hello.py
+            echo '    return send_from_directory(\".\", \"index.html\")' >> hello.py
+            echo '' >> hello.py
+            echo '@application.route(\"/<path:filename>\")' >> hello.py
+            echo 'def static_files(filename):' >> hello.py
+            echo '    return send_from_directory(\".\", filename)' >> hello.py
+            echo '' >> hello.py
+            echo '@application.route(\"/api/health\")' >> hello.py
+            echo 'def health():' >> hello.py
+            echo '    return jsonify({\"status\": \"ok\", \"message\": \"TrailSpot API работает\"})' >> hello.py
+            echo '' >> hello.py
+            echo 'if __name__ == \"__main__\":' >> hello.py
+            echo '    application.run(host=\"0.0.0.0\")' >> hello.py
+
+            # Создаем passenger_wsgi.py
+            echo 'import sys' > passenger_wsgi.py
+            echo 'import os' >> passenger_wsgi.py
+            echo 'INTERP = os.path.expanduser(\"/var/www/u3288673/data/venv/bin/python\")' >> passenger_wsgi.py
+            echo 'if sys.executable != INTERP:' >> passenger_wsgi.py
+            echo '    os.execl(INTERP, INTERP, *sys.argv)' >> passenger_wsgi.py
+            echo 'sys.path.append(os.getcwd())' >> passenger_wsgi.py
+            echo 'from hello import application' >> passenger_wsgi.py
+
+            echo 'Flask приложение создано для Passenger WSGI'
             
-            # Запустить Server Overpass API
+            # Запустить только Server Overpass API (Flask работает через Passenger)
             echo '=== Запускаем Server Overpass API ==='
-            cd ..
             echo 'Запускаем Server Overpass API на порту 5000...'
             nohup python3 backend_simple.py > /tmp/overpass.log 2>&1 &
             OVERPASS_PID=\$!
@@ -166,19 +186,16 @@ jobs:
             echo 'Процессы Python:'
             ps aux | grep python | grep -v grep || echo 'Python процессы не найдены'
             
-            echo '=== Проверяем FastAPI ==='
-            curl -s http://127.0.0.1:8080/health || echo 'FastAPI не отвечает'
-            
             echo '=== Проверяем Server Overpass API ==='
             curl -s http://127.0.0.1:5000/api/health || echo 'Server Overpass API не отвечает'
-            
-            echo '=== Логи FastAPI ==='
-            cat /tmp/fastapi.log || echo 'FastAPI лог пуст'
             
             echo '=== Логи Server Overpass API ==='
             cat /tmp/overpass.log || echo 'Server Overpass API лог пуст'
             
-            echo \"Deployed FastAPI at: http://${{ secrets.VPS_HOST }}:8080/health\"
+            echo '=== Создаем файл перезапуска ==='
+            touch .restart-app
+            echo 'Файл .restart-app создан для перезапуска Passenger'
+            
             echo \"Deployed Server Overpass API at: http://${{ secrets.VPS_HOST }}:5000/api/health\"
             echo \"TrailSpot website: http://trailspot.app\"
             echo \"TrailSpot API: http://trailspot.app/api/health\"
