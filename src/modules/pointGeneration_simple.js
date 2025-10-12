@@ -290,15 +290,12 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
       let selectedCell;
       if (minUsage === 0) {
         selectedCell = leastUsedCells[Math.floor(Math.random() * leastUsedCells.length)];
-        console.log(`Выбираем неиспользованную ячейку ${selectedCell[0]} (использование: ${selectedCell[1]})`);
       } else if (minUsage < targetPointsPerCell) {
         // Если все ячейки использованы, но не достигли цели, выбираем из недозаполненных
         selectedCell = leastUsedCells[Math.floor(Math.random() * leastUsedCells.length)];
-        console.log(`Выбираем недозаполненную ячейку ${selectedCell[0]} (использование: ${selectedCell[1]}/${targetPointsPerCell})`);
       } else {
         // Все ячейки заполнены до цели, выбираем наименее используемую
         selectedCell = availableCells[0];
-        console.log(`Все ячейки заполнены до цели, выбираем наименее используемую ${selectedCell[0]} (использование: ${selectedCell[1]})`);
       }
       
       const cellIndex = selectedCell[0];
