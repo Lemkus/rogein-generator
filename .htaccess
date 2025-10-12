@@ -1,11 +1,7 @@
-# Настройка прокси для API запросов
-# Перенаправляем /api/* на Flask приложение на порту 5000
+# Настройка для Passenger WSGI приложения
+# Passenger автоматически обрабатывает WSGI приложение
 
 RewriteEngine On
-
-# Прокси для API запросов
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteRule ^api/(.*)$ http://localhost:5000/api/$1 [P,L]
 
 # Обработка CORS заголовков
 Header always set Access-Control-Allow-Origin "*"
@@ -15,3 +11,6 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 # Обработка preflight запросов
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Passenger обрабатывает все запросы через WSGI
+# Не нужно проксировать на порт 5000

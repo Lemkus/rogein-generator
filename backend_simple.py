@@ -144,10 +144,7 @@ def get_barriers_data(south: float, west: float, north: float, east: float) -> L
         query = f"""[out:json][timeout:{TIMEOUT}];
         (
           way["barrier"="wall"]({south},{west},{north},{east});
-          way["natural"="water"]({south},{west},{north},{east});
           way["natural"="cliff"]({south},{west},{north},{east});
-          way["waterway"="river"]({south},{west},{north},{east});
-          way["waterway"="stream"]({south},{west},{north},{east});
         );
         out geom;"""
         
@@ -228,48 +225,10 @@ def get_closed_areas_data(south: float, west: float, north: float, east: float) 
 
 def get_water_areas_data(south: float, west: float, north: float, east: float) -> List[Dict]:
     """
-    Получает водоёмы в заданной области
+    Водоёмы больше не загружаем - они не нужны для навигации по тропам
     """
-    try:
-        logger.info(f"Загружаем водоёмы для области: {south},{west},{north},{east}")
-        
-        query = f"""[out:json][timeout:{TIMEOUT}];
-        (
-          way["natural"="water"]({south},{west},{north},{east});
-          way["waterway"="river"]({south},{west},{north},{east});
-          way["waterway"="stream"]({south},{west},{north},{east});
-          way["waterway"="canal"]({south},{west},{north},{east});
-        );
-        out geom;"""
-        
-        elements = execute_overpass_query(query)
-        
-        # Конвертируем в нужный формат
-        water_areas = []
-        for element in elements:
-            if element.get('type') == 'way' and 'geometry' in element:
-                geometry = []
-                for coord in element['geometry']:
-                    if 'lat' in coord and 'lon' in coord:
-                        geometry.append([coord['lat'], coord['lon']])
-                
-                if len(geometry) >= 2:
-                    water_obj = {
-                        'geometry': geometry,
-                        'type': 'water_area',
-                        'natural': element.get('tags', {}).get('natural', ''),
-                        'waterway': element.get('tags', {}).get('waterway', ''),
-                        'name': element.get('tags', {}).get('name', ''),
-                        'osmid': str(element.get('id', ''))
-                    }
-                    water_areas.append(water_obj)
-        
-        logger.info(f"Конвертировано {len(water_areas)} водоёмов")
-        return water_areas
-        
-    except Exception as e:
-        logger.error(f"Ошибка загрузки водоёмов: {e}")
-        return []
+    logger.info("Водоёмы не загружаются - не нужны для навигации по тропам")
+    return []
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

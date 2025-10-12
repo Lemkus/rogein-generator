@@ -13,13 +13,24 @@ venv_path = os.path.join(project_path, 'venv')
 
 # Add path to virtual environment libraries
 if os.path.exists(venv_path):
-    venv_lib_path = os.path.join(venv_path, 'lib', 'python3.*', 'site-packages')
-    import glob
-    site_packages = glob.glob(venv_lib_path)
-    if site_packages:
-        sys.path.insert(0, site_packages[0])
+    # Find the correct Python version in venv (match system Python version)
+    import sys
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    venv_lib_path = os.path.join(venv_path, 'lib', python_version, 'site-packages')
+    
+    if os.path.exists(venv_lib_path):
+        sys.path.insert(0, venv_lib_path)
+        print(f"Added venv site-packages: {venv_lib_path}")
+    else:
+        print(f"Venv site-packages not found at: {venv_lib_path}")
     
     # Add path to project
+    if project_path not in sys.path:
+        sys.path.insert(0, project_path)
+        print(f"Added project path: {project_path}")
+else:
+    print(f"Virtual environment not found at: {venv_path}")
+    # Add project path anyway
     if project_path not in sys.path:
         sys.path.insert(0, project_path)
 
@@ -41,5 +52,5 @@ except Exception as e:
     application = app
 
 if __name__ == "__main__":
-    # For local testing
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # For local testing only - Passenger ignores this
+    pass
