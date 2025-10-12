@@ -35,4 +35,9 @@ venv.bak/
 # Временные файлы проекта
 *.gpx
 *.kml
-*.geojson 
+*.geojson
+
+# Файлы деплоя (содержат конфиденциальную информацию)
+deploy_regru.py
+deploy_regru.bat
+deploy_config.json 

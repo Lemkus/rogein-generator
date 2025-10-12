@@ -161,9 +161,9 @@ export async function fetchClosedAreas(bounds) {
   return executeOverpassQuery(query, 'Закрытые зоны', TIMEOUT);
 }
 
-// Загрузка водоёмов
+// Загрузка водоёмов - ТОЛЬКО через серверный API
 export async function fetchWaterAreas(bounds) {
-  // Приоритет 1: Серверный Overpass API
+  // Используем только серверный Overpass API
   if (await checkServerOverpassAvailability()) {
     try {
       const bbox = getBboxString(bounds);
@@ -171,44 +171,24 @@ export async function fetchWaterAreas(bounds) {
       
       const waterAreas = await fetchWaterAreasWithServerOverpass(bbox);
       
-      if (waterAreas.length > 0) {
-        console.log(`✅ Серверный Overpass: загружено ${waterAreas.length} водоёмов`);
-        return waterAreas;
-      } else {
-        console.log('⚠️ Серверный Overpass вернул пустой результат для водоёмов, используем клиентский Overpass API');
-      }
+      // Возвращаем результат независимо от того, пустой он или нет
+      console.log(`✅ Серверный Overpass: загружено ${waterAreas.length} водоёмов`);
+      return waterAreas;
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API для водоёмов, используем клиентский Overpass API:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для водоёмов:', error.message);
+      // Возвращаем пустой массив вместо переключения на клиентский API
+      return [];
     }
   }
 
-  // Приоритет 2: Клиентский Overpass API
-  const s = bounds.getSouth();
-  const w = bounds.getWest();
-  const n = bounds.getNorth();
-  const e = bounds.getEast();
-  const bbox = `${s},${w},${n},${e}`;
-
-  const query = `[
-    out:json][timeout:${TIMEOUT}];
-    (
-      way["natural"="water"](${bbox});
-      relation["natural"="water"](${bbox});
-      way["water"="lake"](${bbox});
-      relation["water"="lake"](${bbox});
-      way["landuse"="reservoir"](${bbox});
-      relation["landuse"="reservoir"](${bbox});
-      way["landuse"="basin"](${bbox});
-      relation["landuse"="basin"](${bbox});
-    );
-    out geom;`;
-
-  return executeOverpassQuery(query, 'Водоёмы', TIMEOUT);
+  // Если серверный API недоступен, возвращаем пустой массив
+  console.log('⚠️ Серверный Overpass API недоступен, водоёмы не загружены');
+  return [];
 }
 
 // Загрузка барьеров - только ЯВНО ЗАПРЕЩЁННЫЕ
 export async function fetchBarriers(bounds) {
-  // Приоритет 1: Серверный Overpass API
+  // Используем только серверный Overpass API
   if (await checkServerOverpassAvailability()) {
     try {
       const bbox = getBboxString(bounds);
@@ -216,44 +196,19 @@ export async function fetchBarriers(bounds) {
       
       const barriers = await fetchBarriersWithServerOverpass(bbox);
       
-      if (barriers.length > 0) {
-        console.log(`✅ Серверный Overpass: загружено ${barriers.length} барьеров`);
-        return barriers;
-      } else {
-        console.log('⚠️ Серверный Overpass вернул пустой результат для барьеров, используем клиентский Overpass API');
-      }
+      // Возвращаем результат независимо от того, пустой он или нет
+      console.log(`✅ Серверный Overpass: загружено ${barriers.length} барьеров`);
+      return barriers;
     } catch (error) {
-      console.log('❌ Ошибка серверного Overpass API для барьеров, используем клиентский Overpass API:', error.message);
+      console.log('❌ Ошибка серверного Overpass API для барьеров:', error.message);
+      // Возвращаем пустой массив вместо переключения на клиентский API
+      return [];
     }
   }
 
-  // Приоритет 2: Клиентский Overpass API
-  const s = bounds.getSouth();
-  const w = bounds.getWest();
-  const n = bounds.getNorth();
-  const e = bounds.getEast();
-  const bbox = `${s},${w},${n},${e}`;
-
-  const query = `[
-    out:json][timeout:${TIMEOUT}];
-    (
-      // ТОЛЬКО элементы с ЯВНЫМ запретом доступа
-      way["access"="no"](${bbox});
-      way["access"="private"](${bbox});
-      way["foot"="no"](${bbox});
-      node["access"="no"](${bbox});
-      node["access"="private"](${bbox});
-      node["foot"="no"](${bbox});
-      relation["access"="no"](${bbox});
-      relation["access"="private"](${bbox});
-      relation["foot"="no"](${bbox});
-      
-      // Стены - обычно непроходимы по определению
-      way["barrier"="wall"](${bbox});
-    );
-    out geom;`;
-
-  return executeOverpassQuery(query, 'Барьеры', TIMEOUT);
+  // Если серверный API недоступен, возвращаем пустой массив
+  console.log('⚠️ Серверный Overpass API недоступен, барьеры не загружены');
+  return [];
 }
 
 // Оптимизированная загрузка путей с группировкой запросов

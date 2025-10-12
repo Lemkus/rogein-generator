@@ -96,14 +96,21 @@ def deploy_to_regru():
         if run_command(cmd, description):
             success_count += 1
     
-    print(f"\nРезультат деплоя:")
+    print(f"\nРезультат загрузки файлов:")
     print(f"   Успешно загружено: {success_count}/{len(upload_commands)} файлов")
     
     if success_count == len(upload_commands):
-        print("Деплой завершен успешно!")
-        print(f"Приложение должно быть доступно по адресу:")
-        print(f"   http://{server['host']}")
-        return True
+        print("\nНастраиваем виртуальное окружение...")
+        setup_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod +x setup_venv.sh && ./setup_venv.sh\""
+        
+        if run_command(setup_cmd, "Настройка виртуального окружения"):
+            print("Деплой завершен успешно!")
+            print(f"Приложение должно быть доступно по адресу:")
+            print(f"   https://trailspot.app")
+            return True
+        else:
+            print("Ошибка при настройке виртуального окружения")
+            return False
     else:
         print("Деплой завершен с ошибками")
         return False
