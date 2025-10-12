@@ -358,18 +358,9 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
       }
       
       if (tooClose) {
-        // Детальное логирование для отладки
-        if (generatedPoints.length < 8) { // Показываем для первых 8 точек
-          const cellX = cellIndex % gridSize;
-          const cellY = Math.floor(cellIndex / gridSize);
-          console.log(`❌ Точка слишком близко: ${minDistanceFound.toFixed(1)}м < ${currentMinDist.toFixed(1)}м`);
-          console.log(`   Попытка разместить в ячейке (${cellX},${cellY}), ближайшая точка: ${closestPointIndex === 0 ? 'старт' : closestPointIndex}`);
-        }
-        
         // Более агрессивное удаление точек для лучшего распределения
         if (attempts > 50 && minDistanceFound < currentMinDist * 0.7) {
           cellPointsList.splice(randomPointIndex, 1);
-          console.log(`🗑️ Удалена точка из ячейки ${cellIndex} (слишком близко: ${minDistanceFound.toFixed(1)}м)`);
         }
         
         addFailedAttemptMarker(lat, lon);
