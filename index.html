@@ -50,6 +50,16 @@
       display: none !important;
     }
     
+    /* Более специфичный селектор для флага */
+    .leaflet-control-attribution a[href*="leaflet"] img {
+      display: none !important;
+    }
+    
+    /* Альтернативный способ - скрываем все изображения в атрибуции */
+    .leaflet-control-attribution img[src*="flag"] {
+      display: none !important;
+    }
+    
     .controls { 
       margin: 10px; 
       padding: 15px;
