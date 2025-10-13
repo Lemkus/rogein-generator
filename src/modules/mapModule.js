@@ -39,16 +39,22 @@ export function initMap() {
     }
 
     // Создаем новую карту
-    map = L.map('map', {
-      attributionControl: false  // Отключаем стандартную атрибуцию с флагом
-    }).setView([60.1105, 30.3705], 15);
+    map = L.map('map').setView([60.1105, 30.3705], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Добавляем чистую атрибуцию без флага
-    map.attributionControl.addAttribution('© OpenStreetMap contributors');
+    // Убираем флаг из атрибуции после создания карты
+    setTimeout(() => {
+      const attributionControl = document.querySelector('.leaflet-control-attribution');
+      if (attributionControl) {
+        const flagImg = attributionControl.querySelector('img');
+        if (flagImg) {
+          flagImg.remove();
+        }
+      }
+    }, 100);
 
     // Добавляем Leaflet Draw
     drawnItems = new L.FeatureGroup();
