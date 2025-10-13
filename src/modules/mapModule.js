@@ -38,10 +38,8 @@ export function initMap() {
       return true; // Карта уже инициализирована, ничего не делаем
     }
 
-    // Создаем новую карту БЕЗ атрибуции
-    map = L.map('map', {
-      attributionControl: false
-    }).setView([60.1105, 30.3705], 15);
+    // Создаем новую карту
+    map = L.map('map').setView([60.1105, 30.3705], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
