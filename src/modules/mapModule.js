@@ -45,20 +45,6 @@ export function initMap() {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Убираем только флаг из атрибуции, оставляя текст Leaflet
-    setTimeout(() => {
-      const attributionControl = document.querySelector('.leaflet-control-attribution');
-      if (attributionControl) {
-        // Ищем ссылку на Leaflet и убираем только изображение флага
-        const leafletLink = attributionControl.querySelector('a[href*="leaflet"]');
-        if (leafletLink) {
-          const flagImg = leafletLink.querySelector('img');
-          if (flagImg) {
-            flagImg.remove();
-          }
-        }
-      }
-    }, 100);
 
     // Добавляем Leaflet Draw
     drawnItems = new L.FeatureGroup();
