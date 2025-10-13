@@ -38,26 +38,14 @@ export function initMap() {
       return true; // Карта уже инициализирована, ничего не делаем
     }
 
-    // Создаем новую карту
-    map = L.map('map').setView([60.1105, 30.3705], 15);
+    // Создаем новую карту БЕЗ атрибуции
+    map = L.map('map', {
+      attributionControl: false
+    }).setView([60.1105, 30.3705], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-
-    // Убираем украинский флаг через JavaScript (backup для CSS)
-    setTimeout(() => {
-      const attributionControl = document.querySelector('.leaflet-control-attribution');
-      if (attributionControl) {
-        const images = attributionControl.querySelectorAll('img');
-        images.forEach(img => {
-          if (img.src.includes('flag') || img.src.includes('ukraine') || img.src.includes('ua')) {
-            img.style.display = 'none';
-            img.remove();
-          }
-        });
-      }
-    }, 500);
 
     // Добавляем Leaflet Draw
     drawnItems = new L.FeatureGroup();
