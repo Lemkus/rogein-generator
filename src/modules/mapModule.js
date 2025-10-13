@@ -45,6 +45,19 @@ export function initMap() {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Убираем украинский флаг через JavaScript (backup для CSS)
+    setTimeout(() => {
+      const attributionControl = document.querySelector('.leaflet-control-attribution');
+      if (attributionControl) {
+        const images = attributionControl.querySelectorAll('img');
+        images.forEach(img => {
+          if (img.src.includes('flag') || img.src.includes('ukraine') || img.src.includes('ua')) {
+            img.style.display = 'none';
+            img.remove();
+          }
+        });
+      }
+    }, 500);
 
     // Добавляем Leaflet Draw
     drawnItems = new L.FeatureGroup();
