@@ -8,6 +8,7 @@ import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths, fetchPath
 import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
+import { setTrailGraph } from './routeSequence.js';
 
 // Переменные для отмены генерации
 let cancelGeneration = false;
@@ -122,6 +123,9 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
       cancelCallback(false);
       return;
     }
+    
+    // Сохраняем граф для использования в построении последовательности
+    setTrailGraph(graph);
 
     // Проверяем связность с начальной точкой
     const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
