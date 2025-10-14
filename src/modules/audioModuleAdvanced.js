@@ -489,6 +489,55 @@ export function updateNavigationSettings(newSettings) {
     console.log('⚙️ Настройки навигации обновлены:', NAVIGATION_SETTINGS);
 }
 
+// Воспроизведение победного звука
+let victoryCallback = null;
+
+export function playVictorySound(onComplete = null) {
+    if (!initAudioContext() || !isAudioEnabled) {
+        if (onComplete) onComplete();
+        return;
+    }
+    
+    victoryCallback = onComplete;
+    
+    console.log('🎉 Воспроизведение победного звука');
+    
+    // Последовательность тонов для победной мелодии (восходящая гамма)
+    const victoryMelody = [
+        { freq: 523, duration: 0.15 }, // C
+        { freq: 659, duration: 0.15 }, // E
+        { freq: 784, duration: 0.15 }, // G
+        { freq: 1047, duration: 0.4 }  // C высокая
+    ];
+    
+    let currentNoteIndex = 0;
+    
+    function playNextNote() {
+        if (currentNoteIndex >= victoryMelody.length) {
+            // Мелодия завершена
+            console.log('✅ Победный звук завершен');
+            if (victoryCallback) {
+                victoryCallback();
+                victoryCallback = null;
+            }
+            return;
+        }
+        
+        const note = victoryMelody[currentNoteIndex];
+        playTone(note.freq, note.duration, 'sine', 0.4);
+        
+        currentNoteIndex++;
+        setTimeout(playNextNote, note.duration * 1000 + 50);
+    }
+    
+    playNextNote();
+}
+
+// Получение длительности победного звука (для расчетов)
+export function getVictorySoundDuration() {
+    return 0.15 + 0.15 + 0.15 + 0.4 + 0.15; // Общая длительность мелодии + паузы
+}
+
 // Функции для отладочной страницы (заглушки)
 export function startMovementSimulation(initialDistance, speed, callback) {
     console.log('Симуляция движения не реализована в продвинутом модуле');

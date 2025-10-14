@@ -80,9 +80,9 @@ jobs:
                 git clone https://github.com/${{ github.repository }} .
               fi
             else
-              echo '=== Обновляем код ==='
-              git fetch --all
-              git reset --hard origin/main
+            echo '=== Обновляем код ==='
+            git fetch --all
+            git reset --hard origin/main
             fi
             
             # Проверить зависимости
@@ -94,10 +94,10 @@ jobs:
             ls -la
             if [ -d \"backend/\" ]; then
               echo 'backend/ найден'
-              ls -la backend/
+            ls -la backend/
               if [ -d \"backend/app/\" ]; then
                 echo 'backend/app/ найден'
-                ls -la backend/app/
+            ls -la backend/app/
               else
                 echo 'backend/app/ не найден'
               fi

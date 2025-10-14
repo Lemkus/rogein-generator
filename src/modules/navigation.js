@@ -6,14 +6,18 @@
 import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
 import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleAdvanced.js';
+import { getCurrentSequence, getNextPoint, isLastPoint } from './routeSequence.js';
 
 // Переменные навигации
 let isNavigating = false;
 let currentTarget = null;
+let currentTargetIndex = null; // Индекс текущей целевой точки
 let lastDistance = null;
 let navigationInterval = null;
 let userPosition = null;
 let watchId = null;
+let isAutoSequenceMode = false; // Режим автоматической последовательности
+let completedPoints = new Set(); // Множество взятых точек
 
 // Переменные для улучшенной навигации
 let distanceHistory = []; // История расстояний для стабилизации
@@ -250,6 +254,21 @@ export function updateTargetPointsList() {
     return;
   }
   
+  // Добавляем опцию автоматической последовательности
+  const sequence = getCurrentSequence();
+  if (sequence && sequence.length > 0) {
+    const autoOption = document.createElement('option');
+    autoOption.value = 'auto';
+    autoOption.textContent = '🎯 Автоматическая последовательность';
+    targetPointSelect.appendChild(autoOption);
+    
+    // Разделитель
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '──────────────────';
+    targetPointSelect.appendChild(separator);
+  }
+  
   // Добавляем стартовую точку
   const startPoint = getStartPoint();
   if (startPoint) {
@@ -263,9 +282,18 @@ export function updateTargetPointsList() {
   pointMarkers.forEach((marker, i) => {
     const option = document.createElement('option');
     option.value = i;
-    option.textContent = `Точка ${i + 1}`;
+    const isCompleted = completedPoints.has(i);
+    option.textContent = `Точка ${i + 1}${isCompleted ? ' ✓' : ''}`;
+    if (isCompleted) {
+      option.style.color = '#999';
+    }
     targetPointSelect.appendChild(option);
   });
+  
+  // Автоматически выбираем режим автопоследовательности если она есть
+  if (sequence && sequence.length > 0) {
+    targetPointSelect.value = 'auto';
+  }
   
   targetPointSelect.disabled = false;
   audioNavBtn.disabled = false;
@@ -294,14 +322,54 @@ function getTargetCoords() {
   console.log(`🎯 Выбранная точка: "${selectedValue}"`);
   
   const startPoint = getStartPoint();
+  
+  // Режим автоматической последовательности
+  if (selectedValue === 'auto') {
+    isAutoSequenceMode = true;
+    const sequence = getCurrentSequence();
+    
+    if (!sequence || sequence.length === 0) {
+      console.log('❌ Нет последовательности для навигации');
+      return null;
+    }
+    
+    // Находим первую незавершенную точку в последовательности
+    let nextPointIdx = null;
+    for (let idx of sequence) {
+      if (!completedPoints.has(idx)) {
+        nextPointIdx = idx;
+        break;
+      }
+    }
+    
+    // Если все точки взяты - возвращаемся к старту
+    if (nextPointIdx === null) {
+      console.log('🎉 Все точки взяты! Возврат к старту');
+      currentTargetIndex = -1;
+      return { lat: startPoint.lat, lng: startPoint.lng, index: -1 };
+    }
+    
+    currentTargetIndex = nextPointIdx;
+    const marker = pointMarkers[nextPointIdx];
+    const coords = marker.getLatLng();
+    console.log(`🎯 Автоматическая последовательность: точка ${nextPointIdx + 1}`);
+    return { ...coords, index: nextPointIdx };
+  }
+  
+  // Обычный режим
+  isAutoSequenceMode = false;
+  
   if (selectedValue === 'start' && startPoint) {
     console.log(`🎯 Используем стартовую точку: ${startPoint.lat.toFixed(6)}, ${startPoint.lng.toFixed(6)}`);
-    return { lat: startPoint.lat, lng: startPoint.lng };
+    currentTargetIndex = -1;
+    return { lat: startPoint.lat, lng: startPoint.lng, index: -1 };
   } else if (selectedValue !== '' && pointMarkers[selectedValue]) {
     const marker = pointMarkers[selectedValue];
     const coords = marker.getLatLng();
-    console.log(`🎯 Используем точку ${selectedValue}: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
-    return coords;
+    const idx = parseInt(selectedValue);
+    currentTargetIndex = idx;
+    console.log(`🎯 Используем точку ${idx + 1}: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
+    return { ...coords, index: idx };
   }
   
   console.log('❌ Не удалось получить координаты цели');
@@ -344,20 +412,35 @@ function navigationStep() {
   
   // Проверяем достижение цели
   if (distance < 10) {
-    playVictorySound(); // Звук победы
+    // Отмечаем точку как взятую
+    if (currentTargetIndex !== null && currentTargetIndex >= 0) {
+      completedPoints.add(currentTargetIndex);
+      console.log(`✅ Точка ${currentTargetIndex + 1} взята!`);
+    }
+    
+    // Звук победы с callback для автоматического переключения
+    playVictorySound(() => {
+      // Callback вызывается после завершения победного звука
+      if (isAutoSequenceMode && isNavigating) {
+        switchToNextPoint();
+      }
+    });
+    
     navStatus.textContent = '🎯 ЦЕЛЬ ДОСТИГНУТА!';
     navStatus.style.color = 'green';
     
     // Показываем уведомление
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Рогейн', {
-        body: 'Цель достигнута! 🎯',
+        body: `Точка ${currentTargetIndex >= 0 ? currentTargetIndex + 1 : 'СТАРТ'} достигнута! 🎯`,
         icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM0Q0FGNTAiLz4KPHBhdGggZD0iTTk2IDQ4TDEwOCA2NEwxMjggNzJMMTA4IDgwTDk2IDk2TDg0IDgwTDY0IDcyTDg0IDY0TDk2IDQ4WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==',
       });
     }
     
     setTimeout(() => {
-      navStatus.style.color = 'black';
+      if (!isAutoSequenceMode) {
+        navStatus.style.color = 'black';
+      }
     }, 3000);
     return;
   }
@@ -450,9 +533,71 @@ async function startNavigation() {
   }
 }
 
+// Переключение на следующую точку в последовательности
+function switchToNextPoint() {
+  if (!isAutoSequenceMode) return;
+  
+  const sequence = getCurrentSequence();
+  if (!sequence || sequence.length === 0) {
+    console.log('❌ Нет последовательности для продолжения');
+    stopNavigation();
+    return;
+  }
+  
+  // Находим следующую незавершенную точку
+  let nextPointIdx = null;
+  for (let idx of sequence) {
+    if (!completedPoints.has(idx)) {
+      nextPointIdx = idx;
+      break;
+    }
+  }
+  
+  // Если все точки взяты - возвращаемся к старту
+  if (nextPointIdx === null) {
+    const startPoint = getStartPoint();
+    if (startPoint) {
+      currentTarget = { lat: startPoint.lat, lng: startPoint.lng };
+      currentTargetIndex = -1;
+      lastDistance = null;
+      navStatus.textContent = '🏁 Возврат к старту...';
+      navStatus.style.color = 'blue';
+      console.log('🏁 Все точки взяты! Возврат к старту');
+      
+      // Обновляем список точек
+      updateTargetPointsList();
+    } else {
+      stopNavigation();
+    }
+    return;
+  }
+  
+  // Переключаемся на следующую точку
+  const marker = pointMarkers[nextPointIdx];
+  const coords = marker.getLatLng();
+  currentTarget = coords;
+  currentTargetIndex = nextPointIdx;
+  lastDistance = null;
+  
+  navStatus.textContent = `📍 Следующая: Точка ${nextPointIdx + 1}`;
+  navStatus.style.color = 'blue';
+  console.log(`📍 Переключение на точку ${nextPointIdx + 1}`);
+  
+  // Обновляем список точек для отображения галочек
+  updateTargetPointsList();
+  
+  // Продолжаем навигацию
+  setTimeout(() => {
+    if (isNavigating && userPosition) {
+      navigationStep();
+    }
+  }, 1000);
+}
+
 // Остановка навигации
 async function stopNavigation() {
   isNavigating = false;
+  isAutoSequenceMode = false;
   
   // Освобождаем Wake Lock
   await releaseWakeLock();
@@ -476,6 +621,12 @@ async function stopNavigation() {
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
 }
 
+// Сброс завершенных точек (при новой генерации)
+export function resetCompletedPoints() {
+  completedPoints.clear();
+  updateTargetPointsList();
+  console.log('🔄 Список завершенных точек очищен');
+}
 
 // Экспорт функций для внешнего использования
 export { isNavigating, currentTarget, userPosition }; 
