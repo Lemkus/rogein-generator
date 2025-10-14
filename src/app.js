@@ -11,6 +11,7 @@ import './modules/audioModuleAdvanced.js'; // Инициализация про�
 import { saveRoute, getRouteById, getRoutesList, buildShareUrl } from './modules/storageAPI.js';
 import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI.js';
 import { resetSequence } from './modules/routeSequence.js';
+import { initFullscreenNavigation } from './modules/fullscreenNavigation.js';
 
 // DOM элементы (будут инициализированы в initApp)
 let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn, saveRouteBtn, loadRouteBtn, shareRouteBtn;
@@ -53,6 +54,7 @@ export function initApp() {
   initMap();
   initNavigation();
   initSequenceUI();
+  initFullscreenNavigation();
   
   // Настраиваем обработчики событий
   setupEventHandlers();

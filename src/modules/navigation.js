@@ -7,6 +7,7 @@ import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
 import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleAdvanced.js';
 import { getCurrentSequence, getNextPoint, isLastPoint } from './routeSequence.js';
+import { enterFullscreenNavigation, exitFullscreenNavigation, updateDistanceDisplay } from './fullscreenNavigation.js';
 
 // Переменные навигации
 let isNavigating = false;
@@ -399,6 +400,9 @@ function navigationStep() {
   // Обновляем статус с улучшенной индикацией
   navStatus.textContent = statusText;
   
+  // Обновляем отображение расстояния в полноэкранном режиме
+  updateDistanceDisplay(distance, statusText);
+  
   // Устанавливаем цвет в зависимости от зоны
   if (distance < 10) {
     navStatus.style.color = 'green';
@@ -496,6 +500,9 @@ async function startNavigation() {
   
   currentTarget = target;
   isNavigating = true;
+  
+  // Входим в полноэкранный режим навигации
+  enterFullscreenNavigation();
   lastDistance = null;
   
   // Очищаем историю для новой навигации
@@ -598,6 +605,9 @@ function switchToNextPoint() {
 async function stopNavigation() {
   isNavigating = false;
   isAutoSequenceMode = false;
+  
+  // Выходим из полноэкранного режима навигации
+  exitFullscreenNavigation();
   
   // Освобождаем Wake Lock
   await releaseWakeLock();
