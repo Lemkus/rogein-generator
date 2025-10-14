@@ -4,7 +4,8 @@
  */
 
 import { map } from './mapModule.js';
-import { updateTargetPointsList, stopNavigation, toggleAudio, isAudioOn } from './navigation.js';
+import { updateTargetPointsList, stopNavigation } from './navigation.js';
+import { toggleAudio, isAudioOn } from './audioModuleAdvanced.js';
 
 // Элементы DOM
 let fullscreenContainer = null;
