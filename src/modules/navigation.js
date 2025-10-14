@@ -622,7 +622,7 @@ async function stopNavigation() {
 }
 
 // Сброс завершенных точек (при новой генерации)
-export function resetCompletedPoints() {
+function resetCompletedPoints() {
   completedPoints.clear();
   updateTargetPointsList();
   console.log('🔄 Список завершенных точек очищен');
