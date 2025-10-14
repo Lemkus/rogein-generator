@@ -629,4 +629,4 @@ export function resetCompletedPoints() {
 }
 
 // Экспорт функций для внешнего использования
-export { isNavigating, currentTarget, userPosition }; 
+export { isNavigating, currentTarget, userPosition, resetCompletedPoints }; 
