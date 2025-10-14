@@ -224,6 +224,6 @@ function handleTargetChange() {
 /**
  * Проверка, активен ли полноэкранный режим
  */
-export function isFullscreenActive() {
+export function getFullscreenState() {
   return isFullscreenActive;
 }

@@ -460,7 +460,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.7.0'; // Added fullscreen navigation mode
+    const APP_VERSION = '1.7.1'; // Fixed duplicate function declaration in fullscreenNavigation
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
