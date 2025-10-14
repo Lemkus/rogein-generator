@@ -460,7 +460,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.7.2'; // Fixed import error in fullscreenNavigation
+    const APP_VERSION = '1.7.4'; // Fixed duplicate toggleAudio and isAudioOn functions
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
