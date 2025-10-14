@@ -4,11 +4,13 @@
  */
 
 import { initMap, map, drawnItems, pointMarkers, getSelectedBounds, getStartPoint, updateSelectedBounds, updateStartPointPosition, clearPointMarkers } from './modules/mapModule.js';
-import { initNavigation } from './modules/navigation.js';
+import { initNavigation, updateTargetPointsList, resetCompletedPoints } from './modules/navigation.js';
 import { generatePointsSimple as generatePoints, cancelPointGeneration } from './modules/pointGeneration_simple.js';
 import { downloadGPX } from './modules/pointGeneration.js';
 import './modules/audioModuleAdvanced.js'; // Инициализация продвинутого аудио модуля
 import { saveRoute, getRouteById, getRoutesList, buildShareUrl } from './modules/storageAPI.js';
+import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI.js';
+import { resetSequence } from './modules/routeSequence.js';
 
 // DOM элементы (будут инициализированы в initApp)
 let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn, saveRouteBtn, loadRouteBtn, shareRouteBtn;
@@ -50,6 +52,7 @@ export function initApp() {
   // Инициализируем модули
   initMap();
   initNavigation();
+  initSequenceUI();
   
   // Настраиваем обработчики событий
   setupEventHandlers();
@@ -89,6 +92,10 @@ function setupEventHandlers() {
 async function handleGenerateClick() {
   const count = parseInt(pointsInput.value, 10);
   
+  // Сбрасываем старую последовательность и завершенные точки
+  resetSequence();
+  resetCompletedPoints();
+  
   // Получаем текущие значения из mapModule
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
@@ -101,6 +108,14 @@ async function handleGenerateClick() {
     toggleGenerateButton,
     toggleCancelButton
   );
+  
+  // После генерации точек создаем оптимальную последовательность
+  if (pointMarkers && pointMarkers.length > 0) {
+    setTimeout(() => {
+      generateAndDisplaySequence();
+      updateTargetPointsList(); // Обновляем список точек с новой последовательностью
+    }, 500); // Небольшая задержка для завершения отрисовки точек
+  }
 }
 
 // Обработчик клика по кнопке отмены
@@ -277,6 +292,10 @@ function renderRouteOnMap(route) {
       updateStartPointPosition(route.startPoint.lat, route.startPoint.lon);
     }
 
+    // Сбрасываем старую последовательность и завершенные точки
+    resetSequence();
+    resetCompletedPoints();
+
     // Восстанавливаем точки
     clearPointMarkers();
     if (Array.isArray(route.points)) {
@@ -293,6 +312,12 @@ function renderRouteOnMap(route) {
           pointMarkers.push(marker);
         }
       });
+      
+      // Генерируем оптимальную последовательность для загруженного маршрута
+      setTimeout(() => {
+        generateAndDisplaySequence();
+        updateTargetPointsList(); // Обновляем список точек
+      }, 500);
     }
   } catch (e) {
     console.error('Ошибка отрисовки маршрута:', e);
