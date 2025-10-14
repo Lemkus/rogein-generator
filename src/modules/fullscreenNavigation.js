@@ -70,7 +70,19 @@ export function enterFullscreenNavigation() {
   // Обновляем размер карты
   setTimeout(() => {
     map.invalidateSize();
+    // Принудительно обновляем размер карты
+    const mapContainer = map.getContainer();
+    if (mapContainer) {
+      mapContainer.style.width = '100%';
+      mapContainer.style.height = '100%';
+    }
+    map.invalidateSize();
   }, 100);
+  
+  // Дополнительное обновление через больший интервал
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 300);
   
   // Обновляем элементы управления
   updateFullscreenControls();
