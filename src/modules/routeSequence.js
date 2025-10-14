@@ -5,10 +5,57 @@
 
 import { haversine } from './utils.js';
 import { pointMarkers, getStartPoint } from './mapModule.js';
+import { dijkstra, findNearestNodeIdx } from './algorithms.js';
 
 // Текущая последовательность точек (массив индексов)
 let currentSequence = [];
 let isClockwise = true; // Направление маршрута
+
+// Глобальное хранилище графа троп
+let trailGraph = null;
+
+/**
+ * Установка графа троп для использования в оптимизации
+ * @param {Object} graph - Граф троп {nodes, adj}
+ */
+export function setTrailGraph(graph) {
+  trailGraph = graph;
+  console.log(`📊 Граф троп сохранен для оптимизации маршрута: ${graph?.nodes?.length || 0} узлов`);
+}
+
+/**
+ * Вычисление расстояния между двумя точками с учетом графа троп
+ * @param {Object} from - Координаты начальной точки {lat, lng}
+ * @param {Object} to - Координаты конечной точки {lat, lng}
+ * @returns {number} - Расстояние по тропам (или по прямой, если граф недоступен)
+ */
+function calculatePathDistance(from, to) {
+  // Если графа нет, используем прямое расстояние
+  if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+    return haversine(from.lat, from.lng, to.lat, to.lng);
+  }
+  
+  // Находим ближайшие узлы графа к обеим точкам
+  const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
+  const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
+  
+  if (fromNodeIdx === -1 || toNodeIdx === -1) {
+    // Если не нашли узлы, используем прямое расстояние
+    return haversine(from.lat, from.lng, to.lat, to.lng);
+  }
+  
+  // Используем алгоритм Дейкстры для поиска кратчайшего пути по графу
+  const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
+  
+  // Если путь найден, возвращаем расстояние по графу
+  if (result.distance < Infinity) {
+    return result.distance;
+  }
+  
+  // Если пути нет (точки не связаны), используем прямое расстояние * штраф
+  // Штраф нужен, чтобы алгоритм предпочитал связанные точки
+  return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
+}
 
 /**
  * Построение оптимальной последовательности точек методом ближайшего соседа
@@ -29,17 +76,19 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
   // Начинаем от точки старта
   let currentPos = startPoint;
   
-  // Жадный алгоритм ближайшего соседа
+  // Жадный алгоритм ближайшего соседа с учетом графа троп
   for (let i = 0; i < numPoints; i++) {
     let nearestIdx = -1;
     let minDist = Infinity;
     
-    // Находим ближайшую непосещенную точку
+    // Находим ближайшую непосещенную точку по тропам
     for (let j = 0; j < numPoints; j++) {
       if (!visited[j]) {
         const marker = points[j];
         const coords = marker.getLatLng();
-        const dist = haversine(currentPos.lat, currentPos.lng, coords.lat, coords.lng);
+        
+        // Используем расстояние по тропам вместо прямого
+        const dist = calculatePathDistance(currentPos, coords);
         
         if (dist < minDist) {
           minDist = dist;
@@ -78,19 +127,19 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
   let improved = true;
   let currentSequence = [...sequence];
   
-  // Функция расчета общей длины маршрута
+  // Функция расчета общей длины маршрута с учетом графа троп
   const calculateTotalDistance = (seq) => {
     let total = 0;
     let prevPos = startPoint;
     
     for (let idx of seq) {
       const coords = points[idx].getLatLng();
-      total += haversine(prevPos.lat, prevPos.lng, coords.lat, coords.lng);
+      total += calculatePathDistance(prevPos, coords);
       prevPos = coords;
     }
     
     // Добавляем расстояние возврата к старту
-    total += haversine(prevPos.lat, prevPos.lng, startPoint.lat, startPoint.lng);
+    total += calculatePathDistance(prevPos, startPoint);
     return total;
   };
   
@@ -265,7 +314,7 @@ export function resetSequence() {
 }
 
 /**
- * Получение статистики маршрута
+ * Получение статистики маршрута с учетом графа троп
  */
 export function getRouteStats() {
   if (currentSequence.length === 0) {
@@ -282,12 +331,12 @@ export function getRouteStats() {
   
   for (let idx of currentSequence) {
     const coords = pointMarkers[idx].getLatLng();
-    totalDistance += haversine(prevPos.lat, prevPos.lng, coords.lat, coords.lng);
+    totalDistance += calculatePathDistance(prevPos, coords);
     prevPos = coords;
   }
   
   // Добавляем расстояние возврата к старту
-  totalDistance += haversine(prevPos.lat, prevPos.lng, startPoint.lat, startPoint.lng);
+  totalDistance += calculatePathDistance(prevPos, startPoint);
   
   return {
     totalPoints: currentSequence.length,

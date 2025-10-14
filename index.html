@@ -330,7 +330,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.5.5'; // Force complete cache clear
+    const APP_VERSION = '1.6.0'; // Route sequence now uses trail graph and Dijkstra algorithm
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
