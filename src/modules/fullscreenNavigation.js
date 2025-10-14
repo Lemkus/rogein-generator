@@ -41,7 +41,7 @@ export function initFullscreenNavigation() {
   // Настраиваем обработчики событий
   stopBtn.addEventListener('click', handleStopNavigation);
   toggleAudioBtn.addEventListener('click', handleToggleAudio);
-  exitBtn.addEventListener('click', exitFullscreen);
+  exitBtn.addEventListener('click', exitFullscreenNavigation);
   targetSelect.addEventListener('change', handleTargetChange);
   
   console.log('✅ Полноэкранный режим навигации инициализирован');
