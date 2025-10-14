@@ -388,38 +388,6 @@ export function playNavigationSound(distance, speed) {
     }
 }
 
-// Звук победы
-export function playVictorySound() {
-    if (!isAudioEnabled || isPlaying) {
-        return;
-    }
-    
-    stopCurrentSound();
-    
-    try {
-        // Улучшенная мелодия победы
-        const melody = [
-            {freq: 523.25, duration: 0.3}, // C5
-            {freq: 659.25, duration: 0.3}, // E5  
-            {freq: 783.99, duration: 0.3}, // G5
-            {freq: 1046.50, duration: 0.6}  // C6 (длиннее)
-        ];
-        
-        melody.forEach((note, index) => {
-            setTimeout(() => {
-                if (index === melody.length - 1) {
-                    // Последняя нота - богатый аккорд
-                    playChord(note.freq, note.freq * 1.5, note.duration, 'triangle', 0.4);
-                } else {
-                    playTone(note.freq, note.duration, 'triangle', 0.35);
-                }
-            }, index * 350);
-        });
-        
-    } catch (error) {
-        console.warn('Ошибка воспроизведения звука победы:', error);
-    }
-}
 
 // Получение адаптивного интервала между звуками
 export function getSoundInterval(distance) {
