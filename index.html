@@ -471,7 +471,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.8.0'; // Added automatic music ducking with Media Session API
+    const APP_VERSION = '1.8.1'; // Fixed server Overpass API - added missing road types
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {

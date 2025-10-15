@@ -92,15 +92,20 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
     try:
         logger.info(f"Загружаем пешеходную сеть для области: {south},{west},{north},{east}")
         
-        # Упрощенный запрос для пешеходных маршрутов
+        # Расширенный запрос для пешеходных маршрутов (как в клиентском коде)
         query = f"""[out:json][timeout:{TIMEOUT}];
         (
           way["highway"="path"]({south},{west},{north},{east});
           way["highway"="footway"]({south},{west},{north},{east});
-          way["highway"="pedestrian"]({south},{west},{north},{east});
-          way["highway"="steps"]({south},{west},{north},{east});
-          way["highway"="track"]({south},{west},{north},{east});
           way["highway"="cycleway"]({south},{west},{north},{east});
+          way["highway"="track"]({south},{west},{north},{east});
+          way["highway"="service"]({south},{west},{north},{east});
+          way["highway"="bridleway"]({south},{west},{north},{east});
+          way["highway"="unclassified"]({south},{west},{north},{east});
+          way["highway"="residential"]({south},{west},{north},{east});
+          way["highway"="living_street"]({south},{west},{north},{east});
+          way["highway"="steps"]({south},{west},{north},{east});
+          way["highway"="pedestrian"]({south},{west},{north},{east});
         );
         out geom;"""
         
@@ -108,6 +113,8 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
         
         # Конвертируем в нужный формат
         paths = []
+        highway_counts = {}  # Счетчик типов дорог для отладки
+        
         for element in elements:
             if element.get('type') == 'way' and 'geometry' in element:
                 geometry = []
@@ -116,9 +123,12 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
                         geometry.append([coord['lat'], coord['lon']])
                 
                 if len(geometry) >= 2:  # Минимум 2 точки для пути
+                    highway_type = element.get('tags', {}).get('highway', 'unknown')
+                    highway_counts[highway_type] = highway_counts.get(highway_type, 0) + 1
+                    
                     path_obj = {
                         'geometry': geometry,
-                        'highway': element.get('tags', {}).get('highway', 'unknown'),
+                        'highway': highway_type,
                         'name': element.get('tags', {}).get('name', ''),
                         'surface': element.get('tags', {}).get('surface', ''),
                         'access': element.get('tags', {}).get('access', ''),
@@ -127,7 +137,9 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
                     }
                     paths.append(path_obj)
         
+        # Логируем статистику типов дорог
         logger.info(f"Конвертировано {len(paths)} путей")
+        logger.info(f"Распределение типов дорог: {highway_counts}")
         return paths
         
     except Exception as e:
