@@ -641,6 +641,65 @@ async function stopNavigation() {
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
 }
 
+// Обновление списка целевых точек в селекте
+export function updateTargetPointsList() {
+  const sequence = getCurrentSequence();
+  const select = document.getElementById('targetPointSelect');
+  const navSelect = document.getElementById('navTargetSelect');
+  
+  if (!select) return;
+  
+  let html = '';
+  
+  // Если есть последовательность и режим автонавигации активен
+  if (isAutoSequenceMode && sequence && sequence.length > 0) {
+    // Показываем следующую точку из последовательности
+    const nextPointIndex = getNextPoint(completedPoints);
+    if (nextPointIndex !== null) {
+      const pointNumber = nextPointIndex + 1;
+      const isCompleted = completedPoints.has(nextPointIndex);
+      const checkmark = isCompleted ? '✓ ' : '';
+      html += `<option value="auto" selected>🎯 ${checkmark}Точка ${pointNumber}</option>`;
+    } else {
+      html += `<option value="start" selected>🏁 Вернуться к старту</option>`;
+    }
+  } else {
+    // Обычный режим - показываем все точки
+    html += '<option value="">Выберите точку...</option>';
+    
+    // Добавляем опцию автоматической последовательности
+    if (sequence && sequence.length > 0) {
+      html += '<option value="auto">🎯 Автоматическая последовательность</option>';
+    }
+    
+    // Добавляем все точки с учетом последовательности
+    if (sequence && sequence.length > 0) {
+      sequence.forEach((pointIndex, seqIndex) => {
+        const pointNumber = pointIndex + 1;
+        const isCompleted = completedPoints.has(pointIndex);
+        const checkmark = isCompleted ? '✓ ' : '';
+        html += `<option value="${pointIndex}">${checkmark}Точка ${pointNumber}</option>`;
+      });
+    } else {
+      // Если нет последовательности, показываем все точки
+      for (let i = 0; i < pointMarkers.length; i++) {
+        const isCompleted = completedPoints.has(i);
+        const checkmark = isCompleted ? '✓ ' : '';
+        html += `<option value="${i}">${checkmark}Точка ${i + 1}</option>`;
+      }
+    }
+    
+    html += '<option value="start">🏁 Точка старта</option>';
+  }
+  
+  select.innerHTML = html;
+  
+  // Синхронизируем с навигационным селектом в полноэкранном режиме
+  if (navSelect) {
+    navSelect.innerHTML = html;
+  }
+}
+
 // Сброс завершенных точек (при новой генерации)
 function resetCompletedPoints() {
   completedPoints.clear();
@@ -649,4 +708,4 @@ function resetCompletedPoints() {
 }
 
 // Экспорт функций для внешнего использования
-export { isNavigating, currentTarget, userPosition, resetCompletedPoints, stopNavigation }; 
+export { isNavigating, currentTarget, userPosition, resetCompletedPoints, stopNavigation, updateTargetPointsList }; 
