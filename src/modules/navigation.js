@@ -8,6 +8,7 @@ import { pointMarkers, getStartPoint } from './mapModule.js';
 import { playNavigationSound, playVictorySound, toggleAudio, isAudioOn, getSoundInterval, resetNavigation } from './audioModuleAdvanced.js';
 import { getCurrentSequence, getNextPoint, isLastPoint } from './routeSequence.js';
 import { enterFullscreenNavigation, exitFullscreenNavigation, updateDistanceDisplay } from './fullscreenNavigation.js';
+import { initMediaSession, handleDistanceChange, stopNavigation as stopMediaNavigation } from './mediaSessionManager.js';
 
 // Переменные навигации
 let isNavigating = false;
@@ -311,6 +312,9 @@ function playNavigationSoundWithPattern(pattern, direction = 'neutral', distance
         speed = lastDistance - distance; // Положительное = приближаемся, отрицательное = удаляемся
       }
       
+      // Управление медиа при изменении расстояния
+      handleDistanceChange(distance);
+      
       // Проигрываем звук с новой логикой
       playNavigationSound(distance, speed);
     }
@@ -448,6 +452,9 @@ function navigationStep() {
     }, 3000);
     return;
   }
+  
+  // Управление медиа при изменении расстояния
+  handleDistanceChange(distance);
   
   // Проигрываем звук с новой логикой
   playNavigationSound(distance, speed);
@@ -605,6 +612,9 @@ function switchToNextPoint() {
 async function stopNavigation() {
   isNavigating = false;
   isAutoSequenceMode = false;
+  
+  // Останавливаем управление медиа
+  stopMediaNavigation();
   
   // Выходим из полноэкранного режима навигации
   exitFullscreenNavigation();

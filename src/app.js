@@ -12,6 +12,7 @@ import { saveRoute, getRouteById, getRoutesList, buildShareUrl } from './modules
 import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI.js';
 import { resetSequence } from './modules/routeSequence.js';
 import { initFullscreenNavigation } from './modules/fullscreenNavigation.js';
+import { initMediaSession } from './modules/mediaSessionManager.js';
 
 // DOM элементы (будут инициализированы в initApp)
 let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn, saveRouteBtn, loadRouteBtn, shareRouteBtn;
@@ -55,6 +56,7 @@ export function initApp() {
   initNavigation();
   initSequenceUI();
   initFullscreenNavigation();
+  initMediaSession();
   
   // Настраиваем обработчики событий
   setupEventHandlers();
