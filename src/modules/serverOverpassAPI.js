@@ -162,27 +162,6 @@ export async function fetchBarriersWithServerOverpass(bbox, barrierType = 'ба�
   }
 }
 
-/**
- * Получает все данные (тропы + барьеры) через серверный Overpass API
- * @param {string} bbox - строка bbox в формате 'south,west,north,east'
- * @returns {Promise<Object>}
- */
-export async function fetchAllWithServerOverpass(bbox) {
-  console.log(`🌍 Загружаем все данные через серверный Overpass API...`);
-  
-  const endpoint = `/all?bbox=${bbox}`;
-  const data = await executeServerOverpassRequest(endpoint, 'Серверный Overpass все данные');
-  
-  if (data.success) {
-    console.log(`✅ Серверный Overpass вернул ${data.paths_count} троп и ${data.barriers_count} барьеров`);
-    return {
-      paths: data.paths || [],
-      barriers: data.barriers || []
-    };
-  } else {
-    throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
-  }
-}
 
 /**
  * Получает закрытые зоны через серверный Overpass API
