@@ -36,11 +36,38 @@ let noSleepInterval = null; // Fallback для браузеров без Wake Lo
 const audioNavBtn = document.getElementById('audioNavBtn');
 const stopNavBtn = document.getElementById('stopNavBtn');
 const navStatus = document.getElementById('navStatus');
+const targetPointSelect = document.getElementById('targetPointSelect');
+const targetPointContainer = document.getElementById('targetPointContainer');
 
 // Инициализация модуля навигации
 export function initNavigation() {
   audioNavBtn.addEventListener('click', startNavigation);
   stopNavBtn.addEventListener('click', stopNavigation);
+  
+  // Обработчик изменения целевой точки
+  if (targetPointSelect) {
+    targetPointSelect.addEventListener('change', () => {
+      if (!isNavigating) return;
+      
+      const value = targetPointSelect.value;
+      if (value === '') return;
+      
+      // Пользователь выбрал другую точку
+      const pointIdx = parseInt(value);
+      if (!isNaN(pointIdx) && pointIdx >= 0 && pointIdx < pointMarkers.length) {
+        const marker = pointMarkers[pointIdx];
+        const coords = marker.getLatLng();
+        currentTarget = coords;
+        currentTargetIndex = pointIdx;
+        lastDistance = null;
+        
+        navStatus.textContent = `🎯 Целевая точка изменена на ${pointIdx + 1}`;
+        navStatus.style.color = 'blue';
+        
+        console.log(`🎯 Пользователь выбрал точку ${pointIdx + 1}`);
+      }
+    });
+  }
   
   // Обработка изменения видимости страницы (для Wake Lock)
   document.addEventListener('visibilitychange', () => {
@@ -471,6 +498,12 @@ async function startNavigation() {
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
   
+  // Показываем селект с целевой точкой и обновляем его
+  if (targetPointContainer) {
+    targetPointContainer.style.display = 'block';
+  }
+  updateTargetPointsList();
+  
   // Активируем предотвращение засыпания экрана
   await activateWakeLock();
   
@@ -589,11 +622,16 @@ async function stopNavigation() {
   audioNavBtn.style.display = 'inline-block';
   stopNavBtn.style.display = 'none';
   
+  // Скрываем селект с целевой точкой
+  if (targetPointContainer) {
+    targetPointContainer.style.display = 'none';
+  }
+  
   // Финальный звуковой сигнал
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
 }
 
-// Обновление доступности кнопки навигации
+// Обновление доступности кнопки навигации и селекта точек
 function updateTargetPointsList() {
   // Включаем/отключаем кнопку навигации в зависимости от наличия точек и последовательности
   const sequence = getCurrentSequence();
@@ -603,19 +641,40 @@ function updateTargetPointsList() {
     audioNavBtn.disabled = false;
   }
   
-  // Обновляем навигационный селект в полноэкранном режиме (если активен)
-  const navSelect = document.getElementById('navTargetSelect');
-  if (navSelect && isAutoSequenceMode) {
+  // Обновляем основной селект (показывается только во время навигации)
+  if (targetPointSelect && isNavigating) {
     let html = '';
-    const nextPointIndex = getNextPoint(completedPoints);
-    if (nextPointIndex !== null) {
-      const pointNumber = nextPointIndex + 1;
-      const isCompleted = completedPoints.has(nextPointIndex);
-      const checkmark = isCompleted ? '✓ ' : '';
-      html += `<option value="auto" selected>🎯 ${checkmark}Точка ${pointNumber}</option>`;
-    } else {
-      html += `<option value="start" selected>🏁 Вернуться к старту</option>`;
+    
+    // Добавляем все точки из последовательности
+    if (sequence && sequence.length > 0) {
+      sequence.forEach((pointIndex) => {
+        const pointNumber = pointIndex + 1;
+        const isCompleted = completedPoints.has(pointIndex);
+        const checkmark = isCompleted ? '✓ ' : '';
+        const isCurrent = currentTargetIndex === pointIndex;
+        html += `<option value="${pointIndex}" ${isCurrent ? 'selected' : ''}>${checkmark}Точка ${pointNumber}${isCurrent ? ' (текущая)' : ''}</option>`;
+      });
     }
+    
+    targetPointSelect.innerHTML = html;
+  }
+  
+  // Обновляем навигационный селект в полноэкранном режиме
+  const navSelect = document.getElementById('navTargetSelect');
+  if (navSelect && isNavigating) {
+    let html = '';
+    
+    // Добавляем все точки из последовательности
+    if (sequence && sequence.length > 0) {
+      sequence.forEach((pointIndex) => {
+        const pointNumber = pointIndex + 1;
+        const isCompleted = completedPoints.has(pointIndex);
+        const checkmark = isCompleted ? '✓ ' : '';
+        const isCurrent = currentTargetIndex === pointIndex;
+        html += `<option value="${pointIndex}" ${isCurrent ? 'selected' : ''}>${checkmark}Точка ${pointNumber}${isCurrent ? ' (текущая)' : ''}</option>`;
+      });
+    }
+    
     navSelect.innerHTML = html;
   }
 }
