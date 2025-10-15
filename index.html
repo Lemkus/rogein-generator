@@ -471,7 +471,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.8.4'; // Fixed auto-sequence display - show specific next point
+    const APP_VERSION = '1.8.5'; // Fixed duplicate updateTargetPointsList function
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {

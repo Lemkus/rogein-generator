@@ -245,61 +245,6 @@ async function releaseWakeLock() {
   }
 }
 
-// Обновляем список точек после генерации
-export function updateTargetPointsList() {
-  targetPointSelect.innerHTML = '';
-  
-  if (pointMarkers.length === 0) {
-    targetPointSelect.innerHTML = '<option value="">Сначала сгенерируйте точки</option>';
-    targetPointSelect.disabled = true;
-    audioNavBtn.disabled = true;
-    return;
-  }
-  
-  // Добавляем опцию автоматической последовательности
-  const sequence = getCurrentSequence();
-  if (sequence && sequence.length > 0) {
-    const autoOption = document.createElement('option');
-    autoOption.value = 'auto';
-    autoOption.textContent = '🎯 Автоматическая последовательность';
-    targetPointSelect.appendChild(autoOption);
-    
-    // Разделитель
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '──────────────────';
-    targetPointSelect.appendChild(separator);
-  }
-  
-  // Добавляем стартовую точку
-  const startPoint = getStartPoint();
-  if (startPoint) {
-    const option = document.createElement('option');
-    option.value = 'start';
-    option.textContent = 'СТАРТ';
-    targetPointSelect.appendChild(option);
-  }
-  
-  // Добавляем все сгенерированные точки
-  pointMarkers.forEach((marker, i) => {
-    const option = document.createElement('option');
-    option.value = i;
-    const isCompleted = completedPoints.has(i);
-    option.textContent = `Точка ${i + 1}${isCompleted ? ' ✓' : ''}`;
-    if (isCompleted) {
-      option.style.color = '#999';
-    }
-    targetPointSelect.appendChild(option);
-  });
-  
-  // Автоматически выбираем режим автопоследовательности если она есть
-  if (sequence && sequence.length > 0) {
-    targetPointSelect.value = 'auto';
-  }
-  
-  targetPointSelect.disabled = false;
-  audioNavBtn.disabled = false;
-}
 
 // Функция воспроизведения звуковых сигналов с учётом направления и расстояния
 function playNavigationSoundWithPattern(pattern, direction = 'neutral', distance = null) {
