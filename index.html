@@ -367,6 +367,13 @@
       </div>
     </div>
     
+    <div id="targetPointContainer" style="display:none;">
+      <label>Следующая точка: 
+        <select id="targetPointSelect">
+          <option value="">Выберите точку...</option>
+        </select>
+      </label>
+    </div>
     <button id="audioNavBtn" disabled>🔊 Начать звуковую навигацию</button>
     <button id="stopNavBtn" style="display:none;">⏹️ Остановить</button>
     <span id="navStatus" style="margin-left: 10px; font-weight: bold;"></span>
@@ -465,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.9.0'; // Simplified navigation - auto sequence mode only
+    const APP_VERSION = '1.9.1'; // Show point selector during navigation for visibility and manual change
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
