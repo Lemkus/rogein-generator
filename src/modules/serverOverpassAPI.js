@@ -225,6 +225,30 @@ export async function fetchWaterAreasWithServerOverpass(bbox, waterType = 'во�
 }
 
 /**
+ * Получает все данные одним запросом через серверный Overpass API
+ * @param {string} bbox - строка bbox в формате 'south,west,north,east'
+ * @returns {Promise<Object>} объект с данными {paths, barriers, closed_areas, water_areas}
+ */
+export async function fetchAllWithServerOverpass(bbox) {
+  console.log(`🚀 Загружаем ВСЕ данные одним запросом через серверный Overpass API...`);
+  
+  const endpoint = `/all?bbox=${bbox}`;
+  const data = await executeServerOverpassRequest(endpoint, `Серверный Overpass - все данные`);
+  
+  if (data.success && data.data) {
+    console.log(`✅ Серверный Overpass вернул все данные:`);
+    console.log(`   - Дороги/тропы: ${data.counts.paths}`);
+    console.log(`   - Барьеры: ${data.counts.barriers}`);
+    console.log(`   - Закрытые зоны: ${data.counts.closed_areas}`);
+    console.log(`   - Водоёмы: ${data.counts.water_areas}`);
+    console.log(`   - Время загрузки: ${data.load_time}с`);
+    return data.data;
+  } else {
+    throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
+  }
+}
+
+/**
  * Конвертирует bounds в строку bbox
  * @param {Object} bounds - объект bounds с методами getSouth(), getWest(), getNorth(), getEast()
  * @returns {string} строка bbox в формате 'south,west,north,east'

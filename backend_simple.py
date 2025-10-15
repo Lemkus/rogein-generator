@@ -92,20 +92,10 @@ def get_walking_network(south: float, west: float, north: float, east: float) ->
     try:
         logger.info(f"Загружаем пешеходную сеть для области: {south},{west},{north},{east}")
         
-        # Расширенный запрос для пешеходных маршрутов (как в клиентском коде)
+        # Единый запрос для всех типов пешеходных маршрутов
         query = f"""[out:json][timeout:{TIMEOUT}];
         (
-          way["highway"="path"]({south},{west},{north},{east});
-          way["highway"="footway"]({south},{west},{north},{east});
-          way["highway"="cycleway"]({south},{west},{north},{east});
-          way["highway"="track"]({south},{west},{north},{east});
-          way["highway"="service"]({south},{west},{north},{east});
-          way["highway"="bridleway"]({south},{west},{north},{east});
-          way["highway"="unclassified"]({south},{west},{north},{east});
-          way["highway"="residential"]({south},{west},{north},{east});
-          way["highway"="living_street"]({south},{west},{north},{east});
-          way["highway"="steps"]({south},{west},{north},{east});
-          way["highway"="pedestrian"]({south},{west},{north},{east});
+          way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"]({south},{west},{north},{east});
         );
         out geom;"""
         
@@ -414,6 +404,116 @@ def get_water_areas():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Ошибка API water-areas: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/all', methods=['GET'])
+def get_all_data():
+    """API для получения всех данных одним запросом"""
+    try:
+        # Получаем параметры
+        bbox = request.args.get('bbox')
+        if not bbox:
+            return jsonify({'error': 'Параметр bbox обязателен'}), 400
+        
+        # Парсим bbox
+        south, west, north, east = parse_bbox(bbox)
+        
+        # Получаем все данные одним запросом
+        start_time = time.time()
+        
+        # Единый запрос для всех типов данных
+        query = f"""[out:json][timeout:{TIMEOUT}];
+        (
+          way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"]({south},{west},{north},{east});
+          way["barrier"="wall"]({south},{west},{north},{east});
+          way["natural"="cliff"]({south},{west},{north},{east});
+          way["military"~"^(yes|restricted|prohibited)$"]({south},{west},{north},{east});
+          way["access"~"^(no|private|restricted)$"]({south},{west},{north},{east});
+        );
+        out geom;"""
+        
+        elements = execute_overpass_query(query)
+        
+        # Разделяем элементы по типам
+        paths = []
+        barriers = []
+        closed_areas = []
+        
+        for element in elements:
+            if element.get('type') == 'way' and 'geometry' in element:
+                geometry = []
+                for coord in element['geometry']:
+                    if 'lat' in coord and 'lon' in coord:
+                        geometry.append([coord['lat'], coord['lon']])
+                
+                if len(geometry) >= 2:
+                    tags = element.get('tags', {})
+                    highway = tags.get('highway', '')
+                    barrier = tags.get('barrier', '')
+                    natural = tags.get('natural', '')
+                    military = tags.get('military', '')
+                    access = tags.get('access', '')
+                    
+                    # Классифицируем элемент
+                    if highway:
+                        # Это дорога/тропа
+                        path_obj = {
+                            'geometry': geometry,
+                            'highway': highway,
+                            'name': tags.get('name', ''),
+                            'surface': tags.get('surface', ''),
+                            'access': access,
+                            'osmid': str(element.get('id', '')),
+                            'length': 0
+                        }
+                        paths.append(path_obj)
+                    elif barrier or natural == 'cliff':
+                        # Это барьер
+                        barrier_obj = {
+                            'geometry': geometry,
+                            'type': 'barrier',
+                            'barrier_type': barrier,
+                            'natural': natural,
+                            'osmid': str(element.get('id', ''))
+                        }
+                        barriers.append(barrier_obj)
+                    elif military or access in ['no', 'private', 'restricted']:
+                        # Это закрытая зона
+                        area_obj = {
+                            'geometry': geometry,
+                            'type': 'closed_area',
+                            'military': military,
+                            'access': access,
+                            'name': tags.get('name', ''),
+                            'osmid': str(element.get('id', ''))
+                        }
+                        closed_areas.append(area_obj)
+        
+        load_time = time.time() - start_time
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'paths': paths,
+                'barriers': barriers,
+                'closed_areas': closed_areas,
+                'water_areas': []  # Водоёмы не загружаем
+            },
+            'counts': {
+                'paths': len(paths),
+                'barriers': len(barriers),
+                'closed_areas': len(closed_areas),
+                'water_areas': 0
+            },
+            'bbox': bbox,
+            'load_time': round(load_time, 2),
+            'timestamp': time.time()
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Ошибка API all: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 @app.errorhandler(404)
