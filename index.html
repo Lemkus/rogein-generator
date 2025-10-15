@@ -471,7 +471,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.8.5'; // Fixed duplicate updateTargetPointsList function
+    const APP_VERSION = '1.8.6'; // Fixed duplicate export of updateTargetPointsList
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
