@@ -643,6 +643,15 @@ function updateTargetPointsList() {
   if (navSelect) {
     navSelect.innerHTML = html;
   }
+  
+  // Включаем/отключаем кнопки в зависимости от наличия точек
+  if (pointMarkers.length === 0) {
+    select.disabled = true;
+    audioNavBtn.disabled = true;
+  } else {
+    select.disabled = false;
+    audioNavBtn.disabled = false;
+  }
 }
 
 // Сброс завершенных точек (при новой генерации)
