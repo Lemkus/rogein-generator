@@ -367,13 +367,7 @@
       </div>
     </div>
     
-    <label>Целевая точка: 
-      <select id="targetPointSelect" disabled>
-        <option value="">Сначала сгенерируйте точки</option>
-      </select>
-    </label>
     <button id="audioNavBtn" disabled>🔊 Начать звуковую навигацию</button>
-    <button id="toggleAudioBtn" title="Включить/отключить звук">🔇</button>
     <button id="stopNavBtn" style="display:none;">⏹️ Остановить</button>
     <span id="navStatus" style="margin-left: 10px; font-weight: bold;"></span>
   </div>
@@ -471,7 +465,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.8.7'; // Fixed navigation button enabling/disabling
+    const APP_VERSION = '1.9.0'; // Simplified navigation - auto sequence mode only
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
