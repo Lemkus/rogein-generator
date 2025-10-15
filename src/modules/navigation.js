@@ -33,9 +33,7 @@ let wakeLock = null;
 let noSleepInterval = null; // Fallback для браузеров без Wake Lock API
 
 // DOM элементы
-const targetPointSelect = document.getElementById('targetPointSelect');
 const audioNavBtn = document.getElementById('audioNavBtn');
-const toggleAudioBtn = document.getElementById('toggleAudioBtn');
 const stopNavBtn = document.getElementById('stopNavBtn');
 const navStatus = document.getElementById('navStatus');
 
@@ -43,7 +41,6 @@ const navStatus = document.getElementById('navStatus');
 export function initNavigation() {
   audioNavBtn.addEventListener('click', startNavigation);
   stopNavBtn.addEventListener('click', stopNavigation);
-  toggleAudioBtn.addEventListener('click', toggleAudioHandler);
   
   // Обработка изменения видимости страницы (для Wake Lock)
   document.addEventListener('visibilitychange', () => {
@@ -444,13 +441,23 @@ function onPositionError(error) {
 
 // Начало навигации
 async function startNavigation() {
-  const target = getTargetCoords();
-  if (!target) {
-    alert('Выберите целевую точку!');
+  // Проверяем наличие последовательности
+  const sequence = getCurrentSequence();
+  if (!sequence || sequence.length === 0) {
+    alert('Сначала сгенерируйте точки!');
     return;
   }
   
-  currentTarget = target;
+  // Автоматически включаем режим автопоследовательности
+  isAutoSequenceMode = true;
+  
+  // Начинаем с первой точки последовательности
+  const firstPointIdx = sequence[0];
+  const marker = pointMarkers[firstPointIdx];
+  const coords = marker.getLatLng();
+  
+  currentTarget = coords;
+  currentTargetIndex = firstPointIdx;
   isNavigating = true;
   
   // Входим в полноэкранный режим навигации
@@ -586,19 +593,20 @@ async function stopNavigation() {
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
 }
 
-// Обновление списка целевых точек в селекте
+// Обновление доступности кнопки навигации
 function updateTargetPointsList() {
+  // Включаем/отключаем кнопку навигации в зависимости от наличия точек и последовательности
   const sequence = getCurrentSequence();
-  const select = document.getElementById('targetPointSelect');
+  if (pointMarkers.length === 0 || !sequence || sequence.length === 0) {
+    audioNavBtn.disabled = true;
+  } else {
+    audioNavBtn.disabled = false;
+  }
+  
+  // Обновляем навигационный селект в полноэкранном режиме (если активен)
   const navSelect = document.getElementById('navTargetSelect');
-  
-  if (!select) return;
-  
-  let html = '';
-  
-  // Если есть последовательность и режим автонавигации активен
-  if (isAutoSequenceMode && sequence && sequence.length > 0) {
-    // Показываем следующую точку из последовательности
+  if (navSelect && isAutoSequenceMode) {
+    let html = '';
     const nextPointIndex = getNextPoint(completedPoints);
     if (nextPointIndex !== null) {
       const pointNumber = nextPointIndex + 1;
@@ -608,49 +616,7 @@ function updateTargetPointsList() {
     } else {
       html += `<option value="start" selected>🏁 Вернуться к старту</option>`;
     }
-  } else {
-    // Обычный режим - показываем все точки
-    html += '<option value="">Выберите точку...</option>';
-    
-    // Добавляем опцию автоматической последовательности
-    if (sequence && sequence.length > 0) {
-      html += '<option value="auto">🎯 Автоматическая последовательность</option>';
-    }
-    
-    // Добавляем все точки с учетом последовательности
-    if (sequence && sequence.length > 0) {
-      sequence.forEach((pointIndex, seqIndex) => {
-        const pointNumber = pointIndex + 1;
-        const isCompleted = completedPoints.has(pointIndex);
-        const checkmark = isCompleted ? '✓ ' : '';
-        html += `<option value="${pointIndex}">${checkmark}Точка ${pointNumber}</option>`;
-      });
-    } else {
-      // Если нет последовательности, показываем все точки
-      for (let i = 0; i < pointMarkers.length; i++) {
-        const isCompleted = completedPoints.has(i);
-        const checkmark = isCompleted ? '✓ ' : '';
-        html += `<option value="${i}">${checkmark}Точка ${i + 1}</option>`;
-      }
-    }
-    
-    html += '<option value="start">🏁 Точка старта</option>';
-  }
-  
-  select.innerHTML = html;
-  
-  // Синхронизируем с навигационным селектом в полноэкранном режиме
-  if (navSelect) {
     navSelect.innerHTML = html;
-  }
-  
-  // Включаем/отключаем кнопки в зависимости от наличия точек
-  if (pointMarkers.length === 0) {
-    select.disabled = true;
-    audioNavBtn.disabled = true;
-  } else {
-    select.disabled = false;
-    audioNavBtn.disabled = false;
   }
 }
 
