@@ -587,7 +587,7 @@ async function stopNavigation() {
 }
 
 // Обновление списка целевых точек в селекте
-export function updateTargetPointsList() {
+function updateTargetPointsList() {
   const sequence = getCurrentSequence();
   const select = document.getElementById('targetPointSelect');
   const navSelect = document.getElementById('navTargetSelect');
