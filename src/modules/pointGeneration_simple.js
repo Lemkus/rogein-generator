@@ -549,11 +549,17 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
     }
     
     console.log(`   Минимальное расстояние между точками: ${minActualDistance.toFixed(1)}м`);
-    console.log(`   Ближайшие точки: ${closestPair[0]} и ${closestPair[1]}`);
+    
+    if (closestPair && closestPair.length >= 2) {
+      console.log(`   Ближайшие точки: ${closestPair[0]} и ${closestPair[1]}`);
+    } else {
+      console.log(`   Недостаточно точек для сравнения расстояний`);
+    }
+    
     console.log(`   Целевое минимальное расстояние было: ${adaptiveMinDist.toFixed(1)}м`);
     console.log(`   Итоговое минимальное расстояние: ${currentMinDist.toFixed(1)}м`);
     
-    if (minActualDistance < currentMinDist * 0.9) {
+    if (closestPair && closestPair.length >= 2 && minActualDistance < currentMinDist * 0.9) {
       console.log(`⚠️ ВНИМАНИЕ: Найдены точки ближе целевого расстояния!`);
       statusCallback(`⚠️ Точки ${closestPair[0]} и ${closestPair[1]} слишком близко: ${minActualDistance.toFixed(1)}м`);
     } else {
