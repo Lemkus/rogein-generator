@@ -82,33 +82,6 @@ export function initNavigation() {
       }
     }
   });
-  
-  // Обновляем иконку кнопки звука
-  updateAudioButtonIcon();
-}
-
-// Обработчик переключения звука
-function toggleAudioHandler() {
-  const isOn = toggleAudio();
-  updateAudioButtonIcon();
-  
-  // Показываем уведомление о состоянии звука
-  const status = isOn ? 'включён' : 'отключён';
-  navStatus.textContent = `🔊 Звук ${status}`;
-  navStatus.style.color = isOn ? 'green' : 'red';
-  
-  setTimeout(() => {
-    if (!isNavigating) {
-      navStatus.textContent = '';
-    }
-  }, 2000);
-}
-
-// Обновление иконки кнопки звука
-function updateAudioButtonIcon() {
-  const isOn = isAudioOn();
-  toggleAudioBtn.textContent = isOn ? '🔊' : '🔇';
-  toggleAudioBtn.title = isOn ? 'Отключить звук' : 'Включить звук';
 }
 
 // Функция для добавления значения в историю
