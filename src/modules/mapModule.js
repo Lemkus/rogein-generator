@@ -87,7 +87,16 @@ function handleDrawCreated(event) {
       }
     });
     drawnItems.addLayer(layer);
-    selectedBounds = layer.getBounds();
+    
+    // Обновляем selectedBounds с правильной структурой
+    const bounds = layer.getBounds();
+    selectedBounds = {
+      south: bounds.getSouth(),
+      west: bounds.getWest(),
+      north: bounds.getNorth(),
+      east: bounds.getEast()
+    };
+    console.log('Выбрана область:', selectedBounds);
   } else if (layer instanceof L.Marker) {
     // Обработка маркера старта
     if (startMarker) {
