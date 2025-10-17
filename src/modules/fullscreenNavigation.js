@@ -218,23 +218,6 @@ function hideMainInterface() {
   });
 }
 
-/**
- * Показ основного интерфейса
- */
-function showMainInterface() {
-  const elementsToShow = [
-    'h2', // Заголовок
-    '.controls', // Все панели управления
-    '#sequenceSection' // Секция последовательности
-  ];
-  
-  elementsToShow.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    elements.forEach(el => {
-      el.style.display = '';
-    });
-  });
-}
 
 /**
  * Обработчик остановки навигации
