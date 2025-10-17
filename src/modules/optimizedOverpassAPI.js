@@ -18,11 +18,10 @@ export async function fetchAllMapData(bbox, statusCallback) {
   
   // Проверяем кэш
   if (window.mapDataCache && window.mapDataCache[cacheKey]) {
-    console.log('📋 Используем кэшированные данные карты');
     return window.mapDataCache[cacheKey];
   }
   
-  statusCallback('🗺️ Загружаем картографические данные...');
+  statusCallback('Загружаем данные карты...');
   
   try {
     // Сначала пробуем серверный API
@@ -34,11 +33,11 @@ export async function fetchAllMapData(bbox, statusCallback) {
       return serverData;
     }
   } catch (error) {
-    console.log('⚠️ Серверный API недоступен, используем клиентский');
+    // Серверный API недоступен, используем клиентский
   }
   
   // Если серверный API недоступен, используем клиентский
-  statusCallback('🌐 Загружаем данные из OpenStreetMap...');
+  statusCallback('Загружаем данные из OpenStreetMap...');
   return await fetchAllWithClientOverpass(bbox, statusCallback);
 }
 
@@ -47,33 +46,24 @@ export async function fetchAllMapData(bbox, statusCallback) {
  */
 async function fetchAllWithServerOverpass(bbox, statusCallback) {
   try {
-    console.log(`🚀 Серверный API: bbox=${bbox}`);
     const response = await fetch(`${OVERPASS_API_BASE}/all?bbox=${bbox}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
     
     if (!response.ok) {
-      let errorText = '';
-      try {
-        errorText = await response.text();
-        console.error(`❌ Серверный API ошибка ${response.status}:`, errorText);
-      } catch (e) {
-        console.error(`❌ Серверный API ошибка ${response.status}: не удалось прочитать ответ`);
-      }
-      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(`Серверный API недоступен (${response.status})`);
     }
     
     const data = await response.json();
     
     if (data.success && data.data) {
-      statusCallback(`✅ Загружено: ${data.counts.paths} дорог, ${data.counts.barriers} барьеров, ${data.counts.closed_areas} закрытых зон`);
+      statusCallback(`Загружено: ${data.counts.paths} дорог, ${data.counts.barriers} барьеров, ${data.counts.closed_areas} закрытых зон`);
       return data.data;
     } else {
       throw new Error(data.error || 'Ошибка серверного API');
     }
   } catch (error) {
-    console.log('❌ Ошибка серверного API:', error.message);
     throw error;
   }
 }
@@ -86,14 +76,12 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   
   // Проверяем корректность bbox
   if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
-    throw new Error(`Некорректный bbox: ${bbox}`);
+    throw new Error(`Некорректные координаты области`);
   }
   
   if (south >= north || west >= east) {
-    throw new Error(`Некорректный bbox: south=${south}, west=${west}, north=${north}, east=${east}`);
+    throw new Error(`Некорректные координаты области`);
   }
-  
-  console.log(`🌐 Клиентский Overpass API: bbox=${bbox}`);
   
   // Единый запрос для всех типов данных
   const query = `[out:json][timeout:60];
@@ -120,14 +108,7 @@ out geom;`;
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      let errorText = '';
-      try {
-        errorText = await response.text();
-        console.error(`❌ Overpass API ошибка ${response.status}:`, errorText);
-      } catch (e) {
-        console.error(`❌ Overpass API ошибка ${response.status}: не удалось прочитать ответ`);
-      }
-      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(`Ошибка загрузки данных (${response.status})`);
     }
     
     const data = await response.json();
@@ -191,7 +172,7 @@ out geom;`;
       }
     }
     
-    statusCallback(`✅ Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+          statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
     
     // Кэшируем данные
     if (!window.mapDataCache) window.mapDataCache = {};
@@ -200,7 +181,6 @@ out geom;`;
     return result;
     
   } catch (error) {
-    console.error('❌ Ошибка клиентского Overpass API:', error);
     throw error;
   }
 }
@@ -211,6 +191,5 @@ out geom;`;
 export function clearMapDataCache() {
   if (window.mapDataCache) {
     window.mapDataCache = {};
-    console.log('🗑️ Кэш данных карты очищен');
   }
 }
