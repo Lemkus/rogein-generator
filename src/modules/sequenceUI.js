@@ -85,23 +85,55 @@ function setupEventHandlers() {
 }
 
 // Генерация и отображение последовательности
-export function generateAndDisplaySequence() {
+export async function generateAndDisplaySequence() {
   if (!pointMarkers || pointMarkers.length === 0) {
     hideSequenceSection();
     return;
   }
   
-  // Генерируем оптимальную последовательность
-  const sequence = generateOptimalSequence();
+  // Показываем индикатор загрузки
+  showSequenceLoading();
   
-  if (sequence.length === 0) {
+  try {
+    // Генерируем оптимальную последовательность асинхронно
+    const sequence = await generateOptimalSequenceAsync();
+    
+    if (sequence.length === 0) {
+      hideSequenceSection();
+      return;
+    }
+  
+    // Отображаем последовательность
+    updateSequenceDisplay();
+    showSequenceSection();
+    
+  } catch (error) {
+    console.error('Ошибка при генерации последовательности:', error);
     hideSequenceSection();
-    return;
   }
-  
-  // Отображаем последовательность
-  updateSequenceDisplay();
-  showSequenceSection();
+}
+
+// Показать индикатор загрузки последовательности
+function showSequenceLoading() {
+  if (sequenceLink) {
+    sequenceLink.textContent = '⏳ Генерация оптимального маршрута...';
+    sequenceLink.style.color = '#666';
+  }
+  if (routeStatsSpan) {
+    routeStatsSpan.textContent = '';
+  }
+}
+
+// Асинхронная генерация последовательности
+async function generateOptimalSequenceAsync() {
+  return new Promise((resolve) => {
+    // Используем setTimeout для неблокирующего выполнения
+    setTimeout(() => {
+      const sequence = generateOptimalSequence();
+      resolve(sequence);
+    }, 0);
+  });
+}
   
   console.log('✅ Последовательность сгенерирована и отображена');
 }

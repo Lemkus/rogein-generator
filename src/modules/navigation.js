@@ -516,12 +516,27 @@ function switchToNextPoint() {
     return;
   }
   
-  // Находим следующую незавершенную точку
+  // Находим следующую точку в последовательности ПОСЛЕ текущей
   let nextPointIdx = null;
-  for (let idx of sequence) {
-    if (!completedPoints.has(idx)) {
-      nextPointIdx = idx;
-      break;
+  const currentIdx = sequence.indexOf(currentTargetIndex);
+  
+  if (currentIdx !== -1) {
+    // Ищем следующую точку в последовательности после текущей
+    for (let i = currentIdx + 1; i < sequence.length; i++) {
+      const idx = sequence[i];
+      if (!completedPoints.has(idx)) {
+        nextPointIdx = idx;
+        break;
+      }
+    }
+  } else {
+    // Если текущая точка не найдена в последовательности, 
+    // ищем первую незавершенную точку
+    for (let idx of sequence) {
+      if (!completedPoints.has(idx)) {
+        nextPointIdx = idx;
+        break;
+      }
     }
   }
   
@@ -598,6 +613,15 @@ async function stopNavigation() {
   // Скрываем селект с целевой точкой
   if (targetPointContainer) {
     targetPointContainer.style.display = 'none';
+  }
+  
+  // НЕ перегенерируем последовательность при остановке навигации
+  // Просто обновляем доступность кнопки
+  const sequence = getCurrentSequence();
+  if (pointMarkers.length === 0 || !sequence || sequence.length === 0) {
+    audioNavBtn.disabled = true;
+  } else {
+    audioNavBtn.disabled = false;
   }
   
   // Финальный звуковой сигнал
