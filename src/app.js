@@ -115,8 +115,8 @@ async function handleGenerateClick() {
   
   // После генерации точек создаем оптимальную последовательность
   if (pointMarkers && pointMarkers.length > 0) {
-    setTimeout(() => {
-      generateAndDisplaySequence();
+    setTimeout(async () => {
+      await generateAndDisplaySequence();
       updateTargetPointsList(); // Обновляем список точек с новой последовательностью
     }, 500); // Небольшая задержка для завершения отрисовки точек
   }
