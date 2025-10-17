@@ -128,17 +128,23 @@ export function exitFullscreenNavigation() {
 function showMainInterface() {
   // Показываем все основные элементы интерфейса
   const elementsToShow = [
+    'header',
+    'main',
     '#controls',
     '#mapContainer', 
     '#sequenceSection',
     '#status',
-    '.leaflet-control-container'
+    '.leaflet-control-container',
+    'h1',
+    'h2',
+    '.container'
   ];
   
   elementsToShow.forEach(selector => {
     const elements = document.querySelectorAll(selector);
     elements.forEach(el => {
       el.style.display = '';
+      el.style.visibility = '';
     });
   });
   
@@ -146,7 +152,26 @@ function showMainInterface() {
   const mapContainer = document.getElementById('mapContainer');
   if (mapContainer) {
     mapContainer.style.display = 'block';
+    mapContainer.style.visibility = 'visible';
   }
+  
+  // Убеждаемся что основной контейнер виден
+  const main = document.querySelector('main');
+  if (main) {
+    main.style.display = 'block';
+    main.style.visibility = 'visible';
+  }
+  
+  // Принудительно сбрасываем все скрытые элементы
+  const allElements = document.querySelectorAll('*');
+  allElements.forEach(el => {
+    if (el.style.display === 'none' && !el.closest('#navigationFullscreen')) {
+      el.style.display = '';
+    }
+    if (el.style.visibility === 'hidden' && !el.closest('#navigationFullscreen')) {
+      el.style.visibility = '';
+    }
+  });
   
   console.log('🖥️ Основной интерфейс восстановлен');
 }
