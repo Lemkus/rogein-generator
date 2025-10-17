@@ -47,13 +47,21 @@ export async function fetchAllMapData(bbox, statusCallback) {
  */
 async function fetchAllWithServerOverpass(bbox, statusCallback) {
   try {
+    console.log(`🚀 Серверный API: bbox=${bbox}`);
     const response = await fetch(`${OVERPASS_API_BASE}/all?bbox=${bbox}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.error(`❌ Серверный API ошибка ${response.status}:`, errorText);
+      } catch (e) {
+        console.error(`❌ Серверный API ошибка ${response.status}: не удалось прочитать ответ`);
+      }
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
     }
     
     const data = await response.json();
@@ -75,6 +83,17 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
   const [south, west, north, east] = bbox.split(',').map(Number);
+  
+  // Проверяем корректность bbox
+  if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
+    throw new Error(`Некорректный bbox: ${bbox}`);
+  }
+  
+  if (south >= north || west >= east) {
+    throw new Error(`Некорректный bbox: south=${south}, west=${west}, north=${north}, east=${east}`);
+  }
+  
+  console.log(`🌐 Клиентский Overpass API: bbox=${bbox}`);
   
   // Единый запрос для всех типов данных
   const query = `[out:json][timeout:60];
@@ -101,7 +120,14 @@ out geom;`;
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.error(`❌ Overpass API ошибка ${response.status}:`, errorText);
+      } catch (e) {
+        console.error(`❌ Overpass API ошибка ${response.status}: не удалось прочитать ответ`);
+      }
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
     }
     
     const data = await response.json();
