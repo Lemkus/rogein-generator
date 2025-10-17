@@ -4,7 +4,7 @@
  */
 
 import { haversine, rectangleArea, extractPolygons, pointInPolygon, getRandomPointOnLine, segmentIntersectsPolygon } from './utils.js';
-import { fetchClosedAreas, fetchWaterAreas, fetchBarriers, fetchPaths, fetchPathsInChunks } from './overpassAPI.js';
+import { fetchAllMapData, clearMapDataCache } from './optimizedOverpassAPI.js';
 import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
@@ -66,29 +66,14 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
   statusCallback(`🎯 Начальное расстояние: ${adaptiveMinDist.toFixed(0)}м (будет адаптироваться для размещения всех ${count} точек)`);
 
   try {
-    // Загружаем данные
-    statusCallback('Загрузка закрытых зон...');
-    const closedAreasData = await fetchClosedAreas(selectedBounds);
-    statusCallback(`✅ Закрытые зоны: ${closedAreasData.length} элементов`);
-
-    statusCallback('Загрузка водоёмов...');
-    const waterAreasData = await fetchWaterAreas(selectedBounds);
-    statusCallback(`✅ Водоёмы: ${waterAreasData.length} элементов`);
-
-    statusCallback('Загрузка барьеров...');
-    const barriersData = await fetchBarriers(selectedBounds);
-    statusCallback(`✅ Барьеры: ${barriersData.length} элементов`);
-
-    statusCallback('Загрузка троп...');
-    let pathsData;
-    try {
-      pathsData = await fetchPaths(selectedBounds, statusCallback);
-    } catch (error) {
-      console.warn('Не удалось загрузить тропы целиком, пробуем по частям:', error.message);
-      statusCallback('Попытка загрузки троп по частям...');
-      pathsData = await fetchPathsInChunks(selectedBounds, statusCallback);
-    }
-    statusCallback(`✅ Тропы: ${pathsData.length} элементов`);
+    // Загружаем все данные одним запросом
+    const bbox = `${selectedBounds.south},${selectedBounds.west},${selectedBounds.north},${selectedBounds.east}`;
+    const mapData = await fetchAllMapData(bbox, statusCallback);
+    
+    const closedAreasData = mapData.closed_areas || [];
+    const waterAreasData = mapData.water_areas || [];
+    const barriersData = mapData.barriers || [];
+    const pathsData = mapData.paths || [];
 
     if (cancelGeneration) {
       statusCallback('Отменено пользователем.');
