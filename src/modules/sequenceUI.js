@@ -134,9 +134,6 @@ async function generateOptimalSequenceAsync() {
     }, 0);
   });
 }
-  
-  console.log('✅ Последовательность сгенерирована и отображена');
-}
 
 // Обновление отображения последовательности
 export function updateSequenceDisplay() {

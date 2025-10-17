@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.9.3'; // Fixed 3 critical navigation issues
+    const APP_VERSION = '1.9.4'; // Fixed syntax error in sequenceUI.js
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
