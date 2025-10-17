@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.9.5'; // Fixed infinite recursion between stopNavigation and exitFullscreenNavigation
+    const APP_VERSION = '1.9.6'; // Fixed map disappearing after navigation stop and improved sequence generation UI
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {

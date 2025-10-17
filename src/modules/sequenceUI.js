@@ -103,13 +103,27 @@ export async function generateAndDisplaySequence() {
       return;
     }
   
+    // Скрываем индикатор загрузки
+    hideSequenceLoading();
+    
     // Отображаем последовательность
     updateSequenceDisplay();
     showSequenceSection();
     
   } catch (error) {
     console.error('Ошибка при генерации последовательности:', error);
+    hideSequenceLoading();
     hideSequenceSection();
+  }
+}
+
+// Скрыть индикатор загрузки последовательности
+function hideSequenceLoading() {
+  if (sequenceLink) {
+    sequenceLink.style.cursor = 'pointer';
+  }
+  if (routeStatsSpan) {
+    routeStatsSpan.style.color = '';
   }
 }
 
@@ -118,20 +132,34 @@ function showSequenceLoading() {
   if (sequenceLink) {
     sequenceLink.textContent = '⏳ Генерация оптимального маршрута...';
     sequenceLink.style.color = '#666';
+    sequenceLink.style.cursor = 'default';
   }
   if (routeStatsSpan) {
-    routeStatsSpan.textContent = '';
+    routeStatsSpan.textContent = 'Анализируем точки и строим маршрут...';
+    routeStatsSpan.style.color = '#666';
+  }
+  
+  // Показываем секцию последовательности
+  if (sequenceSection) {
+    sequenceSection.style.display = 'block';
   }
 }
 
 // Асинхронная генерация последовательности
 async function generateOptimalSequenceAsync() {
   return new Promise((resolve) => {
-    // Используем setTimeout для неблокирующего выполнения
+    // Даем время для отображения индикатора загрузки
     setTimeout(() => {
-      const sequence = generateOptimalSequence();
-      resolve(sequence);
-    }, 0);
+      try {
+        console.log('🔄 Начинаем генерацию оптимальной последовательности...');
+        const sequence = generateOptimalSequence();
+        console.log(`✅ Последовательность сгенерирована: ${sequence.length} точек`);
+        resolve(sequence);
+      } catch (error) {
+        console.error('❌ Ошибка при генерации последовательности:', error);
+        resolve([]);
+      }
+    }, 100); // Увеличиваем задержку для видимости индикатора
   });
 }
 
