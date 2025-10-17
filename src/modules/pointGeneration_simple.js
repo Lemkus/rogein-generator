@@ -34,11 +34,11 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
 
   statusCallback('Загрузка данных OSM...');
 
-  const sw = selectedBounds.getSouthWest();
-  const ne = selectedBounds.getNorthEast();
+  const sw = { lat: selectedBounds.south, lng: selectedBounds.west };
+  const ne = { lat: selectedBounds.north, lng: selectedBounds.east };
 
   // ГИБКИЙ расчет начального расстояния - стремимся к максимуму, но готовы к компромиссам
-  const area = rectangleArea(selectedBounds); // в м^2
+  const area = (selectedBounds.north - selectedBounds.south) * (selectedBounds.east - selectedBounds.west) * 111000 * 111000; // в м^2
   
   // Начинаем с оптимистичного расчета (90% площади для максимального распределения)
   const optimisticAreaPerPoint = (area * 0.9) / count;
