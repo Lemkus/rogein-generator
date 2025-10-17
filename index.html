@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.9.4'; // Fixed syntax error in sequenceUI.js
+    const APP_VERSION = '1.9.5'; // Fixed infinite recursion between stopNavigation and exitFullscreenNavigation
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {

@@ -20,6 +20,7 @@ let userPosition = null;
 let watchId = null;
 let isAutoSequenceMode = false; // Режим автоматической последовательности
 let completedPoints = new Set(); // Множество взятых точек
+let isStoppingNavigation = false; // Флаг для предотвращения рекурсии
 
 // Переменные для улучшенной навигации
 let distanceHistory = []; // История расстояний для стабилизации
@@ -583,6 +584,12 @@ function switchToNextPoint() {
 
 // Остановка навигации
 async function stopNavigation() {
+  // Предотвращаем рекурсию
+  if (isStoppingNavigation) {
+    return;
+  }
+  isStoppingNavigation = true;
+  
   isNavigating = false;
   isAutoSequenceMode = false;
   
@@ -626,6 +633,9 @@ async function stopNavigation() {
   
   // Финальный звуковой сигнал
   playNavigationSound(200, 0); // Расстояние 200м, скорость 0
+  
+  // Сбрасываем флаг
+  isStoppingNavigation = false;
 }
 
 // Обновление доступности кнопки навигации и селекта точек
