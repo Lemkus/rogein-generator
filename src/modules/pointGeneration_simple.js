@@ -3,7 +3,7 @@
  * Простая и надежная генерация точек без сложных алгоритмов
  */
 
-import { haversine, rectangleArea, extractPolygons, pointInPolygon, getRandomPointOnLine, segmentIntersectsPolygon } from './utils.js';
+import { haversine, extractPolygons, pointInPolygon, getRandomPointOnLine, segmentIntersectsPolygon } from './utils.js';
 import { fetchAllMapData, clearMapDataCache } from './optimizedOverpassAPI.js';
 import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
@@ -12,6 +12,18 @@ import { setTrailGraph } from './routeSequence.js';
 
 // Переменные для отмены генерации
 let cancelGeneration = false;
+
+// Функция расчета площади прямоугольника в квадратных метрах
+function rectangleArea(bounds) {
+  const latDiff = bounds.north - bounds.south;
+  const lngDiff = bounds.east - bounds.west;
+  
+  // Приблизительный коэффициент для перевода градусов в метры
+  const latToMeters = 111000; // 1 градус широты ≈ 111 км
+  const lngToMeters = 111000 * Math.cos((bounds.north + bounds.south) / 2 * Math.PI / 180);
+  
+  return latDiff * latToMeters * lngDiff * lngToMeters;
+}
 
 // Основная функция генерации точек - ПРОСТАЯ ВЕРСИЯ
 export async function generatePointsSimple(selectedBounds, startPoint, count, statusCallback, buttonCallback, cancelCallback) {
@@ -38,7 +50,7 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
   const ne = { lat: selectedBounds.north, lng: selectedBounds.east };
 
   // ГИБКИЙ расчет начального расстояния - стремимся к максимуму, но готовы к компромиссам
-  const area = (selectedBounds.north - selectedBounds.south) * (selectedBounds.east - selectedBounds.west) * 111000 * 111000; // в м^2
+  const area = rectangleArea(selectedBounds); // в м^2
   
   // Начинаем с оптимистичного расчета (90% площади для максимального распределения)
   const optimisticAreaPerPoint = (area * 0.9) / count;
