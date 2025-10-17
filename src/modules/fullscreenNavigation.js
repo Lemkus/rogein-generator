@@ -123,6 +123,35 @@ export function exitFullscreenNavigation() {
 }
 
 /**
+ * Показать основной интерфейс после выхода из полноэкранного режима
+ */
+function showMainInterface() {
+  // Показываем все основные элементы интерфейса
+  const elementsToShow = [
+    '#controls',
+    '#mapContainer', 
+    '#sequenceSection',
+    '#status',
+    '.leaflet-control-container'
+  ];
+  
+  elementsToShow.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+      el.style.display = '';
+    });
+  });
+  
+  // Убеждаемся что карта видна
+  const mapContainer = document.getElementById('mapContainer');
+  if (mapContainer) {
+    mapContainer.style.display = 'block';
+  }
+  
+  console.log('🖥️ Основной интерфейс восстановлен');
+}
+
+/**
  * Обновление элементов управления в полноэкранном режиме
  */
 function updateFullscreenControls() {
