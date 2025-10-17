@@ -13,6 +13,7 @@ import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI
 import { resetSequence } from './modules/routeSequence.js';
 import { initFullscreenNavigation } from './modules/fullscreenNavigation.js';
 import { initMediaSession } from './modules/mediaSessionManager.js';
+import { clearMapDataCache } from './modules/optimizedOverpassAPI.js';
 
 // DOM элементы (будут инициализированы в initApp)
 let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn, saveRouteBtn, loadRouteBtn, shareRouteBtn;
@@ -99,6 +100,9 @@ async function handleGenerateClick() {
   // Сбрасываем старую последовательность и завершенные точки
   resetSequence();
   resetCompletedPoints();
+  
+  // Очищаем кэш картографических данных для свежих данных
+  clearMapDataCache();
   
   // Получаем текущие значения из mapModule
   const selectedBounds = getSelectedBounds();

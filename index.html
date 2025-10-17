@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.10.0'; // Fixed modal windows appearing after navigation stop
+    const APP_VERSION = '1.11.0'; // Optimized Overpass API - single request for all data
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
