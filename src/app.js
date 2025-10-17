@@ -108,6 +108,12 @@ async function handleGenerateClick() {
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
   
+  // Проверяем что область выбрана
+  if (!selectedBounds || !selectedBounds.south || !selectedBounds.west || !selectedBounds.north || !selectedBounds.east) {
+    updateStatus('❌ Сначала выберите область на карте, нарисовав прямоугольник');
+    return;
+  }
+  
   await generatePoints(
     selectedBounds,
     startPoint,

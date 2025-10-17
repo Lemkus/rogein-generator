@@ -66,8 +66,14 @@ export async function generatePointsSimple(selectedBounds, startPoint, count, st
   statusCallback(`🎯 Начальное расстояние: ${adaptiveMinDist.toFixed(0)}м (будет адаптироваться для размещения всех ${count} точек)`);
 
   try {
+    // Проверяем что область выбрана
+    if (!selectedBounds || !selectedBounds.south || !selectedBounds.west || !selectedBounds.north || !selectedBounds.east) {
+      throw new Error('Сначала выберите область на карте, нарисовав прямоугольник');
+    }
+    
     // Загружаем все данные одним запросом
     const bbox = `${selectedBounds.south},${selectedBounds.west},${selectedBounds.north},${selectedBounds.east}`;
+    console.log(`🎯 Выбранная область: ${bbox}`);
     const mapData = await fetchAllMapData(bbox, statusCallback);
     
     const closedAreasData = mapData.closed_areas || [];
