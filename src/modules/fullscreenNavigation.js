@@ -181,6 +181,21 @@ function showMainInterface() {
     }
   }, 100);
   
+  // Убеждаемся что модальные окна закрыты
+  const sequenceModal = document.getElementById('sequenceModal');
+  if (sequenceModal) {
+    sequenceModal.style.display = 'none';
+  }
+  
+  // Временно блокируем клики по ссылке последовательности
+  const sequenceLink = document.getElementById('sequenceLink');
+  if (sequenceLink) {
+    sequenceLink.style.pointerEvents = 'none';
+    setTimeout(() => {
+      sequenceLink.style.pointerEvents = '';
+    }, 500);
+  }
+  
   console.log('🖥️ Основной интерфейс восстановлен');
 }
 

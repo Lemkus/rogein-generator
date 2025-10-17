@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.9.9'; // Fixed map not showing after navigation stop - corrected map ID
+    const APP_VERSION = '1.10.0'; // Fixed modal windows appearing after navigation stop
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
