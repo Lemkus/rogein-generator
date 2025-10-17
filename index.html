@@ -472,7 +472,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.11.1'; // Added debug logging for API errors
+    const APP_VERSION = '1.11.2'; // Fixed bbox validation - check if area is selected
     
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
       if (typeof module.initApp === 'function') {
