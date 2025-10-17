@@ -131,7 +131,7 @@ function showMainInterface() {
     'header',
     'main',
     '#controls',
-    '#mapContainer', 
+    '#map', 
     '#sequenceSection',
     '#status',
     '.leaflet-control-container',
@@ -149,10 +149,11 @@ function showMainInterface() {
   });
   
   // Убеждаемся что карта видна
-  const mapContainer = document.getElementById('mapContainer');
-  if (mapContainer) {
-    mapContainer.style.display = 'block';
-    mapContainer.style.visibility = 'visible';
+  const mapElement = document.getElementById('map');
+  if (mapElement) {
+    mapElement.style.display = 'block';
+    mapElement.style.visibility = 'visible';
+    mapElement.style.height = '500px'; // Устанавливаем высоту карты
   }
   
   // Убеждаемся что основной контейнер виден
@@ -172,6 +173,13 @@ function showMainInterface() {
       el.style.visibility = '';
     }
   });
+  
+  // Принудительно обновляем карту
+  setTimeout(() => {
+    if (map && map.invalidateSize) {
+      map.invalidateSize();
+    }
+  }, 100);
   
   console.log('🖥️ Основной интерфейс восстановлен');
 }
