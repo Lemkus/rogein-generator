@@ -3,9 +3,9 @@
  * Использует backend_simple.py вместо прямых запросов к overpass-api.de
  */
 
-import { OVERPASS_API_BASE } from './config.js';
+import { OVERPASS_API_BASE, REQUEST_TIMEOUTS } from './config.js';
 
-const REQUEST_TIMEOUT = 30000; // 30 секунд
+const REQUEST_TIMEOUT = REQUEST_TIMEOUTS.MEDIUM; // 30 секунд
 
 /**
  * Выполняет запрос к серверному Overpass API

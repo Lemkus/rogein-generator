@@ -3,9 +3,9 @@
  * Минимизирует количество запросов, объединяя все данные в один запрос
  */
 
-import { OVERPASS_API_BASE } from './config.js';
+import { OVERPASS_API_BASE, REQUEST_TIMEOUTS, RETRY_CONFIG } from './config.js';
 
-const REQUEST_TIMEOUT = 30000; // 30 секунд
+const REQUEST_TIMEOUT = REQUEST_TIMEOUTS.MEDIUM; // 30 секунд
 
 /**
  * Загружает все данные одним запросом (тропы, барьеры, закрытые зоны)
@@ -69,7 +69,14 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
 }
 
 /**
- * Загружает все данные через клиентский Overpass API
+ * Задержка между попытками
+ */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Загружает все данные через клиентский Overpass API с retry логикой
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
   const [south, west, north, east] = bbox.split(',').map(Number);
@@ -83,8 +90,18 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     throw new Error(`Некорректные координаты области`);
   }
   
-  // Единый запрос для всех типов данных
-  const query = `[out:json][timeout:60];
+  // Проверяем размер области - если слишком большая, уменьшаем запрос
+  const latDiff = north - south;
+  const lonDiff = east - west;
+  const areaSize = latDiff * lonDiff;
+  
+  if (areaSize > 0.01) { // Если область больше ~1 км²
+    statusCallback('⚠️ Область слишком большая, попробуйте выбрать меньшую область');
+    throw new Error('Область слишком большая для загрузки данных');
+  }
+  
+  // Единый запрос для всех типов данных с уменьшенным таймаутом
+  const query = `[out:json][timeout:30];
 (
   way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
   way["barrier"="wall"](${south},${west},${north},${east});
@@ -94,94 +111,120 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
 );
 out geom;`;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-    
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: query,
-      signal: controller.signal,
-      headers: { 'Content-Type': 'text/plain' }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`Ошибка загрузки данных (${response.status})`);
-    }
-    
-    const data = await response.json();
-    
-    // Парсим данные
-    const result = {
-      paths: [],
-      barriers: [],
-      closed_areas: [],
-      water_areas: []
-    };
-    
-    let pathCount = 0;
-    let barrierCount = 0;
-    let closedAreaCount = 0;
-    
-    for (const element of data.elements) {
-      if (element.type === 'way' && element.geometry) {
-        const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
-        
-        if (geometry.length >= 2) {
-          const tags = element.tags || {};
-          const highway = tags.highway || '';
-          const barrier = tags.barrier || '';
-          const natural = tags.natural || '';
-          const military = tags.military || '';
-          const access = tags.access || '';
+  let lastError;
+  
+  // Retry логика
+  for (let attempt = 1; attempt <= RETRY_CONFIG.MAX_ATTEMPTS; attempt++) {
+    try {
+      statusCallback(`Загрузка данных OSM (попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS})...`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен на попытке ${attempt}`);
+        controller.abort();
+      }, REQUEST_TIMEOUT);
+      
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query,
+        signal: controller.signal,
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        if (response.status === 504 || response.status === 429) {
+          // Gateway timeout или rate limit - пробуем еще раз
+          throw new Error(`Сервер перегружен (${response.status}), попытка ${attempt}`);
+        } else {
+          throw new Error(`Ошибка загрузки данных (${response.status})`);
+        }
+      }
+      
+      const data = await response.json();
+      
+      // Парсим данные
+      const result = {
+        paths: [],
+        barriers: [],
+        closed_areas: [],
+        water_areas: []
+      };
+      
+      let pathCount = 0;
+      let barrierCount = 0;
+      let closedAreaCount = 0;
+      
+      for (const element of data.elements) {
+        if (element.type === 'way' && element.geometry) {
+          const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
           
-          if (highway) {
-            result.paths.push({
-              geometry: geometry,
-              highway: highway,
-              name: tags.name || '',
-              surface: tags.surface || '',
-              access: access,
-              osmid: String(element.id),
-              length: 0
-            });
-            pathCount++;
-          } else if (barrier || natural === 'cliff') {
-            result.barriers.push({
-              geometry: geometry,
-              type: 'barrier',
-              barrier_type: barrier,
-              natural: natural,
-              osmid: String(element.id)
-            });
-            barrierCount++;
-          } else if (military || access === 'no' || access === 'private' || access === 'restricted') {
-            result.closed_areas.push({
-              geometry: geometry,
-              type: 'closed_area',
-              military: military,
-              access: access,
-              name: tags.name || '',
-              osmid: String(element.id)
-            });
-            closedAreaCount++;
+          if (geometry.length >= 2) {
+            const tags = element.tags || {};
+            const highway = tags.highway || '';
+            const barrier = tags.barrier || '';
+            const natural = tags.natural || '';
+            const military = tags.military || '';
+            const access = tags.access || '';
+            
+            if (highway) {
+              result.paths.push({
+                geometry: geometry,
+                highway: highway,
+                name: tags.name || '',
+                surface: tags.surface || '',
+                access: access,
+                osmid: String(element.id),
+                length: 0
+              });
+              pathCount++;
+            } else if (barrier || natural === 'cliff') {
+              result.barriers.push({
+                geometry: geometry,
+                type: 'barrier',
+                barrier_type: barrier,
+                natural: natural,
+                osmid: String(element.id)
+              });
+              barrierCount++;
+            } else if (military || access === 'no' || access === 'private' || access === 'restricted') {
+              result.closed_areas.push({
+                geometry: geometry,
+                type: 'closed_area',
+                military: military,
+                access: access,
+                name: tags.name || '',
+                osmid: String(element.id)
+              });
+              closedAreaCount++;
+            }
           }
         }
       }
+      
+      statusCallback(`✅ Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+      
+      // Кэшируем данные
+      if (!window.mapDataCache) window.mapDataCache = {};
+      window.mapDataCache[`all_data_${bbox}`] = result;
+      
+      return result;
+      
+    } catch (error) {
+      lastError = error;
+      console.log(`❌ Попытка ${attempt} неудачна:`, error.message);
+      
+      // Если это последняя попытка, выбрасываем ошибку
+      if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+        throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Последняя ошибка: ${error.message}`);
+      }
+      
+      // Ждем перед следующей попыткой
+      const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
+      statusCallback(`⏳ Повторная попытка через ${Math.round(delayTime/1000)}с...`);
+      await delay(delayTime);
     }
-    
-          statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
-    
-    // Кэшируем данные
-    if (!window.mapDataCache) window.mapDataCache = {};
-    window.mapDataCache[`all_data_${bbox}`] = result;
-    
-    return result;
-    
-  } catch (error) {
-    throw error;
   }
 }
 
