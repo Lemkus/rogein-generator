@@ -197,6 +197,15 @@ out geom;`;
             }
             
             if (highway) {
+              console.log(`🔍 Добавляем в тропы:`, {
+                id: element.id,
+                highway: highway,
+                name: tags.name || 'без названия',
+                military: military,
+                landuse: landuse,
+                access: access
+              });
+              
               result.paths.push({
                 geometry: geometry,
                 highway: highway,
@@ -208,6 +217,16 @@ out geom;`;
               });
               pathCount++;
             } else if (barrier || natural === 'cliff') {
+              console.log(`🔍 Добавляем в барьеры:`, {
+                id: element.id,
+                barrier: barrier,
+                natural: natural,
+                name: tags.name || 'без названия',
+                military: military,
+                landuse: landuse,
+                access: access
+              });
+              
               result.barriers.push({
                 geometry: geometry,
                 type: 'barrier',
