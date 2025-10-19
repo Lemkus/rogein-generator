@@ -129,13 +129,32 @@ export function showClosedAreasOnMap(areas) {
   
   polygons.forEach((polygon, index) => {
     console.log(`🔍 Отображение полигона ${index + 1} с ${polygon.length} точками`);
-    const polygonLayer = L.polygon(polygon, {
-      color: 'red', 
-      fillColor: 'red',
-      fillOpacity: 0.3,
-      weight: 2
-    }).addTo(map);
-    closedAreaLayers.push(polygonLayer);
+    
+    // Валидация координат полигона
+    const validCoords = polygon.filter(coord => 
+      Array.isArray(coord) && coord.length === 2 && 
+      typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+      !isNaN(coord[0]) && !isNaN(coord[1])
+    );
+    
+    if (validCoords.length < 3) {
+      console.warn(`🔍 Отображение полигона ${index + 1}: пропускаем полигон с недостаточным количеством валидных координат: ${validCoords.length}`);
+      return;
+    }
+    
+    try {
+      const polygonLayer = L.polygon(validCoords, {
+        color: 'red', 
+        fillColor: 'red',
+        fillOpacity: 0.3,
+        weight: 2
+      }).addTo(map);
+      closedAreaLayers.push(polygonLayer);
+      console.log(`🔍 Полигон ${index + 1} успешно добавлен на карту`);
+    } catch (error) {
+      console.error(`🔍 Ошибка создания полигона ${index + 1}:`, error);
+      console.log(`🔍 Проблемные координаты:`, validCoords);
+    }
   });
 
   closedAreas = areas;

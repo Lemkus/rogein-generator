@@ -65,6 +65,19 @@ export function extractPolygons(areaObjs) {
         const lat1 = p1.lat, lon1 = p1.lon;
         const lat2 = p2.lat, lon2 = p2.lon;
         
+        console.log(`🔍 extractPolygons: координаты точек:`, {
+          p1: { lat: lat1, lon: lon1 },
+          p2: { lat: lat2, lon: lon2 }
+        });
+        
+        // Проверяем валидность координат
+        if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) {
+          console.warn(`🔍 extractPolygons: пропускаем невалидные координаты:`, {
+            lat1, lon1, lat2, lon2
+          });
+          return;
+        }
+        
         // Создаем небольшой прямоугольник вокруг отрезка (примерно 10 метров)
         const offset = 0.0001; // примерно 10 метров
         const rect = [
@@ -76,9 +89,22 @@ export function extractPolygons(areaObjs) {
           [lat2 - offset, lon2 - offset],
           [lat1 - offset, lon1 - offset] // замыкаем полигон
         ];
+        
+        console.log(`🔍 extractPolygons: созданный прямоугольник:`, rect);
         polygons.push(rect);
       } else {
-        polygons.push(el.geometry.map(p => [p.lat, p.lon]));
+        // Валидация для многоточечных полигонов
+        const validCoords = el.geometry.filter(p => 
+          p && typeof p.lat === 'number' && typeof p.lon === 'number' && 
+          !isNaN(p.lat) && !isNaN(p.lon)
+        );
+        
+        if (validCoords.length >= 3) {
+          console.log(`🔍 extractPolygons: добавляем многоточечный полигон с ${validCoords.length} валидными точками`);
+          polygons.push(validCoords.map(p => [p.lat, p.lon]));
+        } else {
+          console.warn(`🔍 extractPolygons: пропускаем полигон с недостаточным количеством валидных точек: ${validCoords.length}`);
+        }
       }
     }
     if (el.type === 'relation' && el.members) {
