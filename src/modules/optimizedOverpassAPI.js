@@ -111,6 +111,33 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
       
       statusCallback(`Загружено: ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
       return data;
+    } else if (data.success && (data.paths || data.barriers)) {
+      // Серверный API возвращает данные в корне объекта
+      console.log(`✅ Серверный Overpass вернул данные в корне объекта`);
+      
+      // Создаем объект с правильной структурой
+      const result = {
+        paths: data.paths || [],
+        barriers: data.barriers || [],
+        closed_areas: data.closed_areas || [],
+        water_areas: data.water_areas || []
+      };
+      
+      const counts = {
+        paths: result.paths.length,
+        barriers: result.barriers.length,
+        closed_areas: result.closed_areas.length,
+        water_areas: result.water_areas.length
+      };
+      
+      console.log(`   - Дороги/тропы: ${counts.paths}`);
+      console.log(`   - Барьеры: ${counts.barriers}`);
+      console.log(`   - Закрытые зоны: ${counts.closed_areas}`);
+      console.log(`   - Водоёмы: ${counts.water_areas}`);
+      console.log(`   - Время загрузки: ${data.load_time}с`);
+      
+      statusCallback(`Загружено: ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
+      return result;
     } else {
       console.log(`❌ Неожиданная структура данных:`, data);
       throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
