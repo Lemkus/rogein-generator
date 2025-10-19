@@ -192,23 +192,54 @@ export function showBarriersOnMap(barrierData) {
   barrierLayers.forEach(l => map.removeLayer(l));
   barrierLayers = [];
 
-  barrierData.forEach(el => {
-    if (el.type === 'way' && el.geometry && el.geometry.length > 1) {
-      const latlngs = el.geometry.map(p => [p.lat, p.lon]);
-      const polyline = L.polyline(latlngs, {color: 'orange', weight: 3}).addTo(map);
-      barrierLayers.push(polyline);
+  console.log(`🔍 Отображение ${barrierData.length} барьеров на карте`);
+
+  barrierData.forEach((el, index) => {
+    console.log(`🔍 Барьер ${index + 1}:`, {
+      type: el.type,
+      osmid: el.osmid,
+      natural: el.natural,
+      barrier_type: el.barrier_type,
+      geometry_points: el.geometry ? el.geometry.length : 0
+    });
+
+    if ((el.type === 'way' || el.type === 'barrier') && el.geometry && el.geometry.length > 1) {
+      // Проверяем формат координат
+      const latlngs = el.geometry.map(p => {
+        if (Array.isArray(p)) {
+          return [p[0], p[1]]; // [lat, lon]
+        } else if (p && typeof p === 'object') {
+          return [p.lat, p.lon]; // {lat, lon}
+        } else {
+          console.warn('🔍 Неизвестный формат координат барьера:', p);
+          return null;
+        }
+      }).filter(coord => coord !== null);
+
+      if (latlngs.length > 1) {
+        const polyline = L.polyline(latlngs, {
+          color: 'red', 
+          weight: 4,
+          opacity: 0.8
+        }).addTo(map);
+        barrierLayers.push(polyline);
+        console.log(`🔍 Барьер ${el.osmid} отображен как красная линия с ${latlngs.length} точками`);
+      }
     } else if (el.type === 'node' && el.lat && el.lon) {
       const marker = L.circleMarker([el.lat, el.lon], {
-        color: 'orange', 
-        fillColor: 'orange', 
+        color: 'red', 
+        fillColor: 'red', 
         fillOpacity: 0.7, 
-        radius: 5
+        radius: 6,
+        weight: 2
       }).addTo(map);
       barrierLayers.push(marker);
+      console.log(`🔍 Барьер-точка ${el.osmid} отображен как красный маркер`);
     }
   });
 
   barriers = barrierData;
+  console.log(`🔍 Отображено ${barrierLayers.length} барьеров на карте`);
 }
 
 // Очистка маркеров точек

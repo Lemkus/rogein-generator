@@ -393,16 +393,29 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
     // Проверяем, что точка не в запретной зоне
     let inForbiddenZone = false;
-    for (const polygon of forbiddenPolygons) {
+    console.log(`🔍 Проверяем точку на запретные зоны:`, {
+      point: pointObj,
+      forbiddenPolygons: forbiddenPolygons.length
+    });
+    
+    for (let i = 0; i < forbiddenPolygons.length; i++) {
+      const polygon = forbiddenPolygons[i];
+      console.log(`🔍 Проверяем полигон ${i + 1}:`, {
+        polygon_points: polygon.length,
+        first_point: polygon[0],
+        last_point: polygon[polygon.length - 1]
+      });
+      
       if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
         inForbiddenZone = true;
-        if (debugStats.inForbiddenZone <= 3) {
-          console.log(`🔍 Точка в запретной зоне ${debugStats.inForbiddenZone + 1}:`, {
-            point: pointObj,
-            polygon: polygon.slice(0, 3) // первые 3 точки полигона для примера
-          });
-        }
+        console.log(`🔍 ❌ Точка ПОПАЛА в запретную зону ${i + 1}:`, {
+          point: pointObj,
+          polygon_points: polygon.length,
+          polygon_preview: polygon.slice(0, 3)
+        });
         break;
+      } else {
+        console.log(`🔍 ✅ Точка НЕ в запретной зоне ${i + 1}`);
       }
     }
 
