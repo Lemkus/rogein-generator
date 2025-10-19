@@ -194,12 +194,12 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   relation["landuse"="military"](${south},${west},${north},${east});
   way["military"](${south},${west},${north},${east});
   relation["military"](${south},${west},${north},${east});
-  way["access"="private"]["natural"!~"."](${south},${west},${north},${east});
-  relation["access"="private"]["natural"!~"."](${south},${west},${north},${east});
-  way["access"="no"]["natural"!~"."](${south},${west},${north},${east});
-  relation["access"="no"]["natural"!~"."](${south},${west},${north},${east});
-  way["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
-  relation["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
+  way["access"="private"](${south},${west},${north},${east});
+  relation["access"="private"](${south},${west},${north},${east});
+  way["access"="no"](${south},${west},${north},${east});
+  relation["access"="no"](${south},${west},${north},${east});
+  way["access"="restricted"](${south},${west},${north},${east});
+  relation["access"="restricted"](${south},${west},${north},${east});
 );
 out geom;`;
 
@@ -267,6 +267,15 @@ out geom;`;
             
             // 1. Закрытые зоны (высший приоритет)
             if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+              console.log(`🔴 Добавляем закрытую зону:`, {
+                osmid: element.id,
+                military: military,
+                landuse: landuse,
+                access: access,
+                natural: natural,
+                barrier: barrier,
+                name: tags.name || ''
+              });
               result.closed_areas.push({
                 geometry: geometry,
                 type: 'closed_area',

@@ -18,7 +18,8 @@
 - Edit existing modules directly
 - Create MD files in `docs/` by category
 - Commit changes immediately: `git add src/modules/module.js && git commit -m "Description"`
-- Deploy after commit: `python deploy_regru.py`
+- Push to remote repository: `git push`
+- Deploy after push: `python deploy_regru.py`
 
 ## 📁 Project Structure
 ```
@@ -51,7 +52,8 @@ docs/
 2. Edit existing module (NEVER create new)
 3. Test changes
 4. Commit: `git add src/modules/module.js && git commit -m "Description"`
-5. Deploy: `python deploy_regru.py`
+5. Push: `git push`
+6. Deploy: `python deploy_regru.py`
 
 ## 📝 MD File Creation Rules
 - Architecture files → `docs/architecture/`
