@@ -130,17 +130,20 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     // Создаем полигоны запретных зон
     const forbiddenPolygons = [];
     
+    // Отладочная информация о загруженных данных
+    console.log('🔍 Отладочная информация запретных зон:');
+    console.log(`   Закрытые зоны (raw): ${closedAreasData.length}`);
+    console.log(`   Водоёмы (raw): ${waterAreasData.length}`);
+    
     // Добавляем закрытые зоны
-    closedAreasData.forEach(area => {
-      const polygons = extractPolygons(area);
-      forbiddenPolygons.push(...polygons);
-    });
+    const closedAreaPolygons = extractPolygons(closedAreasData);
+    forbiddenPolygons.push(...closedAreaPolygons);
+    console.log(`   Закрытые зоны (полигоны): ${closedAreaPolygons.length}`);
 
     // Добавляем водоёмы
-    waterAreasData.forEach(area => {
-      const polygons = extractPolygons(area);
-      forbiddenPolygons.push(...polygons);
-    });
+    const waterAreaPolygons = extractPolygons(waterAreasData);
+    forbiddenPolygons.push(...waterAreaPolygons);
+    console.log(`   Водоёмы (полигоны): ${waterAreaPolygons.length}`);
 
     statusCallback(`🚫 Запретных зон: ${forbiddenPolygons.length}`);
     console.log(`🔍 Создано запретных зон: ${forbiddenPolygons.length}`);
@@ -334,8 +337,14 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // Проверяем, что точка не в запретной зоне
     let inForbiddenZone = false;
     for (const polygon of forbiddenPolygons) {
-      if (pointInPolygon(pointObj, polygon)) {
+      if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
         inForbiddenZone = true;
+        if (debugStats.inForbiddenZone <= 3) {
+          console.log(`🔍 Точка в запретной зоне ${debugStats.inForbiddenZone + 1}:`, {
+            point: pointObj,
+            polygon: polygon.slice(0, 3) // первые 3 точки полигона для примера
+          });
+        }
         break;
       }
     }

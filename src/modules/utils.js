@@ -31,8 +31,8 @@ export function rectangleArea(bounds) {
 export function pointInPolygon(lat, lon, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0], yi = polygon[i][1];
-    const xj = polygon[j][0], yj = polygon[j][1];
+    const xi = polygon[i][0], yi = polygon[i][1]; // xi = lat, yi = lon
+    const xj = polygon[j][0], yj = polygon[j][1]; // xj = lat, yj = lon
     const intersect = ((yi > lon) !== (yj > lon)) &&
       (lat < (xj - xi) * (lon - yi) / (yj - yi + 1e-12) + xi);
     if (intersect) inside = !inside;
