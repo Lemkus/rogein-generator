@@ -105,6 +105,8 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
 (
   way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
   way["barrier"="wall"](${south},${west},${north},${east});
+  way["barrier"="gate"](${south},${west},${north},${east});
+  way["barrier"="fence"](${south},${west},${north},${east});
   way["natural"="cliff"](${south},${west},${north},${east});
   way["landuse"="military"](${south},${west},${north},${east});
   relation["landuse"="military"](${south},${west},${north},${east});
@@ -113,6 +115,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   way["access"="private"](${south},${west},${north},${east});
   relation["access"="private"](${south},${west},${north},${east});
   way["access"="no"](${south},${west},${north},${east});
+  relation["access"="no"](${south},${west},${north},${east});
   relation["access"="no"](${south},${west},${north},${east});
   way["access"="restricted"](${south},${west},${north},${east});
   relation["access"="restricted"](${south},${west},${north},${east});
@@ -227,6 +230,19 @@ out geom;`;
               console.log(`🔍 Должна ли быть добавлена в closed_areas: ${shouldAddToClosedAreas}`);
             }
             
+            // Логируем барьеры типа gate
+            if (barrier === 'gate' || barrier === 'fence') {
+              console.log(`🔍 Найден барьер:`, {
+                id: element.id,
+                type: element.type,
+                barrier: barrier,
+                access: access,
+                name: tags.name || 'без названия',
+                geometry_points: geometry.length,
+                tags: tags
+              });
+            }
+            
             // Сначала проверяем на запретные зоны (приоритет)
             if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               console.log(`🔍 Добавляем в закрытые зоны:`, {
@@ -273,10 +289,10 @@ out geom;`;
                 id: element.id,
                 barrier: barrier,
                 natural: natural,
+                access: access,
                 name: tags.name || 'без названия',
                 military: military,
-                landuse: landuse,
-                access: access
+                landuse: landuse
               });
               
               result.barriers.push({
@@ -284,6 +300,7 @@ out geom;`;
                 type: 'barrier',
                 barrier_type: barrier,
                 natural: natural,
+                access: access,
                 osmid: String(element.id)
               });
               barrierCount++;
