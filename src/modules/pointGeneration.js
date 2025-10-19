@@ -216,20 +216,42 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     
     if (coordinates.length < 2) {
       debugStats.invalidPath++;
+      if (debugStats.invalidPath <= 3) {
+        console.log(`🔍 Невалидная тропа ${debugStats.invalidPath}:`, randomPath);
+      }
       continue;
     }
 
+    // Конвертируем координаты в формат, ожидаемый getRandomPointOnLine
+    const linePoints = coordinates.map(coord => ({
+      lat: coord[0],
+      lon: coord[1]
+    }));
+    
     // Выбираем случайную точку на тропе
-    const randomPoint = getRandomPointOnLine(coordinates);
+    const randomPoint = getRandomPointOnLine(linePoints);
     
     if (!randomPoint) {
       debugStats.noRandomPoint++;
+      if (debugStats.noRandomPoint <= 3) {
+        console.log(`🔍 Не удалось получить случайную точку ${debugStats.noRandomPoint}:`, {
+          path: randomPath,
+          coordinates: coordinates.slice(0, 3), // первые 3 точки для примера
+          linePoints: linePoints.slice(0, 3)
+        });
+      }
       continue;
     }
+    
+    // Конвертируем результат в объект с lat/lng
+    const pointObj = {
+      lat: randomPoint[0],
+      lng: randomPoint[1]
+    };
 
     // Проверяем, что точка в выбранной области
-    if (randomPoint.lat < selectedBounds.south || randomPoint.lat > selectedBounds.north ||
-        randomPoint.lng < selectedBounds.west || randomPoint.lng > selectedBounds.east) {
+    if (pointObj.lat < selectedBounds.south || pointObj.lat > selectedBounds.north ||
+        pointObj.lng < selectedBounds.west || pointObj.lng > selectedBounds.east) {
       debugStats.outOfBounds++;
       continue;
     }
@@ -237,7 +259,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // Проверяем минимальное расстояние от других точек
     let tooClose = false;
     for (const existingPoint of points) {
-      const distance = haversine(randomPoint.lat, randomPoint.lng, existingPoint.lat, existingPoint.lng);
+      const distance = haversine(pointObj.lat, pointObj.lng, existingPoint.lat, existingPoint.lng);
       if (distance < minDist) {
         tooClose = true;
         break;
@@ -252,7 +274,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // Проверяем, что точка не в запретной зоне
     let inForbiddenZone = false;
     for (const polygon of forbiddenPolygons) {
-      if (pointInPolygon(randomPoint, polygon)) {
+      if (pointInPolygon(pointObj, polygon)) {
         inForbiddenZone = true;
         break;
       }
@@ -264,21 +286,35 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     }
 
     // Проверяем достижимость от стартовой точки
-    const pointNodeIdx = findNearestNodeIdx(randomPoint.lat, randomPoint.lng, graph.nodes);
+    const pointNodeIdx = findNearestNodeIdx(pointObj.lat, pointObj.lng, graph.nodes);
     if (pointNodeIdx === -1) {
       debugStats.noNearestNode++;
+      if (debugStats.noNearestNode <= 3) {
+        console.log(`🔍 Не найден ближайший узел ${debugStats.noNearestNode}:`, {
+          point: pointObj,
+          startNodeIdx: startNodeIdx
+        });
+      }
       continue;
     }
 
-    if (!isReachable(graph, startNodeIdx, pointNodeIdx)) {
+    const isReachableResult = isReachable(graph, startNodeIdx, pointNodeIdx);
+    if (!isReachableResult) {
       debugStats.notReachable++;
-      addFailedAttemptMarker(randomPoint, 'Недостижимо');
+      if (debugStats.notReachable <= 3) {
+        console.log(`🔍 Недостижимо ${debugStats.notReachable}:`, {
+          point: pointObj,
+          pointNodeIdx: pointNodeIdx,
+          startNodeIdx: startNodeIdx
+        });
+      }
+      addFailedAttemptMarker(pointObj, 'Недостижимо');
       continue;
     }
 
     // Добавляем точку
-    points.push(randomPoint);
-    addPointMarker(randomPoint, points.length);
+    points.push(pointObj);
+    addPointMarker(pointObj, points.length);
     debugStats.success++;
     
     // Обновляем статус каждые 5 точек
