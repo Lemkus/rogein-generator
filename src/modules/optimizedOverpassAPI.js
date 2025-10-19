@@ -198,7 +198,6 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   relation["access"="private"](${south},${west},${north},${east});
   way["access"="no"](${south},${west},${north},${east});
   relation["access"="no"](${south},${west},${north},${east});
-  relation["access"="no"](${south},${west},${north},${east});
   way["access"="restricted"](${south},${west},${north},${east});
   relation["access"="restricted"](${south},${west},${north},${east});
 );
@@ -287,7 +286,8 @@ out geom;`;
                 length: 0
               });
               pathCount++;
-            } else if (barrier) {
+            } else if (barrier && !natural) {
+              // Добавляем только искусственные барьеры, исключаем природные
               result.barriers.push({
                 geometry: geometry,
                 type: 'barrier',
