@@ -194,12 +194,12 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   relation["landuse"="military"](${south},${west},${north},${east});
   way["military"](${south},${west},${north},${east});
   relation["military"](${south},${west},${north},${east});
-  way["access"="private"](${south},${west},${north},${east});
-  relation["access"="private"](${south},${west},${north},${east});
-  way["access"="no"](${south},${west},${north},${east});
-  relation["access"="no"](${south},${west},${north},${east});
-  way["access"="restricted"](${south},${west},${north},${east});
-  relation["access"="restricted"](${south},${west},${north},${east});
+  way["access"="private"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="private"]["natural"!~"."](${south},${west},${north},${east});
+  way["access"="no"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="no"]["natural"!~"."](${south},${west},${north},${east});
+  way["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
 );
 out geom;`;
 
@@ -265,19 +265,8 @@ out geom;`;
             
             // Проверяем категории по приоритету
             
-            // 0. Исключаем природные барьеры из всех категорий
-            if (natural && (natural === 'cliff' || natural === 'rock' || natural === 'scree')) {
-              console.log(`🚫 Исключаем природный барьер:`, {
-                osmid: element.id,
-                natural: natural,
-                barrier: barrier,
-                access: access,
-                name: tags.name || ''
-              });
-              // Не добавляем в никакую категорию
-            }
             // 1. Закрытые зоны (высший приоритет)
-            else if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               console.log(`🔴 Добавляем закрытую зону:`, {
                 osmid: element.id,
                 military: military,
@@ -311,8 +300,8 @@ out geom;`;
               });
               pathCount++;
             }
-            // 3. Искусственные барьеры (только если не природные и не закрытые зоны)
-            else if (barrier && !natural) {
+            // 3. Искусственные барьеры
+            else if (barrier) {
               console.log(`🔴 Добавляем барьер:`, {
                 osmid: element.id,
                 barrier_type: barrier,
