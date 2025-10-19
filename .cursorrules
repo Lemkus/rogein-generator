@@ -32,7 +32,6 @@ src/modules/
 ├── sequenceUI.js             # Sequence management
 ├── storageAPI.js             # Data storage
 ├── optimizedOverpassAPI.js   # OSM data loading
-├── serverOverpassAPI.js      # Server proxy
 ├── audioModuleAdvanced.js    # Audio signals
 └── mediaSessionManager.js    # Media management
 ```
