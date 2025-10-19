@@ -135,6 +135,23 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     console.log(`   Закрытые зоны (raw): ${closedAreasData.length}`);
     console.log(`   Водоёмы (raw): ${waterAreasData.length}`);
     
+    // Детальная информация о закрытых зонах
+    if (closedAreasData.length > 0) {
+      console.log('🔍 Детальная информация о закрытых зонах:');
+      closedAreasData.forEach((area, index) => {
+        console.log(`   Зона ${index + 1}:`, {
+          type: area.type,
+          osmid: area.osmid,
+          name: area.name || 'без названия',
+          military: area.military,
+          access: area.access,
+          geometry_points: area.geometry ? area.geometry.length : 0
+        });
+      });
+    } else {
+      console.log('🔍 Закрытые зоны не найдены в API данных');
+    }
+    
     // Добавляем закрытые зоны
     const closedAreaPolygons = extractPolygons(closedAreasData);
     forbiddenPolygons.push(...closedAreaPolygons);

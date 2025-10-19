@@ -156,6 +156,10 @@ out geom;`;
       let barrierCount = 0;
       let closedAreaCount = 0;
       
+      // Отладочная информация о загруженных элементах
+      console.log('🔍 Отладочная информация API данных:');
+      console.log(`   Всего элементов: ${data.elements.length}`);
+      
       for (const element of data.elements) {
         if (element.type === 'way' && element.geometry) {
           const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
@@ -167,6 +171,18 @@ out geom;`;
             const natural = tags.natural || '';
             const military = tags.military || '';
             const access = tags.access || '';
+            
+            // Логируем все теги для отладки
+            if (military || access === 'no' || access === 'private' || access === 'restricted') {
+              console.log(`🔍 Найдена запретная зона:`, {
+                id: element.id,
+                tags: tags,
+                military: military,
+                access: access,
+                name: tags.name || 'без названия',
+                geometry_points: geometry.length
+              });
+            }
             
             if (highway) {
               result.paths.push({
@@ -202,6 +218,11 @@ out geom;`;
           }
         }
       }
+      
+      console.log(`🔍 Результаты обработки API данных:`);
+      console.log(`   Тропы: ${pathCount}`);
+      console.log(`   Барьеры: ${barrierCount}`);
+      console.log(`   Запретные зоны: ${closedAreaCount}`);
       
       statusCallback(`✅ Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
       
