@@ -81,6 +81,23 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     console.log(`   Барьеры: ${barriersData.length}`);
     console.log(`   Выбранная область:`, selectedBounds);
     console.log(`   Стартовая точка:`, startPoint);
+    
+    // Детальная информация о барьерах
+    if (barriersData.length > 0) {
+      console.log('🔍 Детальная информация о барьерах:');
+      barriersData.forEach((barrier, index) => {
+        console.log(`   Барьер ${index + 1}:`, {
+          type: barrier.type,
+          osmid: barrier.osmid,
+          barrier_type: barrier.barrier_type,
+          natural: barrier.natural,
+          geometry_points: barrier.geometry ? barrier.geometry.length : 0,
+          full_structure: barrier
+        });
+      });
+    } else {
+      console.log('🔍 Барьеры не найдены в API данных');
+    }
 
     // Показываем данные на карте
     showClosedAreasOnMap(closedAreasData);
@@ -97,6 +114,17 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     console.log(`   Узлы: ${graph ? graph.nodes.length : 0}`);
     console.log(`   Рёбра: ${graph ? graph.adj.length : 0}`);
     console.log(`   Исключённые сегменты: ${graph ? graph.excludedSegments.length : 0}`);
+    
+    // Детальная информация об исключенных сегментах
+    if (graph && graph.excludedSegments.length > 0) {
+      console.log('🔍 Исключенные сегменты:');
+      graph.excludedSegments.forEach((segment, index) => {
+        console.log(`   Сегмент ${index + 1}: ${segment.reason}`);
+        if (index < 5) { // Показываем только первые 5 для краткости
+          console.log(`     Координаты: [${segment.segment[0].lat.toFixed(6)}, ${segment.segment[0].lon.toFixed(6)}] -> [${segment.segment[1].lat.toFixed(6)}, ${segment.segment[1].lon.toFixed(6)}]`);
+        }
+      });
+    }
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
