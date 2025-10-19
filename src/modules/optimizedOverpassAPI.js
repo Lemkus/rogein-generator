@@ -106,8 +106,13 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
   way["barrier"="wall"](${south},${west},${north},${east});
   way["natural"="cliff"](${south},${west},${north},${east});
-  way["military"~"^(yes|restricted|prohibited)$"](${south},${west},${north},${east});
-  way["access"~"^(no|private|restricted)$"](${south},${west},${north},${east});
+  way["landuse"="military"](${south},${west},${north},${east});
+  relation["landuse"="military"](${south},${west},${north},${east});
+  way["military"](${south},${west},${north},${east});
+  relation["military"](${south},${west},${north},${east});
+  way["access"="private"](${south},${west},${north},${east});
+  relation["access"="private"](${south},${west},${north},${east});
+  way["access"~"^(no|restricted)$"](${south},${west},${north},${east});
 );
 out geom;`;
 
@@ -161,7 +166,7 @@ out geom;`;
       console.log(`   Всего элементов: ${data.elements.length}`);
       
       for (const element of data.elements) {
-        if (element.type === 'way' && element.geometry) {
+        if ((element.type === 'way' || element.type === 'relation') && element.geometry) {
           const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
           
           if (geometry.length >= 2) {
@@ -170,14 +175,17 @@ out geom;`;
             const barrier = tags.barrier || '';
             const natural = tags.natural || '';
             const military = tags.military || '';
+            const landuse = tags.landuse || '';
             const access = tags.access || '';
             
             // Логируем все теги для отладки
-            if (military || access === 'no' || access === 'private' || access === 'restricted') {
+            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               console.log(`🔍 Найдена запретная зона:`, {
                 id: element.id,
+                type: element.type,
                 tags: tags,
                 military: military,
+                landuse: landuse,
                 access: access,
                 name: tags.name || 'без названия',
                 geometry_points: geometry.length
@@ -204,11 +212,12 @@ out geom;`;
                 osmid: String(element.id)
               });
               barrierCount++;
-            } else if (military || access === 'no' || access === 'private' || access === 'restricted') {
+            } else if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               result.closed_areas.push({
                 geometry: geometry,
                 type: 'closed_area',
                 military: military,
+                landuse: landuse,
                 access: access,
                 name: tags.name || '',
                 osmid: String(element.id)
