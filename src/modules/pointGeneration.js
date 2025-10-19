@@ -73,6 +73,15 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
     statusCallback(`✅ Данные загружены: ${pathsData.length} троп, ${closedAreasData.length} закрытых зон, ${waterAreasData.length} водоёмов, ${barriersData.length} барьеров`);
 
+    // Отладочная информация о загруженных данных
+    console.log('🔍 Отладочная информация загруженных данных:');
+    console.log(`   Тропы: ${pathsData.length}`);
+    console.log(`   Закрытые зоны: ${closedAreasData.length}`);
+    console.log(`   Водоёмы: ${waterAreasData.length}`);
+    console.log(`   Барьеры: ${barriersData.length}`);
+    console.log(`   Выбранная область:`, selectedBounds);
+    console.log(`   Стартовая точка:`, startPoint);
+
     // Показываем данные на карте
     showClosedAreasOnMap(closedAreasData);
     showWaterAreasOnMap(waterAreasData);
@@ -83,6 +92,11 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     // Создаем граф троп
     statusCallback('Создание графа троп...');
     const graph = buildPathGraph(pathsData, [], barriersData);
+    
+    console.log('🔍 Информация о графе:');
+    console.log(`   Узлы: ${graph ? graph.nodes.length : 0}`);
+    console.log(`   Рёбра: ${graph ? graph.adj.length : 0}`);
+    console.log(`   Исключённые сегменты: ${graph ? graph.excludedSegments.length : 0}`);
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
@@ -180,23 +194,43 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
   statusCallback(`🎯 Генерация точек на ${filteredPaths.length} тропах...`);
 
+  let debugStats = {
+    totalAttempts: 0,
+    invalidPath: 0,
+    noRandomPoint: 0,
+    outOfBounds: 0,
+    tooClose: 0,
+    inForbiddenZone: 0,
+    noNearestNode: 0,
+    notReachable: 0,
+    success: 0
+  };
+
   while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
     attempts++;
+    debugStats.totalAttempts++;
     
     // Выбираем случайную тропу
     const randomPath = filteredPaths[Math.floor(Math.random() * filteredPaths.length)];
     const coordinates = randomPath.geometry.coordinates;
     
-    if (coordinates.length < 2) continue;
+    if (coordinates.length < 2) {
+      debugStats.invalidPath++;
+      continue;
+    }
 
     // Выбираем случайную точку на тропе
     const randomPoint = getRandomPointOnLine(coordinates);
     
-    if (!randomPoint) continue;
+    if (!randomPoint) {
+      debugStats.noRandomPoint++;
+      continue;
+    }
 
     // Проверяем, что точка в выбранной области
     if (randomPoint.lat < selectedBounds.south || randomPoint.lat > selectedBounds.north ||
         randomPoint.lng < selectedBounds.west || randomPoint.lng > selectedBounds.east) {
+      debugStats.outOfBounds++;
       continue;
     }
 
@@ -210,7 +244,10 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       }
     }
 
-    if (tooClose) continue;
+    if (tooClose) {
+      debugStats.tooClose++;
+      continue;
+    }
 
     // Проверяем, что точка не в запретной зоне
     let inForbiddenZone = false;
@@ -221,13 +258,20 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       }
     }
 
-    if (inForbiddenZone) continue;
+    if (inForbiddenZone) {
+      debugStats.inForbiddenZone++;
+      continue;
+    }
 
     // Проверяем достижимость от стартовой точки
     const pointNodeIdx = findNearestNodeIdx(randomPoint.lat, randomPoint.lng, graph.nodes);
-    if (pointNodeIdx === -1) continue;
+    if (pointNodeIdx === -1) {
+      debugStats.noNearestNode++;
+      continue;
+    }
 
     if (!isReachable(graph, startNodeIdx, pointNodeIdx)) {
+      debugStats.notReachable++;
       addFailedAttemptMarker(randomPoint, 'Недостижимо');
       continue;
     }
@@ -235,12 +279,29 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // Добавляем точку
     points.push(randomPoint);
     addPointMarker(randomPoint, points.length);
+    debugStats.success++;
     
     // Обновляем статус каждые 5 точек
     if (points.length % 5 === 0) {
       statusCallback(`🎯 Сгенерировано ${points.length}/${count} точек...`);
     }
   }
+
+  // Выводим отладочную информацию
+  console.log('🔍 Отладочная информация генерации точек:');
+  console.log(`   Всего попыток: ${debugStats.totalAttempts}`);
+  console.log(`   Невалидные тропы: ${debugStats.invalidPath}`);
+  console.log(`   Не удалось получить случайную точку: ${debugStats.noRandomPoint}`);
+  console.log(`   Вне области: ${debugStats.outOfBounds}`);
+  console.log(`   Слишком близко: ${debugStats.tooClose}`);
+  console.log(`   В запретной зоне: ${debugStats.inForbiddenZone}`);
+  console.log(`   Не найден ближайший узел: ${debugStats.noNearestNode}`);
+  console.log(`   Недостижимо: ${debugStats.notReachable}`);
+  console.log(`   Успешно: ${debugStats.success}`);
+  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
+  console.log(`   Запретных зон: ${forbiddenPolygons.length}`);
+  console.log(`   Узлов в графе: ${graph.nodes.length}`);
+  console.log(`   Минимальное расстояние: ${minDist}м`);
 
   return points;
 }
