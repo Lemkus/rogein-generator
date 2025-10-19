@@ -216,7 +216,8 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   }
   
   const filteredPaths = pathsData.filter(path => {
-    return path.geometry && path.geometry.coordinates && path.geometry.coordinates.length > 0;
+    // Проверяем, что geometry существует и является массивом с координатами
+    return path.geometry && Array.isArray(path.geometry) && path.geometry.length > 0;
   });
 
   console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
@@ -264,7 +265,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     
     // Выбираем случайную тропу
     const randomPath = filteredPaths[Math.floor(Math.random() * filteredPaths.length)];
-    const coordinates = randomPath.geometry.coordinates;
+    const coordinates = randomPath.geometry; // geometry уже является массивом координат
     
     if (coordinates.length < 2) {
       debugStats.invalidPath++;
