@@ -206,6 +206,15 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   console.log('🔍 Фильтрация троп...');
   console.log(`   Всего троп: ${pathsData.length}`);
   
+  // Проверяем структуру первых нескольких троп
+  if (pathsData.length > 0) {
+    console.log('🔍 Структура первой тропы:', pathsData[0]);
+    console.log('🔍 Ключи первой тропы:', Object.keys(pathsData[0]));
+    if (pathsData[0].geometry) {
+      console.log('🔍 Ключи geometry:', Object.keys(pathsData[0].geometry));
+    }
+  }
+  
   const filteredPaths = pathsData.filter(path => {
     return path.geometry && path.geometry.coordinates && path.geometry.coordinates.length > 0;
   });
