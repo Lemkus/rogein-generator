@@ -107,7 +107,6 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   way["barrier"="wall"](${south},${west},${north},${east});
   way["barrier"="gate"](${south},${west},${north},${east});
   way["barrier"="fence"](${south},${west},${north},${east});
-  way["natural"="cliff"](${south},${west},${north},${east});
   way["landuse"="military"](${south},${west},${north},${east});
   relation["landuse"="military"](${south},${west},${north},${east});
   way["military"](${south},${west},${north},${east});
@@ -167,9 +166,6 @@ out geom;`;
       let barrierCount = 0;
       let closedAreaCount = 0;
       
-      // Отладочная информация о загруженных элементах
-      console.log('🔍 Отладочная информация API данных:');
-      console.log(`   Всего элементов: ${data.elements.length}`);
       
       for (const element of data.elements) {
         if ((element.type === 'way' || element.type === 'relation') && element.geometry) {
@@ -184,76 +180,9 @@ out geom;`;
             const landuse = tags.landuse || '';
             const access = tags.access || '';
             
-            // Детальное логирование всех элементов для отладки
-            if (tags.name && (tags.name.toLowerCase().includes('прибой') || tags.name.toLowerCase().includes('лыж') || tags.name.toLowerCase().includes('ski'))) {
-              console.log(`🔍 НАЙДЕНА ЛЫЖНАЯ БАЗА:`, {
-                id: element.id,
-                type: element.type,
-                name: tags.name,
-                tags: tags,
-                military: military,
-                landuse: landuse,
-                access: access,
-                highway: highway,
-                geometry_points: geometry.length
-              });
-            }
-            
-            // Логируем все элементы с названиями для отладки
-            if (tags.name && tags.name.trim() !== '') {
-              console.log(`🔍 Элемент с названием:`, {
-                id: element.id,
-                type: element.type,
-                name: tags.name,
-                military: military,
-                landuse: landuse,
-                access: access,
-                highway: highway
-              });
-            }
-            
-            // Логируем все теги для отладки
-            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
-              console.log(`🔍 Найдена запретная зона:`, {
-                id: element.id,
-                type: element.type,
-                tags: tags,
-                military: military,
-                landuse: landuse,
-                access: access,
-                name: tags.name || 'без названия',
-                geometry_points: geometry.length
-              });
-              
-              // Проверяем условие для добавления в closed_areas
-              const shouldAddToClosedAreas = military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted';
-              console.log(`🔍 Должна ли быть добавлена в closed_areas: ${shouldAddToClosedAreas}`);
-            }
-            
-            // Логируем барьеры типа gate
-            if (barrier === 'gate' || barrier === 'fence') {
-              console.log(`🔍 Найден барьер:`, {
-                id: element.id,
-                type: element.type,
-                barrier: barrier,
-                access: access,
-                name: tags.name || 'без названия',
-                geometry_points: geometry.length,
-                tags: tags
-              });
-            }
             
             // Сначала проверяем на запретные зоны (приоритет)
             if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
-              console.log(`🔍 Добавляем в закрытые зоны:`, {
-                id: element.id,
-                military: military,
-                landuse: landuse,
-                access: access,
-                name: tags.name || 'без названия',
-                highway: highway // показываем, что у неё есть highway, но она всё равно запретная
-              });
-              
               result.closed_areas.push({
                 geometry: geometry,
                 type: 'closed_area',
@@ -265,15 +194,6 @@ out geom;`;
               });
               closedAreaCount++;
             } else if (highway) {
-              console.log(`🔍 Добавляем в тропы:`, {
-                id: element.id,
-                highway: highway,
-                name: tags.name || 'без названия',
-                military: military,
-                landuse: landuse,
-                access: access
-              });
-              
               result.paths.push({
                 geometry: geometry,
                 highway: highway,
@@ -284,22 +204,11 @@ out geom;`;
                 length: 0
               });
               pathCount++;
-            } else if (barrier || natural === 'cliff') {
-              console.log(`🔍 Добавляем в барьеры:`, {
-                id: element.id,
-                barrier: barrier,
-                natural: natural,
-                access: access,
-                name: tags.name || 'без названия',
-                military: military,
-                landuse: landuse
-              });
-              
+            } else if (barrier) {
               result.barriers.push({
                 geometry: geometry,
                 type: 'barrier',
                 barrier_type: barrier,
-                natural: natural,
                 access: access,
                 osmid: String(element.id)
               });
@@ -308,11 +217,6 @@ out geom;`;
           }
         }
       }
-      
-      console.log(`🔍 Результаты обработки API данных:`);
-      console.log(`   Тропы: ${pathCount}`);
-      console.log(`   Барьеры: ${barrierCount}`);
-      console.log(`   Запретные зоны: ${closedAreaCount}`);
       
       statusCallback(`✅ Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
       
