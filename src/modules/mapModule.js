@@ -143,6 +143,7 @@ export function showClosedAreasOnMap(areas) {
     }
     
     try {
+      console.log(`🔍 Создаем полигон с координатами:`, validCoords.slice(0, 3)); // первые 3 точки
       const polygonLayer = L.polygon(validCoords, {
         color: 'red', 
         fillColor: 'red',

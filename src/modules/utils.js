@@ -56,73 +56,30 @@ export function extractPolygons(areaObjs) {
     
     if ((el.type === 'way' || el.type === 'closed_area') && el.geometry && el.geometry.length >= 2) {
       console.log(`🔍 extractPolygons: добавляем ${el.type} полигон с ${el.geometry.length} точками`);
-      // Если только 2 точки, создаем простой отрезок как полигон
-      if (el.geometry.length === 2) {
-        console.log(`🔍 extractPolygons: создаем полигон из отрезка (2 точки)`);
-        // Для отрезка создаем прямоугольник вокруг него
-        const p1 = el.geometry[0];
-        const p2 = el.geometry[1];
-        
-        // Координаты могут быть в формате [lat, lon] или {lat, lon}
-        const lat1 = Array.isArray(p1) ? p1[0] : p1.lat;
-        const lon1 = Array.isArray(p1) ? p1[1] : p1.lon;
-        const lat2 = Array.isArray(p2) ? p2[0] : p2.lat;
-        const lon2 = Array.isArray(p2) ? p2[1] : p2.lon;
-        
-        console.log(`🔍 extractPolygons: детальная структура данных:`, {
-          p1_raw: p1,
-          p2_raw: p2,
-          p1_lat: p1?.lat,
-          p1_lon: p1?.lon,
-          p2_lat: p2?.lat,
-          p2_lon: p2?.lon,
-          geometry_structure: el.geometry,
-          full_element: el
-        });
-        
-        // Проверяем валидность координат
-        if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) {
-          console.warn(`🔍 extractPolygons: пропускаем невалидные координаты:`, {
-            lat1, lon1, lat2, lon2
-          });
-          return;
-        }
-        
-        // Создаем небольшой прямоугольник вокруг отрезка (примерно 10 метров)
-        const offset = 0.0001; // примерно 10 метров
-        const rect = [
-          [lat1 - offset, lon1 - offset],
-          [lat1 + offset, lon1 - offset],
-          [lat1 + offset, lon1 + offset],
-          [lat2 + offset, lon2 + offset],
-          [lat2 - offset, lon2 + offset],
-          [lat2 - offset, lon2 - offset],
-          [lat1 - offset, lon1 - offset] // замыкаем полигон
-        ];
-        
-        console.log(`🔍 extractPolygons: созданный прямоугольник:`, rect);
-        polygons.push(rect);
-      } else {
-        // Валидация для многоточечных полигонов
-        const validCoords = el.geometry.filter(p => {
-          if (Array.isArray(p) && p.length >= 2) {
-            return typeof p[0] === 'number' && typeof p[1] === 'number' && 
-                   !isNaN(p[0]) && !isNaN(p[1]);
-          } else if (p && typeof p.lat === 'number' && typeof p.lon === 'number') {
-            return !isNaN(p.lat) && !isNaN(p.lon);
+      
+      // Простая проверка - если это массив координат [lat, lon]
+      if (Array.isArray(el.geometry[0]) && el.geometry[0].length === 2) {
+        if (el.geometry.length === 2) {
+          // Для 2 точек создаем прямоугольник
+          const [lat1, lon1] = el.geometry[0];
+          const [lat2, lon2] = el.geometry[1];
+          
+          if (!isNaN(lat1) && !isNaN(lon1) && !isNaN(lat2) && !isNaN(lon2)) {
+            const offset = 0.0001;
+            const rect = [
+              [lat1 - offset, lon1 - offset],
+              [lat1 + offset, lon1 - offset],
+              [lat1 + offset, lon1 + offset],
+              [lat2 + offset, lon2 + offset],
+              [lat2 - offset, lon2 + offset],
+              [lat2 - offset, lon2 - offset],
+              [lat1 - offset, lon1 - offset]
+            ];
+            polygons.push(rect);
           }
-          return false;
-        });
-        
-        if (validCoords.length >= 3) {
-          console.log(`🔍 extractPolygons: добавляем многоточечный полигон с ${validCoords.length} валидными точками`);
-          // Конвертируем в формат [lat, lon]
-          const coords = validCoords.map(p => 
-            Array.isArray(p) ? p : [p.lat, p.lon]
-          );
-          polygons.push(coords);
         } else {
-          console.warn(`🔍 extractPolygons: пропускаем полигон с недостаточным количеством валидных точек: ${validCoords.length}`);
+          // Для многоточечных полигонов просто используем как есть
+          polygons.push(el.geometry);
         }
       }
     }
@@ -131,34 +88,27 @@ export function extractPolygons(areaObjs) {
       console.log(`🔍 extractPolygons: найдено ${outers.length} outer members в relation`);
       outers.forEach(outer => {
         console.log(`🔍 extractPolygons: добавляем relation полигон с ${outer.geometry.length} точками`);
-        if (outer.geometry.length === 2) {
-          // Аналогично для relation
-          const p1 = outer.geometry[0];
-          const p2 = outer.geometry[1];
-          
-          // Координаты могут быть в формате [lat, lon] или {lat, lon}
-          const lat1 = Array.isArray(p1) ? p1[0] : p1.lat;
-          const lon1 = Array.isArray(p1) ? p1[1] : p1.lon;
-          const lat2 = Array.isArray(p2) ? p2[0] : p2.lat;
-          const lon2 = Array.isArray(p2) ? p2[1] : p2.lon;
-          
-          const offset = 0.0001;
-          const rect = [
-            [lat1 - offset, lon1 - offset],
-            [lat1 + offset, lon1 - offset],
-            [lat1 + offset, lon1 + offset],
-            [lat2 + offset, lon2 + offset],
-            [lat2 - offset, lon2 + offset],
-            [lat2 - offset, lon2 - offset],
-            [lat1 - offset, lon1 - offset]
-          ];
-          polygons.push(rect);
-        } else {
-          // Конвертируем в формат [lat, lon]
-          const coords = outer.geometry.map(p => 
-            Array.isArray(p) ? p : [p.lat, p.lon]
-          );
-          polygons.push(coords);
+        if (Array.isArray(outer.geometry[0]) && outer.geometry[0].length === 2) {
+          if (outer.geometry.length === 2) {
+            const [lat1, lon1] = outer.geometry[0];
+            const [lat2, lon2] = outer.geometry[1];
+            
+            if (!isNaN(lat1) && !isNaN(lon1) && !isNaN(lat2) && !isNaN(lon2)) {
+              const offset = 0.0001;
+              const rect = [
+                [lat1 - offset, lon1 - offset],
+                [lat1 + offset, lon1 - offset],
+                [lat1 + offset, lon1 + offset],
+                [lat2 + offset, lon2 + offset],
+                [lat2 - offset, lon2 + offset],
+                [lat2 - offset, lon2 - offset],
+                [lat1 - offset, lon1 - offset]
+              ];
+              polygons.push(rect);
+            }
+          } else {
+            polygons.push(outer.geometry);
+          }
         }
       });
     }
