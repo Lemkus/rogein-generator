@@ -194,12 +194,12 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   relation["landuse"="military"](${south},${west},${north},${east});
   way["military"](${south},${west},${north},${east});
   relation["military"](${south},${west},${north},${east});
-  way["access"="private"](${south},${west},${north},${east});
-  relation["access"="private"](${south},${west},${north},${east});
-  way["access"="no"](${south},${west},${north},${east});
-  relation["access"="no"](${south},${west},${north},${east});
-  way["access"="restricted"](${south},${west},${north},${east});
-  relation["access"="restricted"](${south},${west},${north},${east});
+  way["access"="private"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="private"]["natural"!~"."](${south},${west},${north},${east});
+  way["access"="no"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="no"]["natural"!~"."](${south},${west},${north},${east});
+  way["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
+  relation["access"="restricted"]["natural"!~"."](${south},${west},${north},${east});
 );
 out geom;`;
 
@@ -263,7 +263,9 @@ out geom;`;
             const access = tags.access || '';
             
             
-            // Сначала проверяем на запретные зоны (приоритет)
+            // Проверяем категории по приоритету
+            
+            // 1. Закрытые зоны (высший приоритет)
             if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               result.closed_areas.push({
                 geometry: geometry,
@@ -275,7 +277,9 @@ out geom;`;
                 osmid: String(element.id)
               });
               closedAreaCount++;
-            } else if (highway) {
+            }
+            // 2. Дороги/тропы
+            else if (highway) {
               result.paths.push({
                 geometry: geometry,
                 highway: highway,
@@ -286,8 +290,9 @@ out geom;`;
                 length: 0
               });
               pathCount++;
-            } else if (barrier && !natural) {
-              // Добавляем только искусственные барьеры, исключаем природные
+            }
+            // 3. Искусственные барьеры (только если не природные и не закрытые зоны)
+            else if (barrier && !natural) {
               result.barriers.push({
                 geometry: geometry,
                 type: 'barrier',
