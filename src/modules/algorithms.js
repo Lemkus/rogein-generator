@@ -235,6 +235,17 @@ export function dijkstra(graph, startIdx, endIdx) {
 
 // Поиск ближайшего узла в графе к заданной точке
 export function findNearestNodeIdx(lat, lon, nodes) {
+  // Проверяем валидность входных параметров
+  if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+    console.warn('findNearestNodeIdx: nodes is not a valid array');
+    return -1;
+  }
+  
+  if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
+    console.warn('findNearestNodeIdx: invalid lat/lon coordinates');
+    return -1;
+  }
+  
   let minDist = Infinity;
   let nearestIdx = -1;
   for (let i = 0; i < nodes.length; i++) {
