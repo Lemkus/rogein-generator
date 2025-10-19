@@ -196,7 +196,28 @@ out geom;`;
               console.log(`🔍 Должна ли быть добавлена в closed_areas: ${shouldAddToClosedAreas}`);
             }
             
-            if (highway) {
+            // Сначала проверяем на запретные зоны (приоритет)
+            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+              console.log(`🔍 Добавляем в закрытые зоны:`, {
+                id: element.id,
+                military: military,
+                landuse: landuse,
+                access: access,
+                name: tags.name || 'без названия',
+                highway: highway // показываем, что у неё есть highway, но она всё равно запретная
+              });
+              
+              result.closed_areas.push({
+                geometry: geometry,
+                type: 'closed_area',
+                military: military,
+                landuse: landuse,
+                access: access,
+                name: tags.name || '',
+                osmid: String(element.id)
+              });
+              closedAreaCount++;
+            } else if (highway) {
               console.log(`🔍 Добавляем в тропы:`, {
                 id: element.id,
                 highway: highway,
@@ -235,25 +256,6 @@ out geom;`;
                 osmid: String(element.id)
               });
               barrierCount++;
-            } else if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
-              console.log(`🔍 Добавляем в закрытые зоны:`, {
-                id: element.id,
-                military: military,
-                landuse: landuse,
-                access: access,
-                name: tags.name || 'без названия'
-              });
-              
-              result.closed_areas.push({
-                geometry: geometry,
-                type: 'closed_area',
-                military: military,
-                landuse: landuse,
-                access: access,
-                name: tags.name || '',
-                osmid: String(element.id)
-              });
-              closedAreaCount++;
             }
           }
         }
