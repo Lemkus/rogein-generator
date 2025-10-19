@@ -3,6 +3,8 @@
  * Управляет инициализацией карты, маркерами и визуализацией
  */
 
+import { extractPolygons } from './utils.js';
+
 // Переменные карты
 export let map;
 export let drawnItems;
@@ -122,19 +124,22 @@ export function showClosedAreasOnMap(areas) {
   closedAreaLayers.forEach(l => map.removeLayer(l));
   closedAreaLayers = [];
 
-  areas.forEach(el => {
-    if (el.type === 'way' && el.geometry && el.geometry.length > 2) {
-      const latlngs = el.geometry.map(p => [p.lat, p.lon]);
-      // Проверяем, замкнут ли полигон
-      if (latlngs[0][0] === latlngs[latlngs.length-1][0] && latlngs[0][1] === latlngs[latlngs.length-1][1]) {
-        const polygon = L.polygon(latlngs, {color: 'red', fillOpacity: 0.3}).addTo(map);
-        closedAreaLayers.push(polygon);
-      }
-    }
-    // Для relation можно добавить позже
+  // Используем extractPolygons для получения всех полигонов (включая 2-точечные)
+  const polygons = extractPolygons(areas);
+  
+  polygons.forEach((polygon, index) => {
+    console.log(`🔍 Отображение полигона ${index + 1} с ${polygon.length} точками`);
+    const polygonLayer = L.polygon(polygon, {
+      color: 'red', 
+      fillColor: 'red',
+      fillOpacity: 0.3,
+      weight: 2
+    }).addTo(map);
+    closedAreaLayers.push(polygonLayer);
   });
 
   closedAreas = areas;
+  console.log(`🔍 Отображено ${polygons.length} запретных зон на карте`);
 }
 
 // Отображение водоёмов на карте
@@ -143,19 +148,22 @@ export function showWaterAreasOnMap(areas) {
   waterAreaLayers.forEach(l => map.removeLayer(l));
   waterAreaLayers = [];
 
-  areas.forEach(el => {
-    if (el.type === 'way' && el.geometry && el.geometry.length > 2) {
-      const latlngs = el.geometry.map(p => [p.lat, p.lon]);
-      // Проверяем, замкнут ли полигон
-      if (latlngs[0][0] === latlngs[latlngs.length-1][0] && latlngs[0][1] === latlngs[latlngs.length-1][1]) {
-        const polygon = L.polygon(latlngs, {color: 'blue', fillOpacity: 0.3}).addTo(map);
-        waterAreaLayers.push(polygon);
-      }
-    }
-    // Для relation можно добавить позже
+  // Используем extractPolygons для получения всех полигонов (включая 2-точечные)
+  const polygons = extractPolygons(areas);
+  
+  polygons.forEach((polygon, index) => {
+    console.log(`🔍 Отображение водоёма ${index + 1} с ${polygon.length} точками`);
+    const polygonLayer = L.polygon(polygon, {
+      color: 'blue', 
+      fillColor: 'blue',
+      fillOpacity: 0.3,
+      weight: 2
+    }).addTo(map);
+    waterAreaLayers.push(polygonLayer);
   });
 
   waterAreas = areas;
+  console.log(`🔍 Отображено ${polygons.length} водоёмов на карте`);
 }
 
 // Отображение барьеров на карте

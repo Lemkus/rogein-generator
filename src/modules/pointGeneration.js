@@ -166,6 +166,17 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     statusCallback(`🚫 Запретных зон: ${forbiddenPolygons.length}`);
     console.log(`🔍 Создано запретных зон: ${forbiddenPolygons.length}`);
 
+    // Отображаем запретные зоны на карте красным цветом
+    if (closedAreasData.length > 0) {
+      console.log('🔍 Отображение закрытых зон на карте...');
+      showClosedAreasOnMap(closedAreasData);
+    }
+    
+    if (waterAreasData.length > 0) {
+      console.log('🔍 Отображение водоёмов на карте...');
+      showWaterAreasOnMap(waterAreasData);
+    }
+
     if (cancelGeneration) return;
 
     // Пересоздаем граф с учетом запретных зон
