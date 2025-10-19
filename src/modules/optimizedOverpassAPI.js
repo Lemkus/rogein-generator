@@ -190,6 +190,10 @@ out geom;`;
                 name: tags.name || 'без названия',
                 geometry_points: geometry.length
               });
+              
+              // Проверяем условие для добавления в closed_areas
+              const shouldAddToClosedAreas = military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted';
+              console.log(`🔍 Должна ли быть добавлена в closed_areas: ${shouldAddToClosedAreas}`);
             }
             
             if (highway) {
@@ -213,6 +217,14 @@ out geom;`;
               });
               barrierCount++;
             } else if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+              console.log(`🔍 Добавляем в закрытые зоны:`, {
+                id: element.id,
+                military: military,
+                landuse: landuse,
+                access: access,
+                name: tags.name || 'без названия'
+              });
+              
               result.closed_areas.push({
                 geometry: geometry,
                 type: 'closed_area',
