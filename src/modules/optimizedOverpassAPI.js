@@ -265,8 +265,19 @@ out geom;`;
             
             // Проверяем категории по приоритету
             
+            // 0. Исключаем природные барьеры из всех категорий
+            if (natural && (natural === 'cliff' || natural === 'rock' || natural === 'scree')) {
+              console.log(`🚫 Исключаем природный барьер:`, {
+                osmid: element.id,
+                natural: natural,
+                barrier: barrier,
+                access: access,
+                name: tags.name || ''
+              });
+              // Не добавляем в никакую категорию
+            }
             // 1. Закрытые зоны (высший приоритет)
-            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+            else if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               console.log(`🔴 Добавляем закрытую зону:`, {
                 osmid: element.id,
                 military: military,
