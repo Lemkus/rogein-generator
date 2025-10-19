@@ -370,13 +370,13 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
           graphAdj: graph.adj.length
         });
       }
-      addFailedAttemptMarker(pointObj, 'Недостижимо');
+      addFailedAttemptMarker(pointObj.lat, pointObj.lng);
       continue;
     }
 
     // Добавляем точку
     points.push(pointObj);
-    addPointMarker(pointObj, points.length);
+    addPointMarker(pointObj.lat, pointObj.lng, points.length);
     debugStats.success++;
     
     // Обновляем статус каждые 5 точек
