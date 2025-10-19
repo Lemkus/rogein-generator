@@ -1,0 +1,65 @@
+# 🤖 Cursor Rules for RogeinProject
+
+## 🚨 CRITICAL: Read these files FIRST before any work
+
+### MANDATORY reading order for new tasks:
+1. `LLM_QUICK_START.md` - Quick start guide
+2. `docs/development/AI_DEVELOPMENT_GUIDE.md` - Main development rules
+3. `docs/architecture/PROJECT_ARCHITECTURE.md` - Project structure
+4. `docs/llm/LLM_INSTRUCTIONS.md` - LLM instructions
+
+## 🚫 NEVER CREATE these files:
+- `module_fixed.js`, `module_new.js`, `module_advanced.js`
+- `module_simple.js`, `module_backup.js`, `module_unified.js`
+- MD files in project root (except `LLM_QUICK_START.md`)
+- Temporary files with suffixes (_temp, _draft, _backup)
+
+## ✅ ALWAYS DO:
+- Edit existing modules directly
+- Create MD files in `docs/` by category
+- Commit changes immediately: `git add src/modules/module.js && git commit -m "Description"`
+- Deploy after commit: `python deploy_regru.py`
+
+## 📁 Project Structure
+```
+src/modules/
+├── app.js                    # Main module
+├── mapModule.js              # Map and visualization
+├── navigation.js             # Navigation logic
+├── fullscreenNavigation.js   # Fullscreen UI
+├── pointGeneration.js        # Point generation
+├── routeSequence.js          # Route optimization
+├── sequenceUI.js             # Sequence management
+├── storageAPI.js             # Data storage
+├── optimizedOverpassAPI.js   # OSM data loading
+├── serverOverpassAPI.js      # Server proxy
+├── audioModuleAdvanced.js    # Audio signals
+└── mediaSessionManager.js    # Media management
+```
+
+## 📚 Documentation Structure
+```
+docs/
+├── README.md                 # Main documentation
+├── architecture/             # Project architecture
+├── development/              # Development rules
+├── llm/                      # LLM instructions
+└── user/                     # User documentation
+```
+
+## 🔄 Workflow
+1. Read required files from `docs/`
+2. Edit existing module (NEVER create new)
+3. Test changes
+4. Commit: `git add src/modules/module.js && git commit -m "Description"`
+5. Deploy: `python deploy_regru.py`
+
+## 📝 MD File Creation Rules
+- Architecture files → `docs/architecture/`
+- Development files → `docs/development/`
+- LLM files → `docs/llm/`
+- User files → `docs/user/`
+- NEVER create MD files in project root
+
+## 🎯 Goal
+Maintain clean, organized project structure without redundancy.

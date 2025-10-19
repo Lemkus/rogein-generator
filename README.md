@@ -64,20 +64,34 @@ trailspot/
 ├── src/
 │   ├── app.js              # Main application coordinator
 │   └── modules/
-│       ├── overpassAPI.js       # OpenStreetMap data fetching
-│       ├── serverOverpassAPI.js # Server-side Overpass proxy
-│       ├── mapModule.js         # Leaflet map management
-│       ├── navigation.js        # Hot-cold audio navigation
-│       ├── pointGeneration.js   # Point generation algorithms
-│       ├── algorithms.js        # Graph algorithms (Dijkstra, etc.)
-│       ├── utils.js             # Utility functions
-│       ├── storageAPI.js        # LocalStorage management
-│       └── config.js            # Configuration
+│       ├── optimizedOverpassAPI.js # OpenStreetMap data fetching
+│       ├── serverOverpassAPI.js    # Server-side Overpass proxy
+│       ├── mapModule.js            # Leaflet map management
+│       ├── navigation.js           # Hot-cold audio navigation
+│       ├── pointGeneration.js      # Point generation algorithms
+│       ├── algorithms.js           # Graph algorithms (Dijkstra, etc.)
+│       ├── utils.js                # Utility functions
+│       └── storageAPI.js           # LocalStorage management
 ├── backend/
 │   └── app/
 │       └── simple_main.py  # FastAPI backend (for server-side features)
+├── docs/                   # Documentation (see docs/README.md)
 └── backend_simple.py       # Flask server-side Overpass API proxy
 ```
+
+---
+
+## 📚 Documentation
+
+All project documentation is located in the `docs/` folder:
+
+- **`docs/README.md`** - main documentation
+- **`docs/architecture/`** - project architecture
+- **`docs/development/`** - development rules
+- **`docs/llm/`** - LLM instructions
+- **`docs/user/`** - user documentation
+
+**For LLM:** Start by reading `docs/development/AI_DEVELOPMENT_GUIDE.md`
 
 ---
 

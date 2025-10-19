@@ -5,8 +5,7 @@
 
 import { initMap, map, drawnItems, pointMarkers, getSelectedBounds, getStartPoint, updateSelectedBounds, updateStartPointPosition, clearPointMarkers } from './modules/mapModule.js';
 import { initNavigation, updateTargetPointsList, resetCompletedPoints } from './modules/navigation.js';
-import { generatePointsSimple as generatePoints, cancelPointGeneration } from './modules/pointGeneration_simple.js';
-import { downloadGPX } from './modules/pointGeneration.js';
+import { generatePoints, cancelPointGeneration, downloadGPX } from './modules/pointGeneration.js';
 import './modules/audioModuleAdvanced.js'; // Инициализация продвинутого аудио модуля
 import { saveRoute, getRouteById, getRoutesList, buildShareUrl } from './modules/storageAPI.js';
 import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI.js';
