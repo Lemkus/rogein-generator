@@ -92,7 +92,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     }
 
     // Находим ближайший узел к стартовой точке
-    const startNodeIdx = findNearestNodeIdx(graph, startPoint);
+    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
     if (startNodeIdx === -1) {
       statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
       buttonCallback(false);
@@ -217,7 +217,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     if (inForbiddenZone) continue;
 
     // Проверяем достижимость от стартовой точки
-    const pointNodeIdx = findNearestNodeIdx(graph, randomPoint);
+    const pointNodeIdx = findNearestNodeIdx(randomPoint.lat, randomPoint.lng, graph.nodes);
     if (pointNodeIdx === -1) continue;
 
     if (!isReachable(graph, startNodeIdx, pointNodeIdx)) {
