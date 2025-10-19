@@ -145,7 +145,8 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
           name: area.name || 'без названия',
           military: area.military,
           access: area.access,
-          geometry_points: area.geometry ? area.geometry.length : 0
+          geometry_points: area.geometry ? area.geometry.length : 0,
+          full_structure: area // показываем полную структуру
         });
       });
     } else {
