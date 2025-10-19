@@ -7,16 +7,52 @@ import { haversine, segmentIntersectsPolygon, segmentsIntersect, extractPolygons
 
 // Функция для проверки пересечения отрезка с барьерами
 export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
+  console.log(`🔍 segmentIntersectsBarriers: проверяем ${barrierObjs.length} барьеров`);
+  
   for (const barrier of barrierObjs) {
-    if (barrier.type === 'way' && barrier.geometry && barrier.geometry.length > 1) {
+    console.log(`🔍 Проверяем барьер:`, {
+      type: barrier.type,
+      osmid: barrier.osmid,
+      geometry_points: barrier.geometry ? barrier.geometry.length : 0,
+      natural: barrier.natural,
+      barrier_type: barrier.barrier_type
+    });
+    
+    if ((barrier.type === 'way' || barrier.type === 'barrier') && barrier.geometry && barrier.geometry.length > 1) {
       // Проверяем пересечение со всеми сегментами барьера-линии
       for (let i = 0; i < barrier.geometry.length - 1; i++) {
         const b1 = barrier.geometry[i];
         const b2 = barrier.geometry[i + 1];
-        if (segmentsIntersect(p1, p2, b1, b2)) {
+        
+        // Проверяем формат координат
+        let lat1, lon1, lat2, lon2;
+        if (Array.isArray(b1)) {
+          lat1 = b1[0]; lon1 = b1[1];
+        } else if (b1 && typeof b1 === 'object') {
+          lat1 = b1.lat; lon1 = b1.lon;
+        } else {
+          continue;
+        }
+        
+        if (Array.isArray(b2)) {
+          lat2 = b2[0]; lon2 = b2[1];
+        } else if (b2 && typeof b2 === 'object') {
+          lat2 = b2.lat; lon2 = b2.lon;
+        } else {
+          continue;
+        }
+        
+        const barrierPoint1 = { lat: lat1, lon: lon1 };
+        const barrierPoint2 = { lat: lat2, lon: lon2 };
+        
+        if (segmentsIntersect(p1, p2, barrierPoint1, barrierPoint2)) {
+          console.log(`🔍 Найдено пересечение с барьером ${barrier.osmid}:`, {
+            segment: `${p1.lat.toFixed(6)},${p1.lon.toFixed(6)} -> ${p2.lat.toFixed(6)},${p2.lon.toFixed(6)}`,
+            barrier_segment: `${lat1.toFixed(6)},${lon1.toFixed(6)} -> ${lat2.toFixed(6)},${lon2.toFixed(6)}`
+          });
           return {
             intersects: true,
-            barrier: `Way ${barrier.id || 'unknown'} (${barrier.tags ? Object.keys(barrier.tags).join(', ') : 'no tags'})`
+            barrier: `Barrier ${barrier.osmid || 'unknown'} (${barrier.natural || barrier.barrier_type || 'unknown'})`
           };
         }
       }
@@ -25,9 +61,13 @@ export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
       const barrierPoint = { lat: barrier.lat, lon: barrier.lon };
       const distanceToBarrier = distancePointToSegment(barrierPoint, p1, p2);
       if (distanceToBarrier < 5) { // 5 метров tolerance
+        console.log(`🔍 Найдено пересечение с барьером-точкой ${barrier.osmid}:`, {
+          distance: distanceToBarrier.toFixed(2),
+          barrier_point: `${barrier.lat.toFixed(6)},${barrier.lon.toFixed(6)}`
+        });
         return {
           intersects: true,
-          barrier: `Node ${barrier.id || 'unknown'} (${barrier.tags ? Object.keys(barrier.tags).join(', ') : 'no tags'})`
+          barrier: `Node ${barrier.osmid || 'unknown'} (${barrier.natural || barrier.barrier_type || 'unknown'})`
         };
       }
     }
