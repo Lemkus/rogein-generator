@@ -45,25 +45,65 @@ export async function fetchAllMapData(bbox, statusCallback) {
  * Загружает все данные через серверный API
  */
 async function fetchAllWithServerOverpass(bbox, statusCallback) {
+  console.log(`🚀 Загружаем ВСЕ данные одним запросом через серверный Overpass API...`);
+  
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен, прерываем запрос`);
+      controller.abort();
+    }, REQUEST_TIMEOUT);
+    
+    console.log(`📤 Отправляем запрос к серверному API...`);
+    const startTime = Date.now();
+    
     const response = await fetch(`${OVERPASS_API_BASE}/all?bbox=${bbox}`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     
+    const elapsedTime = Date.now() - startTime;
+    clearTimeout(timeoutId);
+    
+    console.log(`📡 Получен ответ за ${elapsedTime}мс:`);
+    console.log(`   Status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
-      throw new Error(`Серверный API недоступен (${response.status})`);
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.log(`📄 Тело ответа ошибки:`, errorText);
+      } catch (textError) {
+        console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
+      }
+      
+      throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
     }
     
     const data = await response.json();
+    console.log(`✅ JSON успешно распарсен`);
     
     if (data.success && data.data) {
+      console.log(`✅ Серверный Overpass вернул все данные:`);
+      console.log(`   - Дороги/тропы: ${data.counts.paths}`);
+      console.log(`   - Барьеры: ${data.counts.barriers}`);
+      console.log(`   - Закрытые зоны: ${data.counts.closed_areas}`);
+      console.log(`   - Водоёмы: ${data.counts.water_areas}`);
+      console.log(`   - Время загрузки: ${data.load_time}с`);
+      
       statusCallback(`Загружено: ${data.counts.paths} дорог, ${data.counts.barriers} барьеров, ${data.counts.closed_areas} закрытых зон`);
       return data.data;
     } else {
-      throw new Error(data.error || 'Ошибка серверного API');
+      throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
     }
+    
   } catch (error) {
+    console.log(`❌ === ОШИБКА ЗАПРОСА К СЕРВЕРНОМУ OVERPASS ===`);
+    console.log(`❌ Тип ошибки:`, error.name);
+    console.log(`❌ Сообщение:`, error.message);
     throw error;
   }
 }
