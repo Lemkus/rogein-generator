@@ -73,31 +73,6 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
     statusCallback(`✅ Данные загружены: ${pathsData.length} троп, ${closedAreasData.length} закрытых зон, ${waterAreasData.length} водоёмов, ${barriersData.length} барьеров`);
 
-    // Отладочная информация о загруженных данных
-    console.log('🔍 Отладочная информация загруженных данных:');
-    console.log(`   Тропы: ${pathsData.length}`);
-    console.log(`   Закрытые зоны: ${closedAreasData.length}`);
-    console.log(`   Водоёмы: ${waterAreasData.length}`);
-    console.log(`   Барьеры: ${barriersData.length}`);
-    console.log(`   Выбранная область:`, selectedBounds);
-    console.log(`   Стартовая точка:`, startPoint);
-    
-    // Детальная информация о барьерах
-    if (barriersData.length > 0) {
-      console.log('🔍 Детальная информация о барьерах:');
-      barriersData.forEach((barrier, index) => {
-        console.log(`   Барьер ${index + 1}:`, {
-          type: barrier.type,
-          osmid: barrier.osmid,
-          barrier_type: barrier.barrier_type,
-          natural: barrier.natural,
-          geometry_points: barrier.geometry ? barrier.geometry.length : 0,
-          full_structure: barrier
-        });
-      });
-    } else {
-      console.log('🔍 Барьеры не найдены в API данных');
-    }
 
     // Показываем данные на карте
     showClosedAreasOnMap(closedAreasData);
