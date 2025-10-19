@@ -181,6 +181,34 @@ out geom;`;
             const landuse = tags.landuse || '';
             const access = tags.access || '';
             
+            // Детальное логирование всех элементов для отладки
+            if (tags.name && (tags.name.toLowerCase().includes('прибой') || tags.name.toLowerCase().includes('лыж') || tags.name.toLowerCase().includes('ski'))) {
+              console.log(`🔍 НАЙДЕНА ЛЫЖНАЯ БАЗА:`, {
+                id: element.id,
+                type: element.type,
+                name: tags.name,
+                tags: tags,
+                military: military,
+                landuse: landuse,
+                access: access,
+                highway: highway,
+                geometry_points: geometry.length
+              });
+            }
+            
+            // Логируем все элементы с названиями для отладки
+            if (tags.name && tags.name.trim() !== '') {
+              console.log(`🔍 Элемент с названием:`, {
+                id: element.id,
+                type: element.type,
+                name: tags.name,
+                military: military,
+                landuse: landuse,
+                access: access,
+                highway: highway
+              });
+            }
+            
             // Логируем все теги для отладки
             if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
               console.log(`🔍 Найдена запретная зона:`, {
