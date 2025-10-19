@@ -194,6 +194,16 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
   statusCallback(`🎯 Генерация точек на ${filteredPaths.length} тропах...`);
 
+  // Дополнительная отладочная информация
+  console.log('🔍 Дополнительная отладочная информация:');
+  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
+  console.log(`   Запрошено точек: ${count}`);
+  console.log(`   Минимальное расстояние: ${minDist}м`);
+  console.log(`   Максимальных попыток: ${maxAttempts}`);
+  console.log(`   Запретных зон: ${forbiddenPolygons.length}`);
+  console.log(`   Узлов в графе: ${graph.nodes.length}`);
+  console.log(`   Стартовый узел: ${startNodeIdx}`);
+
   let debugStats = {
     totalAttempts: 0,
     invalidPath: 0,
@@ -209,6 +219,11 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
     attempts++;
     debugStats.totalAttempts++;
+    
+    // Логируем каждые 100 попыток
+    if (attempts % 100 === 0) {
+      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}`);
+    }
     
     // Выбираем случайную тропу
     const randomPath = filteredPaths[Math.floor(Math.random() * filteredPaths.length)];
@@ -268,6 +283,13 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
     if (tooClose) {
       debugStats.tooClose++;
+      if (debugStats.tooClose <= 3) {
+        console.log(`🔍 Слишком близко ${debugStats.tooClose}:`, {
+          point: pointObj,
+          minDist: minDist,
+          existingPoints: points.length
+        });
+      }
       continue;
     }
 
@@ -301,11 +323,13 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     const isReachableResult = isReachable(graph, startNodeIdx, pointNodeIdx);
     if (!isReachableResult) {
       debugStats.notReachable++;
-      if (debugStats.notReachable <= 3) {
+      if (debugStats.notReachable <= 5) {
         console.log(`🔍 Недостижимо ${debugStats.notReachable}:`, {
           point: pointObj,
           pointNodeIdx: pointNodeIdx,
-          startNodeIdx: startNodeIdx
+          startNodeIdx: startNodeIdx,
+          graphNodes: graph.nodes.length,
+          graphAdj: graph.adj.length
         });
       }
       addFailedAttemptMarker(pointObj, 'Недостижимо');
