@@ -57,11 +57,32 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
     console.log(`📤 Отправляем запрос к серверному API...`);
     const startTime = Date.now();
     
-    const response = await fetch(`${OVERPASS_API_BASE}/all?bbox=${bbox}`, {
-      method: 'GET',
+    // Генерируем единый запрос для всех типов данных
+    const query = `[out:json][timeout:30];
+(
+  way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["barrier"="wall"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["barrier"="gate"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["barrier"="fence"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["landuse"="military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  relation["landuse"="military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  relation["military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["access"="private"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  relation["access"="private"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["access"="no"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  relation["access"="no"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  way["access"="restricted"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+  relation["access"="restricted"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
+);
+out geom;`;
+
+    const response = await fetch(`${OVERPASS_API_BASE}/execute-query`, {
+      method: 'POST',
+      body: query,
       signal: controller.signal,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'text/plain'
       }
     });
     

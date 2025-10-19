@@ -406,32 +406,17 @@ def get_water_areas():
         logger.error(f"Ошибка API water-areas: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
-@app.route('/api/all', methods=['GET'])
-def get_all_data():
-    """API для получения всех данных одним запросом"""
+@app.route('/api/execute-query', methods=['POST'])
+def execute_query():
+    """API для выполнения Overpass запроса от клиента"""
     try:
-        # Получаем параметры
-        bbox = request.args.get('bbox')
-        if not bbox:
-            return jsonify({'error': 'Параметр bbox обязателен'}), 400
+        # Получаем запрос от клиента
+        query = request.get_data(as_text=True)
+        if not query:
+            return jsonify({'error': 'Запрос обязателен'}), 400
         
-        # Парсим bbox
-        south, west, north, east = parse_bbox(bbox)
-        
-        # Получаем все данные одним запросом
+        # Выполняем запрос
         start_time = time.time()
-        
-        # Единый запрос для всех типов данных
-        query = f"""[out:json][timeout:{TIMEOUT}];
-        (
-          way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"]({south},{west},{north},{east});
-          way["barrier"="wall"]({south},{west},{north},{east});
-          way["natural"="cliff"]({south},{west},{north},{east});
-          way["military"~"^(yes|restricted|prohibited)$"]({south},{west},{north},{east});
-          way["access"~"^(no|private|restricted)$"]({south},{west},{north},{east});
-        );
-        out geom;"""
-        
         elements = execute_overpass_query(query)
         
         # Разделяем элементы по типам
@@ -454,9 +439,21 @@ def get_all_data():
                     military = tags.get('military', '')
                     access = tags.get('access', '')
                     
-                    # Классифицируем элемент
-                    if highway:
-                        # Это дорога/тропа
+                    # Классифицируем элемент по приоритету (как в клиенте)
+                    if military or tags.get('landuse') == 'military' or access in ['no', 'private', 'restricted']:
+                        # 1. Закрытые зоны (высший приоритет)
+                        area_obj = {
+                            'geometry': geometry,
+                            'type': 'closed_area',
+                            'military': military,
+                            'landuse': tags.get('landuse', ''),
+                            'access': access,
+                            'name': tags.get('name', ''),
+                            'osmid': str(element.get('id', ''))
+                        }
+                        closed_areas.append(area_obj)
+                    elif highway:
+                        # 2. Дороги/тропы
                         path_obj = {
                             'geometry': geometry,
                             'highway': highway,
@@ -467,27 +464,16 @@ def get_all_data():
                             'length': 0
                         }
                         paths.append(path_obj)
-                    elif barrier or natural == 'cliff':
-                        # Это барьер
+                    elif barrier:
+                        # 3. Искусственные барьеры
                         barrier_obj = {
                             'geometry': geometry,
                             'type': 'barrier',
                             'barrier_type': barrier,
-                            'natural': natural,
+                            'access': access,
                             'osmid': str(element.get('id', ''))
                         }
                         barriers.append(barrier_obj)
-                    elif military or access in ['no', 'private', 'restricted']:
-                        # Это закрытая зона
-                        area_obj = {
-                            'geometry': geometry,
-                            'type': 'closed_area',
-                            'military': military,
-                            'access': access,
-                            'name': tags.get('name', ''),
-                            'osmid': str(element.get('id', ''))
-                        }
-                        closed_areas.append(area_obj)
         
         load_time = time.time() - start_time
         
