@@ -112,7 +112,10 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   relation["military"](${south},${west},${north},${east});
   way["access"="private"](${south},${west},${north},${east});
   relation["access"="private"](${south},${west},${north},${east});
-  way["access"~"^(no|restricted)$"](${south},${west},${north},${east});
+  way["access"="no"](${south},${west},${north},${east});
+  relation["access"="no"](${south},${west},${north},${east});
+  way["access"="restricted"](${south},${west},${north},${east});
+  relation["access"="restricted"](${south},${west},${north},${east});
 );
 out geom;`;
 
