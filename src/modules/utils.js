@@ -54,8 +54,8 @@ export function extractPolygons(areaObjs) {
       membersLength: el.members ? el.members.length : 0
     });
     
-    if (el.type === 'way' && el.geometry && el.geometry.length >= 2) {
-      console.log(`🔍 extractPolygons: добавляем way полигон с ${el.geometry.length} точками`);
+    if ((el.type === 'way' || el.type === 'closed_area') && el.geometry && el.geometry.length >= 2) {
+      console.log(`🔍 extractPolygons: добавляем ${el.type} полигон с ${el.geometry.length} точками`);
       // Если только 2 точки, создаем простой отрезок как полигон
       if (el.geometry.length === 2) {
         console.log(`🔍 extractPolygons: создаем полигон из отрезка (2 точки)`);
