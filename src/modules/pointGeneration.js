@@ -106,13 +106,23 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     }
 
     // Находим ближайший узел к стартовой точке
+    console.log('🔍 Поиск ближайшего узла к стартовой точке...');
+    console.log(`   Стартовая точка: lat=${startPoint.lat}, lng=${startPoint.lng}`);
+    console.log(`   Узлов в графе: ${graph.nodes.length}`);
+    
     const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
+    console.log(`   Найденный стартовый узел: ${startNodeIdx}`);
+    
     if (startNodeIdx === -1) {
+      console.log('❌ Не удалось найти ближайший узел к стартовой точке!');
       statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
       buttonCallback(false);
       cancelCallback(false);
       return;
     }
+    
+    console.log(`✅ Стартовый узел найден: ${startNodeIdx}`);
+    console.log(`   Координаты стартового узла: lat=${graph.nodes[startNodeIdx].lat}, lon=${graph.nodes[startNodeIdx].lon}`);
 
     // Сохраняем граф для оптимизации маршрута (будет обновлен позже)
     setTrailGraph(graph);
@@ -133,12 +143,19 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     });
 
     statusCallback(`🚫 Запретных зон: ${forbiddenPolygons.length}`);
+    console.log(`🔍 Создано запретных зон: ${forbiddenPolygons.length}`);
 
     if (cancelGeneration) return;
 
     // Пересоздаем граф с учетом запретных зон
     statusCallback('Обновление графа с запретными зонами...');
+    console.log('🔍 Пересоздание графа с запретными зонами...');
     const updatedGraph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
+    
+    console.log('🔍 Обновленный граф:');
+    console.log(`   Узлы: ${updatedGraph ? updatedGraph.nodes.length : 0}`);
+    console.log(`   Рёбра: ${updatedGraph ? updatedGraph.adj.length : 0}`);
+    console.log(`   Исключённые сегменты: ${updatedGraph ? updatedGraph.excludedSegments.length : 0}`);
     
     // Обновляем граф для оптимизации маршрута
     setTrailGraph(updatedGraph);
@@ -178,6 +195,9 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
 // Генерация точек на тропах
 async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, count, minDist, forbiddenPolygons, graph, startNodeIdx, statusCallback) {
+  console.log('🔍 Начало генерации точек на тропах...');
+  console.log(`   Параметры: count=${count}, minDist=${minDist}, startNodeIdx=${startNodeIdx}`);
+  
   const points = [];
   const maxAttempts = count * 10; // Максимальное количество попыток
   let attempts = 0;
