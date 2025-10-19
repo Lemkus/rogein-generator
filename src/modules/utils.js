@@ -54,16 +54,56 @@ export function extractPolygons(areaObjs) {
       membersLength: el.members ? el.members.length : 0
     });
     
-    if (el.type === 'way' && el.geometry && el.geometry.length > 2) {
+    if (el.type === 'way' && el.geometry && el.geometry.length >= 2) {
       console.log(`🔍 extractPolygons: добавляем way полигон с ${el.geometry.length} точками`);
-      polygons.push(el.geometry.map(p => [p.lat, p.lon]));
+      // Если только 2 точки, создаем простой отрезок как полигон
+      if (el.geometry.length === 2) {
+        console.log(`🔍 extractPolygons: создаем полигон из отрезка (2 точки)`);
+        // Для отрезка создаем прямоугольник вокруг него
+        const p1 = el.geometry[0];
+        const p2 = el.geometry[1];
+        const lat1 = p1.lat, lon1 = p1.lon;
+        const lat2 = p2.lat, lon2 = p2.lon;
+        
+        // Создаем небольшой прямоугольник вокруг отрезка (примерно 10 метров)
+        const offset = 0.0001; // примерно 10 метров
+        const rect = [
+          [lat1 - offset, lon1 - offset],
+          [lat1 + offset, lon1 - offset],
+          [lat1 + offset, lon1 + offset],
+          [lat2 + offset, lon2 + offset],
+          [lat2 - offset, lon2 + offset],
+          [lat2 - offset, lon2 - offset],
+          [lat1 - offset, lon1 - offset] // замыкаем полигон
+        ];
+        polygons.push(rect);
+      } else {
+        polygons.push(el.geometry.map(p => [p.lat, p.lon]));
+      }
     }
     if (el.type === 'relation' && el.members) {
-      const outers = el.members.filter(m => m.role === 'outer' && m.geometry && m.geometry.length > 2);
+      const outers = el.members.filter(m => m.role === 'outer' && m.geometry && m.geometry.length >= 2);
       console.log(`🔍 extractPolygons: найдено ${outers.length} outer members в relation`);
       outers.forEach(outer => {
         console.log(`🔍 extractPolygons: добавляем relation полигон с ${outer.geometry.length} точками`);
-        polygons.push(outer.geometry.map(p => [p.lat, p.lon]));
+        if (outer.geometry.length === 2) {
+          // Аналогично для relation
+          const p1 = outer.geometry[0];
+          const p2 = outer.geometry[1];
+          const offset = 0.0001;
+          const rect = [
+            [p1.lat - offset, p1.lon - offset],
+            [p1.lat + offset, p1.lon - offset],
+            [p1.lat + offset, p1.lon + offset],
+            [p2.lat + offset, p2.lon + offset],
+            [p2.lat - offset, p2.lon + offset],
+            [p2.lat - offset, p2.lon - offset],
+            [p1.lat - offset, p1.lon - offset]
+          ];
+          polygons.push(rect);
+        } else {
+          polygons.push(outer.geometry.map(p => [p.lat, p.lon]));
+        }
       });
     }
   });
