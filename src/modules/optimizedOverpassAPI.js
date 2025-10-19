@@ -85,7 +85,10 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
     
     const data = await response.json();
     console.log(`✅ JSON успешно распарсен`);
+    console.log(`📊 Структура ответа:`, Object.keys(data));
+    console.log(`📊 Полный ответ:`, data);
     
+    // Проверяем разные возможные форматы ответа
     if (data.success && data.data) {
       console.log(`✅ Серверный Overpass вернул все данные:`);
       console.log(`   - Дороги/тропы: ${data.counts.paths}`);
@@ -96,7 +99,20 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
       
       statusCallback(`Загружено: ${data.counts.paths} дорог, ${data.counts.barriers} барьеров, ${data.counts.closed_areas} закрытых зон`);
       return data.data;
+    } else if (data.paths || data.barriers || data.closed_areas) {
+      // Возможно, данные приходят напрямую без обертки
+      console.log(`✅ Серверный Overpass вернул данные напрямую`);
+      const counts = {
+        paths: data.paths ? data.paths.length : 0,
+        barriers: data.barriers ? data.barriers.length : 0,
+        closed_areas: data.closed_areas ? data.closed_areas.length : 0,
+        water_areas: data.water_areas ? data.water_areas.length : 0
+      };
+      
+      statusCallback(`Загружено: ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
+      return data;
     } else {
+      console.log(`❌ Неожиданная структура данных:`, data);
       throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
     }
     

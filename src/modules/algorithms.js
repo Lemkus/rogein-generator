@@ -7,16 +7,7 @@ import { haversine, segmentIntersectsPolygon, segmentsIntersect, extractPolygons
 
 // Функция для проверки пересечения отрезка с барьерами
 export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
-  console.log(`🔍 segmentIntersectsBarriers: проверяем ${barrierObjs.length} барьеров`);
-  
   for (const barrier of barrierObjs) {
-    console.log(`🔍 Проверяем барьер:`, {
-      type: barrier.type,
-      osmid: barrier.osmid,
-      geometry_points: barrier.geometry ? barrier.geometry.length : 0,
-      natural: barrier.natural,
-      barrier_type: barrier.barrier_type
-    });
     
     if ((barrier.type === 'way' || barrier.type === 'barrier') && barrier.geometry && barrier.geometry.length > 1) {
       // Проверяем пересечение со всеми сегментами барьера-линии
@@ -46,10 +37,6 @@ export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
         const barrierPoint2 = { lat: lat2, lon: lon2 };
         
         if (segmentsIntersect(p1, p2, barrierPoint1, barrierPoint2)) {
-          console.log(`🔍 Найдено пересечение с барьером ${barrier.osmid}:`, {
-            segment: `${p1.lat.toFixed(6)},${p1.lon.toFixed(6)} -> ${p2.lat.toFixed(6)},${p2.lon.toFixed(6)}`,
-            barrier_segment: `${lat1.toFixed(6)},${lon1.toFixed(6)} -> ${lat2.toFixed(6)},${lon2.toFixed(6)}`
-          });
           return {
             intersects: true,
             barrier: `Barrier ${barrier.osmid || 'unknown'} (${barrier.natural || barrier.barrier_type || 'unknown'})`
@@ -61,10 +48,6 @@ export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
       const barrierPoint = { lat: barrier.lat, lon: barrier.lon };
       const distanceToBarrier = distancePointToSegment(barrierPoint, p1, p2);
       if (distanceToBarrier < 5) { // 5 метров tolerance
-        console.log(`🔍 Найдено пересечение с барьером-точкой ${barrier.osmid}:`, {
-          distance: distanceToBarrier.toFixed(2),
-          barrier_point: `${barrier.lat.toFixed(6)},${barrier.lon.toFixed(6)}`
-        });
         return {
           intersects: true,
           barrier: `Node ${barrier.osmid || 'unknown'} (${barrier.natural || barrier.barrier_type || 'unknown'})`
@@ -110,13 +93,11 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
         lat = pt.lat;
         lon = pt.lon;
       } else {
-        console.log(`🔍 Неизвестный формат точки:`, pt);
         return;
       }
       
       // Проверяем валидность координат
       if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
-        console.log(`🔍 Невалидные координаты:`, { lat, lon, original: pt });
         return;
       }
       
@@ -277,12 +258,10 @@ export function dijkstra(graph, startIdx, endIdx) {
 export function findNearestNodeIdx(lat, lon, nodes) {
   // Проверяем валидность входных параметров
   if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-    console.warn('findNearestNodeIdx: nodes is not a valid array');
     return -1;
   }
   
   if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
-    console.warn('findNearestNodeIdx: invalid lat/lon coordinates');
     return -1;
   }
   
