@@ -203,11 +203,17 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   let attempts = 0;
 
   // Фильтруем тропы по выбранной области
+  console.log('🔍 Фильтрация троп...');
+  console.log(`   Всего троп: ${pathsData.length}`);
+  
   const filteredPaths = pathsData.filter(path => {
     return path.geometry && path.geometry.coordinates && path.geometry.coordinates.length > 0;
   });
 
+  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
+  
   if (filteredPaths.length === 0) {
+    console.log('❌ Не найдено подходящих троп!');
     statusCallback('❌ Не найдено подходящих троп в выбранной области!');
     return points;
   }
@@ -236,12 +242,14 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     success: 0
   };
 
+  console.log('🔍 Начинаем цикл генерации точек...');
+  
   while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
     attempts++;
     debugStats.totalAttempts++;
     
-    // Логируем каждые 100 попыток
-    if (attempts % 100 === 0) {
+    // Логируем каждые 50 попыток для более частого отслеживания
+    if (attempts % 50 === 0) {
       console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}`);
     }
     
