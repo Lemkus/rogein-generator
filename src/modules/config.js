@@ -5,6 +5,9 @@
 // Базовый URL для серверного Overpass API
 export const OVERPASS_API_BASE = 'https://trailspot.app/api';
 
+// Базовый URL для backend API
+export const BACKEND_SIMPLE_BASE = 'https://trailspot.app/api';
+
 // Таймауты для запросов
 export const REQUEST_TIMEOUTS = {
   SHORT: 10000,    // 10 секунд для быстрых запросов
