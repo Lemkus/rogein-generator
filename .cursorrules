@@ -14,9 +14,19 @@
 - MD files in project root (except `LLM_QUICK_START.md`)
 - Temporary files with suffixes (_temp, _draft, _backup)
 
+## 🚫 NEVER DUPLICATE CODE:
+- **DRY Principle**: Don't Repeat Yourself - code should exist in ONE place only
+- **Single Source of Truth**: Each piece of logic must have ONE authoritative location
+- **No Code Duplication**: If same logic exists in multiple files, refactor to eliminate duplication
+- **Shared Logic**: Use existing modules, don't recreate functionality
+- **API Consistency**: Server and client must use same data structures and logic
+
 ## ✅ ALWAYS DO:
 - Edit existing modules directly
 - Create MD files in `docs/` by category
+- **Eliminate Duplication**: If you see repeated code, refactor to single location
+- **Maintain Simplicity**: Keep project structure flat and simple
+- **Single Responsibility**: Each module should have ONE clear purpose
 - Commit changes immediately: `git add src/modules/module.js && git commit -m "Description"`
 - Push to remote repository: `git push`
 - Deploy after push: `python deploy_regru.py`
@@ -64,3 +74,10 @@ docs/
 
 ## 🎯 Goal
 Maintain clean, organized project structure without redundancy.
+
+## 🧠 Code Quality Principles
+- **DRY (Don't Repeat Yourself)**: Every piece of knowledge must have a single, unambiguous representation
+- **KISS (Keep It Simple, Stupid)**: Simplicity should be a key goal and unnecessary complexity avoided
+- **YAGNI (You Aren't Gonna Need It)**: Don't add functionality until you need it
+- **Single Responsibility**: Each module/function should have only one reason to change
+- **Fail Fast**: Detect and handle errors as early as possible
