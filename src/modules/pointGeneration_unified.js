@@ -82,7 +82,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
     // Создаем граф троп
     statusCallback('Создание графа троп...');
-    const graph = buildPathGraph(pathsData);
+    const graph = buildPathGraph(pathsData, [], []);
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');

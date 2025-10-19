@@ -82,7 +82,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
     // Создаем граф троп
     statusCallback('Создание графа троп...');
-    const graph = buildPathGraph(pathsData);
+    const graph = buildPathGraph(pathsData, [], barriersData);
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
@@ -100,7 +100,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
       return;
     }
 
-    // Сохраняем граф для оптимизации маршрута
+    // Сохраняем граф для оптимизации маршрута (будет обновлен позже)
     setTrailGraph(graph);
 
     // Создаем полигоны запретных зон
@@ -122,6 +122,13 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 
     if (cancelGeneration) return;
 
+    // Пересоздаем граф с учетом запретных зон
+    statusCallback('Обновление графа с запретными зонами...');
+    const updatedGraph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
+    
+    // Обновляем граф для оптимизации маршрута
+    setTrailGraph(updatedGraph);
+    
     // Генерируем точки
     statusCallback('Генерация точек...');
     const points = await generatePointsOnPaths(
@@ -131,7 +138,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
       count, 
       minDist, 
       forbiddenPolygons, 
-      graph, 
+      updatedGraph, 
       startNodeIdx, 
       statusCallback
     );
