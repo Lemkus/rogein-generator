@@ -18,26 +18,30 @@ export async function fetchAllMapData(bbox, statusCallback) {
   
   // Проверяем кэш
   if (window.mapDataCache && window.mapDataCache[cacheKey]) {
+    statusCallback('✅ Используем кэшированные данные карты');
     return window.mapDataCache[cacheKey];
   }
   
-  statusCallback('Загружаем данные карты...');
+  statusCallback('🔄 Начинаем загрузку данных карты...');
   
   try {
     // Сначала пробуем серверный API
+    statusCallback('🌐 Пробуем серверный API (trailspot.app)...');
     const serverData = await fetchAllWithServerOverpass(bbox, statusCallback);
     if (serverData) {
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
       window.mapDataCache[cacheKey] = serverData;
+      statusCallback('✅ Данные успешно загружены через серверный API');
       return serverData;
     }
   } catch (error) {
-    // Серверный API недоступен, используем клиентский
+    statusCallback(`❌ Серверный API недоступен: ${error.message}`);
+    console.log(`❌ Серверный API ошибка:`, error);
   }
   
   // Если серверный API недоступен, используем клиентский
-  statusCallback('Загружаем данные из OpenStreetMap...');
+  statusCallback('🔄 Переключаемся на клиентский Overpass API...');
   return await fetchAllWithClientOverpass(bbox, statusCallback);
 }
 
@@ -51,10 +55,12 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен, прерываем запрос`);
+      statusCallback(`⏰ Серверный API: таймаут ${REQUEST_TIMEOUT/1000}с превышен`);
       controller.abort();
     }, REQUEST_TIMEOUT);
     
     console.log(`📤 Отправляем запрос к серверному API...`);
+    statusCallback(`📤 Серверный API: отправляем запрос (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
     const startTime = Date.now();
     
     // Генерируем единый запрос для всех типов данных
@@ -91,6 +97,7 @@ out geom;`;
     
     console.log(`📡 Получен ответ за ${elapsedTime}мс:`);
     console.log(`   Status: ${response.status} ${response.statusText}`);
+    statusCallback(`📡 Серверный API: получен ответ за ${elapsedTime}мс (статус ${response.status})`);
     
     if (!response.ok) {
       let errorText = '';
@@ -101,13 +108,16 @@ out geom;`;
         console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
       }
       
-      throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+      const errorMsg = `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`;
+      statusCallback(`❌ Серверный API: ошибка ${errorMsg}`);
+      throw new Error(errorMsg);
     }
     
     const data = await response.json();
     console.log(`✅ JSON успешно распарсен`);
     console.log(`📊 Структура ответа:`, Object.keys(data));
     console.log(`📊 Полный ответ:`, data);
+    statusCallback(`✅ Серверный API: JSON успешно распарсен`);
     
     // Проверяем разные возможные форматы ответа
     if (data.success && data.data) {
@@ -157,7 +167,7 @@ out geom;`;
       console.log(`   - Водоёмы: ${counts.water_areas}`);
       console.log(`   - Время загрузки: ${data.load_time}с`);
       
-      statusCallback(`Загружено: ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
+      statusCallback(`✅ Серверный API: загружено ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
       return result;
     } else {
       console.log(`❌ Неожиданная структура данных:`, data);
@@ -168,6 +178,15 @@ out geom;`;
     console.log(`❌ === ОШИБКА ЗАПРОСА К СЕРВЕРНОМУ OVERPASS ===`);
     console.log(`❌ Тип ошибки:`, error.name);
     console.log(`❌ Сообщение:`, error.message);
+    
+    if (error.name === 'AbortError') {
+      statusCallback(`❌ Серверный API: запрос прерван по таймауту`);
+    } else if (error.message.includes('Failed to fetch')) {
+      statusCallback(`❌ Серверный API: ошибка сети (сервер недоступен)`);
+    } else {
+      statusCallback(`❌ Серверный API: ${error.message}`);
+    }
+    
     throw error;
   }
 }
@@ -184,6 +203,7 @@ function delay(ms) {
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
   const [south, west, north, east] = bbox.split(',').map(Number);
+  statusCallback(`🌐 Клиентский API: подключаемся к overpass-api.de...`);
   
   // Проверяем корректность bbox
   if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
@@ -229,11 +249,12 @@ out geom;`;
   // Retry логика
   for (let attempt = 1; attempt <= RETRY_CONFIG.MAX_ATTEMPTS; attempt++) {
     try {
-      statusCallback(`Загрузка данных OSM (попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS})...`);
+      statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS} (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен на попытке ${attempt}`);
+        statusCallback(`⏰ Клиентский API: таймаут ${REQUEST_TIMEOUT/1000}с на попытке ${attempt}`);
         controller.abort();
       }, REQUEST_TIMEOUT);
       
@@ -245,12 +266,15 @@ out geom;`;
       });
       
       clearTimeout(timeoutId);
+      statusCallback(`📡 Клиентский API: получен ответ (статус ${response.status})`);
       
       if (!response.ok) {
         if (response.status === 504 || response.status === 429) {
           // Gateway timeout или rate limit - пробуем еще раз
+          statusCallback(`⚠️ Клиентский API: сервер перегружен (${response.status}), попытка ${attempt}`);
           throw new Error(`Сервер перегружен (${response.status}), попытка ${attempt}`);
         } else {
+          statusCallback(`❌ Клиентский API: ошибка загрузки (${response.status})`);
           throw new Error(`Ошибка загрузки данных (${response.status})`);
         }
       }
@@ -327,7 +351,7 @@ out geom;`;
         }
       }
       
-      statusCallback(`✅ Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+      statusCallback(`✅ Клиентский API: загружено ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
       
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
@@ -341,12 +365,13 @@ out geom;`;
       
       // Если это последняя попытка, выбрасываем ошибку
       if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+        statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток`);
         throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Последняя ошибка: ${error.message}`);
       }
       
       // Ждем перед следующей попыткой
       const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
-      statusCallback(`⏳ Повторная попытка через ${Math.round(delayTime/1000)}с...`);
+      statusCallback(`⏳ Клиентский API: повторная попытка через ${Math.round(delayTime/1000)}с...`);
       await delay(delayTime);
     }
   }
