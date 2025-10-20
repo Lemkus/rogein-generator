@@ -63,25 +63,8 @@ async function fetchAllWithServerOverpass(bbox, statusCallback) {
     statusCallback(`📤 Серверный API: отправляем запрос (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
     const startTime = Date.now();
     
-    // Генерируем единый запрос для всех типов данных
-    const query = `[out:json][timeout:30];
-(
-  way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["barrier"="wall"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["barrier"="gate"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["barrier"="fence"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["landuse"="military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  relation["landuse"="military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  relation["military"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["access"="private"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  relation["access"="private"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["access"="no"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  relation["access"="no"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  way["access"="restricted"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-  relation["access"="restricted"](${bbox.split(',')[0]},${bbox.split(',')[1]},${bbox.split(',')[2]},${bbox.split(',')[3]});
-);
-out geom;`;
+    // Используем единую функцию формирования запроса
+    const query = buildOverpassQuery(bbox);
 
     const response = await fetch(`${OVERPASS_API_BASE}/execute-query`, {
       method: 'POST',
@@ -125,64 +108,8 @@ out geom;`;
       console.log(`   - Элементов: ${data.data.elements ? data.data.elements.length : 0}`);
       console.log(`   - Время загрузки: ${data.load_time}с`);
       
-      // Парсим данные Overpass в нужный формат (как в клиентском API)
-      const result = {
-        paths: [],
-        barriers: [],
-        closed_areas: [],
-        water_areas: []
-      };
-
-      let pathCount = 0;
-      let barrierCount = 0;
-      let closedAreaCount = 0;
-
-      for (const element of data.data.elements || []) {
-        if (element.type === 'way' && element.geometry) {
-          const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
-          const tags = element.tags || {};
-          const highway = tags.highway;
-          const barrier = tags.barrier;
-          const landuse = tags.landuse;
-          const military = tags.military;
-          const access = tags.access;
-
-          if (highway && ['path', 'footway', 'cycleway', 'track', 'service', 'bridleway', 'unclassified', 'residential', 'living_street', 'steps', 'pedestrian'].includes(highway)) {
-            result.paths.push({
-              geometry: geometry,
-              highway: highway,
-              name: tags.name || '',
-              surface: tags.surface || '',
-              access: access || '',
-              osmid: String(element.id),
-              length: 0
-            });
-            pathCount++;
-          } else if (barrier && ['wall', 'gate', 'fence'].includes(barrier)) {
-            result.barriers.push({
-              geometry: geometry,
-              type: 'barrier',
-              barrier_type: barrier,
-              access: access || '',
-              osmid: String(element.id)
-            });
-            barrierCount++;
-          } else if (landuse === 'military' || military || ['private', 'no', 'restricted'].includes(access)) {
-            result.closed_areas.push({
-              geometry: geometry,
-              type: 'closed_area',
-              military: military || '',
-              access: access || '',
-              name: tags.name || '',
-              osmid: String(element.id)
-            });
-            closedAreaCount++;
-          }
-        }
-      }
-
-      statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
-      return result;
+      // Используем единую функцию парсинга
+      return parseOverpassData(data.data.elements, statusCallback);
     } else if (data.paths || data.barriers || data.closed_areas) {
       // Возможно, данные приходят напрямую без обертки
       console.log(`✅ Серверный Overpass вернул данные напрямую`);
@@ -252,6 +179,109 @@ function delay(ms) {
 }
 
 /**
+ * Единая функция формирования Overpass запроса
+ * Используется как для серверного, так и для клиентского API
+ */
+function buildOverpassQuery(bbox) {
+  const [south, west, north, east] = bbox.split(',').map(Number);
+  
+  return `[out:json][timeout:30];
+(
+  way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
+  way["barrier"="wall"](${south},${west},${north},${east});
+  way["barrier"="gate"](${south},${west},${north},${east});
+  way["barrier"="fence"](${south},${west},${north},${east});
+  way["landuse"="military"](${south},${west},${north},${east});
+  relation["landuse"="military"](${south},${west},${north},${east});
+  way["military"](${south},${west},${north},${east});
+  relation["military"](${south},${west},${north},${east});
+  way["access"="private"](${south},${west},${north},${east});
+  relation["access"="private"](${south},${west},${north},${east});
+  way["access"="no"](${south},${west},${north},${east});
+  relation["access"="no"](${south},${west},${north},${east});
+  way["access"="restricted"](${south},${west},${north},${east});
+  relation["access"="restricted"](${south},${west},${north},${east});
+);
+out geom;`;
+}
+
+/**
+ * Единая функция парсинга данных Overpass API
+ * Используется как для серверного, так и для клиентского API
+ */
+function parseOverpassData(elements, statusCallback) {
+  const result = {
+    paths: [],
+    barriers: [],
+    closed_areas: [],
+    water_areas: []
+  };
+
+  let pathCount = 0;
+  let barrierCount = 0;
+  let closedAreaCount = 0;
+
+  for (const element of elements || []) {
+    if ((element.type === 'way' || element.type === 'relation') && element.geometry) {
+      const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
+      
+      if (geometry.length >= 2) {
+        const tags = element.tags || {};
+        const highway = tags.highway || '';
+        const barrier = tags.barrier || '';
+        const natural = tags.natural || '';
+        const military = tags.military || '';
+        const landuse = tags.landuse || '';
+        const access = tags.access || '';
+        
+        // Проверяем категории по приоритету
+        
+        // 1. Закрытые зоны (высший приоритет)
+        if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
+          result.closed_areas.push({
+            geometry: geometry,
+            type: 'closed_area',
+            military: military,
+            landuse: landuse,
+            access: access,
+            name: tags.name || '',
+            osmid: String(element.id)
+          });
+          closedAreaCount++;
+        }
+        // 2. Дороги/тропы
+        else if (highway && ['path', 'footway', 'cycleway', 'track', 'service', 'bridleway', 'unclassified', 'residential', 'living_street', 'steps', 'pedestrian'].includes(highway)) {
+          result.paths.push({
+            geometry: geometry,
+            highway: highway,
+            name: tags.name || '',
+            surface: tags.surface || '',
+            access: access,
+            osmid: String(element.id),
+            length: 0
+          });
+          pathCount++;
+        }
+        // 3. Искусственные барьеры
+        else if (barrier && ['wall', 'gate', 'fence'].includes(barrier)) {
+          result.barriers.push({
+            geometry: geometry,
+            type: 'barrier',
+            barrier_type: barrier,
+            access: access,
+            osmid: String(element.id)
+          });
+          barrierCount++;
+        }
+      }
+    }
+  }
+
+  statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+  return result;
+}
+
+/**
  * Загружает все данные через клиентский Overpass API с retry логикой
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
@@ -277,25 +307,8 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     throw new Error('Область слишком большая для загрузки данных');
   }
   
-  // Единый запрос для всех типов данных с уменьшенным таймаутом
-  const query = `[out:json][timeout:30];
-(
-  way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
-  way["barrier"="wall"](${south},${west},${north},${east});
-  way["barrier"="gate"](${south},${west},${north},${east});
-  way["barrier"="fence"](${south},${west},${north},${east});
-  way["landuse"="military"](${south},${west},${north},${east});
-  relation["landuse"="military"](${south},${west},${north},${east});
-  way["military"](${south},${west},${north},${east});
-  relation["military"](${south},${west},${north},${east});
-  way["access"="private"](${south},${west},${north},${east});
-  relation["access"="private"](${south},${west},${north},${east});
-  way["access"="no"](${south},${west},${north},${east});
-  relation["access"="no"](${south},${west},${north},${east});
-  way["access"="restricted"](${south},${west},${north},${east});
-  relation["access"="restricted"](${south},${west},${north},${east});
-);
-out geom;`;
+  // Используем единую функцию формирования запроса
+  const query = buildOverpassQuery(bbox);
 
   let lastError;
   
@@ -334,77 +347,8 @@ out geom;`;
       
       const data = await response.json();
       
-      // Парсим данные
-      const result = {
-        paths: [],
-        barriers: [],
-        closed_areas: [],
-        water_areas: []
-      };
-      
-      let pathCount = 0;
-      let barrierCount = 0;
-      let closedAreaCount = 0;
-      
-      
-      for (const element of data.elements) {
-        if ((element.type === 'way' || element.type === 'relation') && element.geometry) {
-          const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
-          
-          if (geometry.length >= 2) {
-            const tags = element.tags || {};
-            const highway = tags.highway || '';
-            const barrier = tags.barrier || '';
-            const natural = tags.natural || '';
-            const military = tags.military || '';
-            const landuse = tags.landuse || '';
-            const access = tags.access || '';
-            
-            
-            // Проверяем категории по приоритету
-            
-            // 1. Закрытые зоны (высший приоритет)
-            if (military || landuse === 'military' || access === 'no' || access === 'private' || access === 'restricted') {
-              result.closed_areas.push({
-                geometry: geometry,
-                type: 'closed_area',
-                military: military,
-                landuse: landuse,
-                access: access,
-                name: tags.name || '',
-                osmid: String(element.id)
-              });
-              closedAreaCount++;
-            }
-            // 2. Дороги/тропы
-            else if (highway) {
-              result.paths.push({
-                geometry: geometry,
-                highway: highway,
-                name: tags.name || '',
-                surface: tags.surface || '',
-                access: access,
-                osmid: String(element.id),
-                length: 0
-              });
-              pathCount++;
-            }
-            // 3. Искусственные барьеры
-            else if (barrier) {
-              result.barriers.push({
-                geometry: geometry,
-                type: 'barrier',
-                barrier_type: barrier,
-                access: access,
-                osmid: String(element.id)
-              });
-              barrierCount++;
-            }
-          }
-        }
-      }
-      
-      statusCallback(`✅ Клиентский API: загружено ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+      // Используем единую функцию парсинга
+      const result = parseOverpassData(data.elements, statusCallback);
       
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
