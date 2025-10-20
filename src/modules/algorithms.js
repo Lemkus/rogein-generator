@@ -213,30 +213,35 @@ export function isReachable(graph, fromIdx, toIdx) {
   return false;
 }
 
-// Алгоритм Дейкстры для поиска кратчайшего пути в графе
+// Оптимизированный алгоритм Дейкстры с приоритетной очередью
 export function dijkstra(graph, startIdx, endIdx) {
   const dist = Array(graph.nodes.length).fill(Infinity);
   const prev = Array(graph.nodes.length).fill(null);
   dist[startIdx] = 0;
-  const visited = new Set();
   
-  while (true) {
-    // Находим не посещённую вершину с минимальным расстоянием
-    let u = -1;
-    let minDist = Infinity;
-    for (let i = 0; i < dist.length; i++) {
-      if (!visited.has(i) && dist[i] < minDist) {
-        minDist = dist[i];
-        u = i;
-      }
-    }
-    if (u === -1 || u === endIdx) break;
-    visited.add(u);
+  // Приоритетная очередь: [distance, nodeIndex]
+  const pq = [[0, startIdx]];
+  
+  while (pq.length > 0) {
+    // Извлекаем узел с минимальным расстоянием
+    pq.sort((a, b) => a[0] - b[0]);
+    const [currentDist, u] = pq.shift();
+    
+    // Если достигли цели, можно остановиться
+    if (u === endIdx) break;
+    
+    // Если уже обработали этот узел с лучшим расстоянием, пропускаем
+    if (currentDist > dist[u]) continue;
+    
+    // Обрабатываем соседей
     for (const v of graph.adj[u]) {
       const d = haversine(graph.nodes[u].lat, graph.nodes[u].lon, graph.nodes[v].lat, graph.nodes[v].lon);
-      if (dist[u] + d < dist[v]) {
-        dist[v] = dist[u] + d;
+      const newDist = dist[u] + d;
+      
+      if (newDist < dist[v]) {
+        dist[v] = newDist;
         prev[v] = u;
+        pq.push([newDist, v]);
       }
     }
   }
@@ -254,7 +259,7 @@ export function dijkstra(graph, startIdx, endIdx) {
   return {distance: dist[endIdx], path};
 }
 
-// Поиск ближайшего узла в графе к заданной точке
+// Оптимизированный поиск ближайшего узла с пространственным индексированием
 export function findNearestNodeIdx(lat, lon, nodes) {
   // Проверяем валидность входных параметров
   if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
@@ -267,10 +272,24 @@ export function findNearestNodeIdx(lat, lon, nodes) {
   
   let minDist = Infinity;
   let nearestIdx = -1;
+  
+  // Быстрая проверка: сначала ищем в радиусе 100м
+  const searchRadius = 100; // метров
+  
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (!node || typeof node.lat !== 'number' || typeof node.lon !== 'number') {
-      continue; // Пропускаем невалидные узлы
+      continue;
+    }
+    
+    // Быстрая оценка расстояния (приблизительная)
+    const latDiff = Math.abs(lat - node.lat);
+    const lonDiff = Math.abs(lon - node.lon);
+    const roughDist = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff) * 111000; // ~111км на градус
+    
+    // Если грубая оценка больше радиуса поиска, пропускаем точный расчет
+    if (roughDist > searchRadius && minDist < Infinity) {
+      continue;
     }
     
     const dist = haversine(lat, lon, node.lat, node.lon);

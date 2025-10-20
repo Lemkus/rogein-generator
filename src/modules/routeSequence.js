@@ -113,7 +113,7 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
 }
 
 /**
- * Улучшение последовательности методом 2-opt
+ * Оптимизированное улучшение последовательности методом 2-opt
  * @param {Array} sequence - Исходная последовательность
  * @param {Array} points - Массив маркеров точек
  * @param {Object} startPoint - Точка старта
@@ -124,56 +124,74 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
     return sequence; // Для маленьких маршрутов оптимизация не нужна
   }
   
-  let improved = true;
   let currentSequence = [...sequence];
   
-  // Функция расчета общей длины маршрута с учетом графа троп
-  const calculateTotalDistance = (seq) => {
-    let total = 0;
-    let prevPos = startPoint;
-    
-    for (let idx of seq) {
-      const coords = points[idx].getLatLng();
-      total += calculatePathDistance(prevPos, coords);
-      prevPos = coords;
+  // Кэшируем расстояния между точками для быстрого доступа
+  const distanceCache = new Map();
+  const getCachedDistance = (from, to) => {
+    const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+    if (!distanceCache.has(key)) {
+      distanceCache.set(key, calculatePathDistance(from, to));
     }
-    
-    // Добавляем расстояние возврата к старту
-    total += calculatePathDistance(prevPos, startPoint);
-    return total;
+    return distanceCache.get(key);
   };
   
-  let currentDistance = calculateTotalDistance(currentSequence);
+  // Функция быстрого расчета изменения расстояния при 2-opt swap
+  const calculateSwapImprovement = (seq, i, j) => {
+    if (i >= j - 1) return 0;
+    
+    // Получаем координаты точек
+    const prevI = i === 0 ? startPoint : points[seq[i - 1]].getLatLng();
+    const currI = points[seq[i]].getLatLng();
+    const currJ = points[seq[j]].getLatLng();
+    const nextJ = j === seq.length - 1 ? startPoint : points[seq[j + 1]].getLatLng();
+    
+    // Старое расстояние: prevI -> currI -> ... -> currJ -> nextJ
+    const oldDist = getCachedDistance(prevI, currI) + getCachedDistance(currJ, nextJ);
+    
+    // Новое расстояние: prevI -> currJ -> ... -> currI -> nextJ
+    const newDist = getCachedDistance(prevI, currJ) + getCachedDistance(currI, nextJ);
+    
+    return oldDist - newDist; // Положительное значение = улучшение
+  };
   
-  // Итерации 2-opt оптимизации
-  const maxIterations = 100;
+  // Оптимизированная 2-opt с ограниченным количеством итераций
+  const maxIterations = Math.min(50, sequence.length * 2); // Адаптивное ограничение
   let iteration = 0;
+  let improved = true;
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
+    // Ищем лучшее улучшение в текущей итерации
+    let bestImprovement = 0;
+    let bestI = -1, bestJ = -1;
+    
     for (let i = 0; i < currentSequence.length - 1; i++) {
       for (let j = i + 2; j < currentSequence.length; j++) {
-        // Создаем новую последовательность с перевернутым сегментом
-        const newSequence = [
-          ...currentSequence.slice(0, i + 1),
-          ...currentSequence.slice(i + 1, j + 1).reverse(),
-          ...currentSequence.slice(j + 1)
-        ];
-        
-        const newDistance = calculateTotalDistance(newSequence);
-        
-        if (newDistance < currentDistance) {
-          currentSequence = newSequence;
-          currentDistance = newDistance;
-          improved = true;
+        const improvement = calculateSwapImprovement(currentSequence, i, j);
+        if (improvement > bestImprovement) {
+          bestImprovement = improvement;
+          bestI = i;
+          bestJ = j;
         }
       }
     }
+    
+    // Применяем лучшее улучшение
+    if (bestImprovement > 0) {
+      const newSequence = [
+        ...currentSequence.slice(0, bestI + 1),
+        ...currentSequence.slice(bestI + 1, bestJ + 1).reverse(),
+        ...currentSequence.slice(bestJ + 1)
+      ];
+      currentSequence = newSequence;
+      improved = true;
+    }
   }
   
-  console.log(`🔧 2-opt оптимизация: ${iteration} итераций, улучшение: ${((calculateTotalDistance(sequence) - currentDistance) / 1000).toFixed(2)} км`);
+  console.log(`🔧 2-opt оптимизация: ${iteration} итераций, улучшение: ${(bestImprovement / 1000).toFixed(2)} км`);
   
   return currentSequence;
 }
