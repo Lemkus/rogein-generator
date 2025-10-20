@@ -1,8 +1,4 @@
-# Настройка для Passenger WSGI приложения
-PassengerEnabled on
-PassengerAppType wsgi
-PassengerStartupFile passenger_wsgi.py
-
+# Проксирование API запросов на Flask (порт 5000)
 RewriteEngine On
 
 # Обработка CORS заголовков
@@ -14,5 +10,6 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Passenger обрабатывает все запросы через WSGI
-# Не нужно проксировать на порт 5000
+# Проксирование API запросов на порт 5000
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ http://localhost:5000/$1 [P,L]
