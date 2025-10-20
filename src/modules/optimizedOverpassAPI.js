@@ -122,14 +122,67 @@ out geom;`;
     // Проверяем разные возможные форматы ответа
     if (data.success && data.data) {
       console.log(`✅ Серверный Overpass вернул все данные:`);
-      console.log(`   - Дороги/тропы: ${data.counts.paths}`);
-      console.log(`   - Барьеры: ${data.counts.barriers}`);
-      console.log(`   - Закрытые зоны: ${data.counts.closed_areas}`);
-      console.log(`   - Водоёмы: ${data.counts.water_areas}`);
+      console.log(`   - Элементов: ${data.data.elements ? data.data.elements.length : 0}`);
       console.log(`   - Время загрузки: ${data.load_time}с`);
       
-      statusCallback(`Загружено: ${data.counts.paths} дорог, ${data.counts.barriers} барьеров, ${data.counts.closed_areas} закрытых зон`);
-      return data.data;
+      // Парсим данные Overpass в нужный формат (как в клиентском API)
+      const result = {
+        paths: [],
+        barriers: [],
+        closed_areas: [],
+        water_areas: []
+      };
+
+      let pathCount = 0;
+      let barrierCount = 0;
+      let closedAreaCount = 0;
+
+      for (const element of data.data.elements || []) {
+        if (element.type === 'way' && element.geometry) {
+          const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
+          const tags = element.tags || {};
+          const highway = tags.highway;
+          const barrier = tags.barrier;
+          const landuse = tags.landuse;
+          const military = tags.military;
+          const access = tags.access;
+
+          if (highway && ['path', 'footway', 'cycleway', 'track', 'service', 'bridleway', 'unclassified', 'residential', 'living_street', 'steps', 'pedestrian'].includes(highway)) {
+            result.paths.push({
+              geometry: geometry,
+              highway: highway,
+              name: tags.name || '',
+              surface: tags.surface || '',
+              access: access || '',
+              osmid: String(element.id),
+              length: 0
+            });
+            pathCount++;
+          } else if (barrier && ['wall', 'gate', 'fence'].includes(barrier)) {
+            result.barriers.push({
+              geometry: geometry,
+              type: 'barrier',
+              barrier_type: barrier,
+              access: access || '',
+              osmid: String(element.id)
+            });
+            barrierCount++;
+          } else if (landuse === 'military' || military || ['private', 'no', 'restricted'].includes(access)) {
+            result.closed_areas.push({
+              geometry: geometry,
+              type: 'closed_area',
+              military: military || '',
+              access: access || '',
+              name: tags.name || '',
+              osmid: String(element.id)
+            });
+            closedAreaCount++;
+          }
+        }
+      }
+
+      statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
+      return result;
     } else if (data.paths || data.barriers || data.closed_areas) {
       // Возможно, данные приходят напрямую без обертки
       console.log(`✅ Серверный Overpass вернул данные напрямую`);
