@@ -9,10 +9,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="TrailSpot">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <link rel="manifest" href="manifest.json">
+  <meta http-equiv="Cache-Control" content="max-age=3600">
+  <meta http-equiv="Pragma" content="cache">
   <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiM0Q0FGNTAiLz4KPHBhdGggZD0iTTk2IDQ4TDEwOCA2NEwxMjggNzJMMTA4IDgwTDk2IDk2TDg0IDgwTDY0IDcyTDg0IDY0TDk2IDQ4WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTk2IDk2TDEwOCAxMTJMMTI4IDEyMEwxMDggMTI4TDk2IDE0NEw4NCAxMjhMNjQgMTIwTDg0IDExMkw5NiA5NloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=">
   <link rel="stylesheet" href="./libs/leaflet/leaflet.css" />
   <link rel="stylesheet" href="./libs/leaflet/leaflet.draw.css" />
@@ -449,22 +447,7 @@
   <!-- Tone.js удален - используем простой Web Audio API -->
   
   <script>
-    // Регистрация Service Worker для PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('Service Worker зарегистрирован:', registration);
-            // Принудительное обновление кэша
-            registration.update();
-          })
-          .catch(error => {
-            console.log('Ошибка регистрации Service Worker:', error);
-          });
-      });
-    }
-    
-    // Запрос разрешений для уведомлений
+    // Запрос разрешений для уведомлений (без Service Worker)
     if ('Notification' in window) {
       Notification.requestPermission();
     }
@@ -501,7 +484,7 @@
       </a>
     </div>
     <div style="margin-top: 10px; font-size: 12px; color: #999;">
-      Made with 💚 for outdoor enthusiasts
+      Made with 💚 for outdoor enthusiasts | v1.2.1
     </div>
   </footer>
 </body>
