@@ -1,5 +1,7 @@
 # Настройка для Passenger WSGI приложения
-# Passenger автоматически обрабатывает WSGI приложение
+PassengerEnabled on
+PassengerAppType wsgi
+PassengerStartupFile passenger_wsgi.py
 
 RewriteEngine On
 
