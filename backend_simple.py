@@ -415,83 +415,27 @@ def execute_query():
         if not query:
             return jsonify({'error': 'Запрос обязателен'}), 400
         
-        # Выполняем запрос
+        # Просто проксируем запрос к Overpass API и возвращаем результат
         start_time = time.time()
-        elements = execute_overpass_query(query)
-        
-        # Разделяем элементы по типам
-        paths = []
-        barriers = []
-        closed_areas = []
-        
-        for element in elements:
-            if element.get('type') == 'way' and 'geometry' in element:
-                geometry = []
-                for coord in element['geometry']:
-                    if 'lat' in coord and 'lon' in coord:
-                        geometry.append([coord['lat'], coord['lon']])
-                
-                if len(geometry) >= 2:
-                    tags = element.get('tags', {})
-                    highway = tags.get('highway', '')
-                    barrier = tags.get('barrier', '')
-                    natural = tags.get('natural', '')
-                    military = tags.get('military', '')
-                    access = tags.get('access', '')
-                    
-                    # Классифицируем элемент по приоритету (как в клиенте)
-                    if military or tags.get('landuse') == 'military' or access in ['no', 'private', 'restricted']:
-                        # 1. Закрытые зоны (высший приоритет)
-                        area_obj = {
-                            'geometry': geometry,
-                            'type': 'closed_area',
-                            'military': military,
-                            'landuse': tags.get('landuse', ''),
-                            'access': access,
-                            'name': tags.get('name', ''),
-                            'osmid': str(element.get('id', ''))
-                        }
-                        closed_areas.append(area_obj)
-                    elif highway:
-                        # 2. Дороги/тропы
-                        path_obj = {
-                            'geometry': geometry,
-                            'highway': highway,
-                            'name': tags.get('name', ''),
-                            'surface': tags.get('surface', ''),
-                            'access': access,
-                            'osmid': str(element.get('id', '')),
-                            'length': 0
-                        }
-                        paths.append(path_obj)
-                    elif barrier:
-                        # 3. Искусственные барьеры
-                        barrier_obj = {
-                            'geometry': geometry,
-                            'type': 'barrier',
-                            'barrier_type': barrier,
-                            'access': access,
-                            'osmid': str(element.get('id', ''))
-                        }
-                        barriers.append(barrier_obj)
-        
+        response = requests.post(
+            OVERPASS_URL,
+            data=query,
+            headers={'Content-Type': 'text/plain'},
+            timeout=TIMEOUT
+        )
         load_time = time.time() - start_time
-        
+
+        if response.status_code != 200:
+            logger.error(f"Overpass API вернул ошибку: {response.status_code}")
+            return jsonify({'error': f'Overpass API error: {response.status_code}'}), 500
+
+        # Возвращаем данные как есть от Overpass API
+        data = response.json()
+        logger.info(f"Получено {len(data.get('elements', []))} элементов за {load_time:.2f}с")
+
         return jsonify({
             'success': True,
-            'data': {
-                'paths': paths,
-                'barriers': barriers,
-                'closed_areas': closed_areas,
-                'water_areas': []  # Водоёмы не загружаем
-            },
-            'counts': {
-                'paths': len(paths),
-                'barriers': len(barriers),
-                'closed_areas': len(closed_areas),
-                'water_areas': 0
-            },
-            'bbox': bbox,
+            'data': data,
             'load_time': round(load_time, 2),
             'timestamp': time.time()
         })
