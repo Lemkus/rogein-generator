@@ -159,13 +159,14 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
   const maxIterations = Math.min(50, sequence.length * 2); // Адаптивное ограничение
   let iteration = 0;
   let improved = true;
+  let bestImprovement = 0; // Объявляем вне цикла для доступа в console.log
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
     // Ищем лучшее улучшение в текущей итерации
-    let bestImprovement = 0;
+    bestImprovement = 0; // Сбрасываем для каждой итерации
     let bestI = -1, bestJ = -1;
     
     for (let i = 0; i < currentSequence.length - 1; i++) {
