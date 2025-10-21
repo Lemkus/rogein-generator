@@ -329,7 +329,7 @@ function calculateSequenceDistance(sequence, points, startPoint) {
 
 
 /**
- * Улучшенная оптимизация последовательности методом 2-opt с лучшим алгоритмом
+ * Настоящая 2-opt оптимизация с проверкой всех пересечений
  * @param {Array} sequence - Исходная последовательность
  * @param {Array} points - Массив маркеров точек
  * @param {Object} startPoint - Точка старта
@@ -337,69 +337,73 @@ function calculateSequenceDistance(sequence, points, startPoint) {
  */
 export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
   if (sequence.length < 4) {
-    return sequence; // Для маленьких маршрутов оптимизация не нужна
+    return sequence;
   }
   
-  let currentSequence = [...sequence];
-  let bestSequence = [...sequence];
-  let bestDistance = calculateTotalRouteDistance(sequence, points, startPoint);
+  let route = [...sequence];
+  const initialDistance = calculateTotalRouteDistance(route, points, startPoint);
   
-  console.log(`🔧 Начинаем 2-opt оптимизацию. Начальное расстояние: ${(bestDistance / 1000).toFixed(2)} км`);
+  console.log(`🔧 Начинаем 2-opt оптимизацию. Начальное расстояние: ${(initialDistance / 1000).toFixed(2)} км`);
   
-  // Улучшенный 2-opt с множественными попытками
-  const maxIterations = Math.min(100, sequence.length * 3);
-  let iteration = 0;
   let improved = true;
+  let iteration = 0;
+  const maxIterations = 1000; // Больше итераций для лучшего результата
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
-    // Ищем лучшее улучшение в текущей итерации
-    let bestImprovement = 0;
-    let bestI = -1, bestJ = -1;
-    
-    // Проверяем все возможные перестановки
-    for (let i = 0; i < currentSequence.length - 1; i++) {
-      for (let j = i + 2; j < currentSequence.length; j++) {
-        const improvement = calculateSwapImprovement(currentSequence, i, j, points, startPoint);
-        if (improvement > bestImprovement) {
-          bestImprovement = improvement;
-          bestI = i;
-          bestJ = j;
+    // Проверяем ВСЕ возможные пары ребер
+    for (let i = 0; i < route.length - 1; i++) {
+      for (let k = i + 2; k < route.length; k++) {
+        // Получаем координаты для проверки пересечения
+        const i_prev = i === 0 ? startPoint : points[route[i - 1]].getLatLng();
+        const i_curr = points[route[i]].getLatLng();
+        const k_curr = points[route[k]].getLatLng();
+        const k_next = k === route.length - 1 ? startPoint : points[route[k + 1]].getLatLng();
+        
+        // Вычисляем текущее расстояние для этих двух ребер
+        const currentDist = haversine(i_prev.lat, i_prev.lng, i_curr.lat, i_curr.lng) +
+                           haversine(k_curr.lat, k_curr.lng, k_next.lat, k_next.lng);
+        
+        // Вычисляем новое расстояние при развороте сегмента
+        const newDist = haversine(i_prev.lat, i_prev.lng, k_curr.lat, k_curr.lng) +
+                       haversine(i_curr.lat, i_curr.lng, k_next.lat, k_next.lng);
+        
+        // Если новый вариант лучше - применяем
+        if (newDist < currentDist - 0.01) { // Небольшой порог для избежания флуктуаций
+          // Разворачиваем сегмент между i и k
+          const newRoute = [
+            ...route.slice(0, i),
+            ...route.slice(i, k + 1).reverse(),
+            ...route.slice(k + 1)
+          ];
+          
+          route = newRoute;
+          improved = true;
+          
+          const improvement = currentDist - newDist;
+          if (iteration % 10 === 0 || improvement > 100) {
+            console.log(`✅ Итерация ${iteration}: улучшение ${(improvement / 1000).toFixed(3)} км`);
+          }
+          
+          // Начинаем заново после каждого улучшения
+          break;
         }
       }
-    }
-    
-    // Применяем лучшее улучшение
-    if (bestImprovement > 0) {
-      const newSequence = [
-        ...currentSequence.slice(0, bestI + 1),
-        ...currentSequence.slice(bestI + 1, bestJ + 1).reverse(),
-        ...currentSequence.slice(bestJ + 1)
-      ];
       
-      const newDistance = calculateTotalRouteDistance(newSequence, points, startPoint);
-      
-      if (newDistance < bestDistance) {
-        currentSequence = newSequence;
-        bestSequence = [...newSequence];
-        bestDistance = newDistance;
-        improved = true;
-        
-        console.log(`✅ Итерация ${iteration}: улучшение на ${(bestImprovement / 1000).toFixed(2)} км`);
-      }
+      if (improved) break; // Начинаем заново
     }
   }
   
-  const finalDistance = calculateTotalRouteDistance(bestSequence, points, startPoint);
-  const totalImprovement = calculateTotalRouteDistance(sequence, points, startPoint) - finalDistance;
+  const finalDistance = calculateTotalRouteDistance(route, points, startPoint);
+  const totalImprovement = initialDistance - finalDistance;
   
   console.log(`🔧 2-opt завершена: ${iteration} итераций`);
   console.log(`📊 Финальное расстояние: ${(finalDistance / 1000).toFixed(2)} км`);
-  console.log(`💡 Общее улучшение: ${(totalImprovement / 1000).toFixed(2)} км (${((totalImprovement / calculateTotalRouteDistance(sequence, points, startPoint)) * 100).toFixed(1)}%)`);
+  console.log(`💡 Общее улучшение: ${(totalImprovement / 1000).toFixed(2)} км (${((totalImprovement / initialDistance) * 100).toFixed(1)}%)`);
   
-  return bestSequence;
+  return route;
 }
 
 /**
@@ -418,29 +422,6 @@ function calculateTotalRouteDistance(sequence, points, startPoint) {
   // Добавляем возврат к старту
   totalDist += calculatePathDistance(prevPos, startPoint);
   return totalDist;
-}
-
-/**
- * Расчет улучшения при 2-opt перестановке
- */
-function calculateSwapImprovement(sequence, i, j, points, startPoint) {
-  if (i >= j - 1) return 0;
-  
-  // Получаем координаты точек
-  const prevI = i === 0 ? startPoint : points[sequence[i - 1]].getLatLng();
-  const currI = points[sequence[i]].getLatLng();
-  const currJ = points[sequence[j]].getLatLng();
-  const nextJ = j === sequence.length - 1 ? startPoint : points[sequence[j + 1]].getLatLng();
-  
-  // Старое расстояние: prevI -> currI -> ... -> currJ -> nextJ
-  const oldDist = haversine(prevI.lat, prevI.lng, currI.lat, currI.lng) + 
-                  haversine(currJ.lat, currJ.lng, nextJ.lat, nextJ.lng);
-  
-  // Новое расстояние: prevI -> currJ -> ... -> currI -> nextJ
-  const newDist = haversine(prevI.lat, prevI.lng, currJ.lat, currJ.lng) + 
-                  haversine(currI.lat, currI.lng, nextJ.lat, nextJ.lng);
-  
-  return oldDist - newDist; // Положительное значение = улучшение
 }
 
 /**
@@ -609,4 +590,5 @@ export function getRouteStats() {
     direction: isClockwise ? 'по часовой' : 'против часовой'
   };
 }
+
 
