@@ -71,13 +71,42 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
 
   const numPoints = points.length;
   
+  console.log(`🎯 Начинаем построение оптимальной последовательности для ${numPoints} точек`);
+  
   // Для малого количества точек используем простой алгоритм
   if (numPoints <= 3) {
     return buildSimpleSequence(points, startPoint, clockwise);
   }
   
-  // Для большего количества точек используем улучшенный алгоритм
-  return buildAdvancedSequence(points, startPoint, clockwise);
+  // Пробуем несколько алгоритмов и выбираем лучший
+  const algorithms = [
+    () => buildNearestNeighborSequence(points, startPoint),
+    () => buildConvexHullSequence(points, startPoint),
+    () => buildSpiralSequence(points, startPoint)
+  ];
+  
+  let bestSequence = [];
+  let bestDistance = Infinity;
+  
+  for (let i = 0; i < algorithms.length; i++) {
+    try {
+      const sequence = algorithms[i]();
+      const distance = calculateSequenceDistance(sequence, points, startPoint);
+      
+      console.log(`📊 Алгоритм ${i + 1}: расстояние ${(distance / 1000).toFixed(2)} км`);
+      
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestSequence = sequence;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Алгоритм ${i + 1} не сработал:`, error);
+    }
+  }
+  
+  console.log(`✅ Выбран лучший алгоритм с расстоянием ${(bestDistance / 1000).toFixed(2)} км`);
+  
+  return clockwise ? bestSequence : bestSequence.reverse();
 }
 
 /**
@@ -115,85 +144,189 @@ function buildSimpleSequence(points, startPoint, clockwise) {
 }
 
 /**
- * Улучшенный алгоритм для большого количества точек
+ * Алгоритм ближайшего соседа с улучшениями
  */
-function buildAdvancedSequence(points, startPoint, clockwise) {
-  // Создаем матрицу расстояний для всех точек
-  const distanceMatrix = createDistanceMatrix(points, startPoint);
-  
-  // Используем улучшенный жадный алгоритм с учетом возврата к старту
-  const sequence = greedyWithReturnOptimization(distanceMatrix, points.length);
-  
-  // Применяем направление
-  return clockwise ? sequence : sequence.reverse();
-}
-
-/**
- * Создание матрицы расстояний между всеми точками
- */
-function createDistanceMatrix(points, startPoint) {
-  const n = points.length;
-  const matrix = Array(n + 1).fill().map(() => Array(n + 1).fill(0));
-  
-  // Заполняем расстояния от старта к точкам
-  for (let i = 0; i < n; i++) {
-    const coords = points[i].getLatLng();
-    matrix[0][i + 1] = calculatePathDistance(startPoint, coords);
-    matrix[i + 1][0] = matrix[0][i + 1]; // Симметричная матрица
-  }
-  
-  // Заполняем расстояния между точками
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const coords1 = points[i].getLatLng();
-      const coords2 = points[j].getLatLng();
-      const dist = calculatePathDistance(coords1, coords2);
-      matrix[i + 1][j + 1] = dist;
-      matrix[j + 1][i + 1] = dist; // Симметричная матрица
-    }
-  }
-  
-  return matrix;
-}
-
-/**
- * Улучшенный жадный алгоритм с учетом возврата к старту
- */
-function greedyWithReturnOptimization(distanceMatrix, numPoints) {
+function buildNearestNeighborSequence(points, startPoint) {
   const sequence = [];
-  const visited = new Array(numPoints).fill(false);
-  let currentIdx = 0; // Начинаем от старта (индекс 0 в матрице)
+  const visited = new Array(points.length).fill(false);
+  let currentPos = startPoint;
   
-  for (let i = 0; i < numPoints; i++) {
-    let bestIdx = -1;
-    let minCost = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    let nearestIdx = -1;
+    let minDist = Infinity;
     
-    // Ищем лучшую следующую точку
-    for (let j = 1; j <= numPoints; j++) { // j=1..n (точки, j=0 это старт)
-      if (!visited[j - 1]) {
-        let cost = distanceMatrix[currentIdx][j];
+    for (let j = 0; j < points.length; j++) {
+      if (!visited[j]) {
+        const coords = points[j].getLatLng();
+        let dist = haversine(currentPos.lat, currentPos.lng, coords.lat, coords.lng);
         
-        // Для последней точки добавляем стоимость возврата к старту
-        if (i === numPoints - 1) {
-          cost += distanceMatrix[j][0];
+        // Для последней точки учитываем возврат к старту
+        if (i === points.length - 1) {
+          const returnDist = haversine(coords.lat, coords.lng, startPoint.lat, startPoint.lng);
+          dist += returnDist * 0.2; // Штраф за возврат
         }
         
-        if (cost < minCost) {
-          minCost = cost;
-          bestIdx = j;
+        if (dist < minDist) {
+          minDist = dist;
+          nearestIdx = j;
         }
       }
     }
     
-    if (bestIdx !== -1) {
-      sequence.push(bestIdx - 1); // Преобразуем обратно в индекс точки
-      visited[bestIdx - 1] = true;
-      currentIdx = bestIdx;
+    if (nearestIdx !== -1) {
+      visited[nearestIdx] = true;
+      sequence.push(nearestIdx);
+      currentPos = points[nearestIdx].getLatLng();
     }
   }
   
   return sequence;
 }
+
+/**
+ * Алгоритм на основе выпуклой оболочки
+ */
+function buildConvexHullSequence(points, startPoint) {
+  // Находим выпуклую оболочку точек
+  const hull = findConvexHull(points);
+  
+  // Добавляем внутренние точки к ближайшим точкам оболочки
+  const sequence = [...hull];
+  const visited = new Set(hull);
+  
+  // Добавляем оставшиеся точки
+  for (let i = 0; i < points.length; i++) {
+    if (!visited.has(i)) {
+      // Находим ближайшую точку оболочки
+      let nearestHullIdx = hull[0];
+      let minDist = Infinity;
+      
+      for (let hullIdx of hull) {
+        const coords1 = points[i].getLatLng();
+        const coords2 = points[hullIdx].getLatLng();
+        const dist = haversine(coords1.lat, coords1.lng, coords2.lat, coords2.lng);
+        
+        if (dist < minDist) {
+          minDist = dist;
+          nearestHullIdx = hullIdx;
+        }
+      }
+      
+      // Вставляем точку после ближайшей точки оболочки
+      const insertIndex = sequence.indexOf(nearestHullIdx) + 1;
+      sequence.splice(insertIndex, 0, i);
+    }
+  }
+  
+  return sequence;
+}
+
+/**
+ * Спиральный алгоритм (от центра наружу)
+ */
+function buildSpiralSequence(points, startPoint) {
+  // Сортируем точки по расстоянию от старта
+  const pointsWithDist = points.map((point, idx) => ({
+    idx,
+    coords: point.getLatLng(),
+    dist: haversine(startPoint.lat, startPoint.lng, point.getLatLng().lat, point.getLatLng().lng)
+  }));
+  
+  pointsWithDist.sort((a, b) => a.dist - b.dist);
+  
+  // Создаем спиральную последовательность
+  const sequence = [];
+  const visited = new Set();
+  
+  // Начинаем с ближайших точек
+  for (let i = 0; i < pointsWithDist.length; i++) {
+    const point = pointsWithDist[i];
+    if (!visited.has(point.idx)) {
+      sequence.push(point.idx);
+      visited.add(point.idx);
+    }
+  }
+  
+  return sequence;
+}
+
+/**
+ * Поиск выпуклой оболочки (алгоритм Грэхема)
+ */
+function findConvexHull(points) {
+  if (points.length < 3) {
+    return points.map((_, idx) => idx);
+  }
+  
+  // Находим самую нижнюю точку (с минимальной широтой)
+  let bottomIdx = 0;
+  for (let i = 1; i < points.length; i++) {
+    const coords = points[i].getLatLng();
+    const bottomCoords = points[bottomIdx].getLatLng();
+    if (coords.lat < bottomCoords.lat || 
+        (coords.lat === bottomCoords.lat && coords.lng < bottomCoords.lng)) {
+      bottomIdx = i;
+    }
+  }
+  
+  // Сортируем точки по полярному углу относительно нижней точки
+  const bottomCoords = points[bottomIdx].getLatLng();
+  const sortedPoints = points.map((point, idx) => ({
+    idx,
+    coords: point.getLatLng(),
+    angle: Math.atan2(
+      point.getLatLng().lat - bottomCoords.lat,
+      point.getLatLng().lng - bottomCoords.lng
+    )
+  })).sort((a, b) => a.angle - b.angle);
+  
+  // Строим выпуклую оболочку
+  const hull = [sortedPoints[0].idx];
+  
+  for (let i = 1; i < sortedPoints.length; i++) {
+    const current = sortedPoints[i];
+    
+    // Удаляем точки, которые не образуют выпуклый угол
+    while (hull.length > 1 && 
+           crossProduct(
+             points[hull[hull.length - 2]].getLatLng(),
+             points[hull[hull.length - 1]].getLatLng(),
+             current.coords
+           ) <= 0) {
+      hull.pop();
+    }
+    
+    hull.push(current.idx);
+  }
+  
+  return hull;
+}
+
+/**
+ * Векторное произведение для определения направления поворота
+ */
+function crossProduct(p1, p2, p3) {
+  return (p2.lng - p1.lng) * (p3.lat - p1.lat) - (p2.lat - p1.lat) * (p3.lng - p1.lng);
+}
+
+/**
+ * Расчет расстояния последовательности
+ */
+function calculateSequenceDistance(sequence, points, startPoint) {
+  let totalDist = 0;
+  let prevPos = startPoint;
+  
+  for (let idx of sequence) {
+    const coords = points[idx].getLatLng();
+    totalDist += haversine(prevPos.lat, prevPos.lng, coords.lat, coords.lng);
+    prevPos = coords;
+  }
+  
+  // Добавляем возврат к старту
+  totalDist += haversine(prevPos.lat, prevPos.lng, startPoint.lat, startPoint.lng);
+  return totalDist;
+}
+
 
 /**
  * Улучшенная оптимизация последовательности методом 2-opt с лучшим алгоритмом
@@ -300,10 +433,12 @@ function calculateSwapImprovement(sequence, i, j, points, startPoint) {
   const nextJ = j === sequence.length - 1 ? startPoint : points[sequence[j + 1]].getLatLng();
   
   // Старое расстояние: prevI -> currI -> ... -> currJ -> nextJ
-  const oldDist = calculatePathDistance(prevI, currI) + calculatePathDistance(currJ, nextJ);
+  const oldDist = haversine(prevI.lat, prevI.lng, currI.lat, currI.lng) + 
+                  haversine(currJ.lat, currJ.lng, nextJ.lat, nextJ.lng);
   
   // Новое расстояние: prevI -> currJ -> ... -> currI -> nextJ
-  const newDist = calculatePathDistance(prevI, currJ) + calculatePathDistance(currI, nextJ);
+  const newDist = haversine(prevI.lat, prevI.lng, currJ.lat, currJ.lng) + 
+                  haversine(currI.lat, currI.lng, nextJ.lat, nextJ.lng);
   
   return oldDist - newDist; // Положительное значение = улучшение
 }
