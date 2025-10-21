@@ -299,8 +299,17 @@ export function addFailedAttemptMarker(lat, lon) {
 export function showGraphDebug(graph) {
   clearGraphDebugLayers();
   
+  if (!graph || !graph.nodes || !graph.adj) {
+    console.warn('🔍 Граф для отладки пуст или некорректен');
+    return;
+  }
+  
+  console.log(`🔍 Отображаем граф троп: ${graph.nodes.length} узлов, ${graph.adj.length} рёбер`);
+  
   // Показываем только рёбра (убрали узлы для чистоты)
   const drawnEdges = new Set();
+  let edgeCount = 0;
+  
   graph.adj.forEach((neighbors, i) => {
     neighbors.forEach(j => {
       const key = `${Math.min(i, j)}-${Math.max(i, j)}`;
@@ -309,15 +318,19 @@ export function showGraphDebug(graph) {
           [graph.nodes[i].lat, graph.nodes[i].lon],
           [graph.nodes[j].lat, graph.nodes[j].lon]
         ], {
-          color: '#8B00FF',  // Более яркий фиолетовый цвет
-          weight: 2,         // Увеличили толщину линий
-          opacity: 0.8       // Увеличили непрозрачность
+          color: '#0066FF',  // Яркий синий цвет для графа троп
+          weight: 3,         // Толстые линии для лучшей видимости
+          opacity: 0.9,      // Высокая непрозрачность
+          dashArray: '5, 5'  // Пунктирные линии для отличия от маршрута
         }).addTo(map);
         graphDebugLayers.push(line);
         drawnEdges.add(key);
+        edgeCount++;
       }
     });
   });
+  
+  console.log(`🔍 Отображено ${edgeCount} рёбер графа троп синим цветом`);
 }
 
 // Геттеры для получения текущих значений

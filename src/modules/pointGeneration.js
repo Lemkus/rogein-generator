@@ -5,7 +5,7 @@
 
 import { haversine, extractPolygons, pointInPolygon, getRandomPointOnLine, segmentIntersectsPolygon } from './utils.js';
 import { fetchAllMapData, clearMapDataCache } from './optimizedOverpassAPI.js';
-import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition, pointMarkers } from './mapModule.js';
+import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition, pointMarkers, showGraphDebug } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
 import { setTrailGraph } from './routeSequence.js';
@@ -194,6 +194,9 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     
     // Обновляем граф для оптимизации маршрута
     setTrailGraph(updatedGraph);
+    
+    // Отображаем граф троп на карте для отладки
+    showGraphDebug(updatedGraph);
     
     // Генерируем точки
     statusCallback('Генерация точек...');
