@@ -281,7 +281,7 @@
       background: #f5f5f5;
       border: none;
       padding: 8px;
-      border-radius: 6px;
+      border-radius: 6px; 
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -646,7 +646,7 @@
     <button class="icon-btn" id="gpsBtn" title="Моя позиция">
       <img src="./assets/icons/GPS_Position.png" alt="GPS">
     </button>
-  </div>
+      </div>
   
   <!-- КРЕСТИК ДЛЯ ОЧИСТКИ ОБЛАСТИ -->
   <button class="clear-area-btn" id="clearAreaBtn">×</button>
@@ -659,7 +659,7 @@
       <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
       <div class="sequence-distance" id="sequenceDistance">Дистанция: 0 км</div>
     </div>
-    <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
+    <button class="info-panel-nav-btn" id="startNavBtn" onclick="console.log('Кнопка нажата через onclick!'); alert('Кнопка работает!');">🎧 Начать навигацию</button>
     <div class="info-panel-actions">
       <button class="info-panel-action-btn" id="refreshBtn" title="Обновить">
         <img src="./assets/icons/Refresh.png" alt="Refresh">
@@ -788,24 +788,13 @@
     // Версия для принудительного обновления кэша
     const APP_VERSION = '1.11.7'; // Fixed Leaflet CDN loading issues
     
-    alert('Начинаем загрузку приложения...');
-    console.log('🚀 HTML: Начинаем загрузку приложения...');
-    
     import(`./src/app.js?v=${APP_VERSION}`).then(module => {
-      alert('Модуль app.js загружен!');
-      console.log('✅ HTML: Модуль app.js загружен');
       if (typeof module.initApp === 'function') {
-        alert('Вызываем initApp...');
-        console.log('🎯 HTML: Вызываем initApp');
         module.initApp();
-        alert('initApp завершен!');
-        console.log('✅ HTML: initApp завершен');
       } else {
-        alert('ОШИБКА: Функция initApp не найдена!');
         console.error('Функция initApp не найдена в модуле');
       }
     }).catch(error => {
-      alert('ОШИБКА загрузки модуля: ' + error.message);
       console.error('Ошибка загрузки модуля:', error);
     });
   </script>
