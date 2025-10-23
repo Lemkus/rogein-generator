@@ -197,32 +197,47 @@ export function updateSequenceDisplay() {
   
   // Формируем текст последовательности (номера точек, начиная с 1)
   const sequenceText = sequence.map(idx => idx + 1).join(' → ');
-  sequenceLink.textContent = `СТАРТ → ${sequenceText} → СТАРТ`;
   
   // Обновляем статистику маршрута
   const stats = getRouteStats();
+  let distanceKm = 0;
   if (stats) {
-    const distanceKm = (stats.totalDistance / 1000).toFixed(2);
-    routeStatsSpan.textContent = `${distanceKm} км, ${stats.direction}`;
+    distanceKm = (stats.totalDistance / 1000).toFixed(2);
   }
   
-  // Обновляем текст кнопки направления
-  const isClockwise = getDirection();
-  toggleDirectionBtn.innerHTML = isClockwise ? '🔄 Против часовой' : '🔄 По часовой';
+  // Обновляем новый info-panel через uiController
+  import('./uiController.js').then(ui => {
+    ui.updateInfoPanel(
+      sequence.length, 
+      `СТАРТ → ${sequenceText} → СТАРТ`, 
+      distanceKm
+    );
+  });
+  
+  // Обновляем старые элементы если они есть (для совместимости)
+  if (sequenceLink) {
+    sequenceLink.textContent = `СТАРТ → ${sequenceText} → СТАРТ`;
+  }
+  if (routeStatsSpan) {
+    routeStatsSpan.textContent = `${distanceKm} км, ${stats ? stats.direction : ''}`;
+  }
+  if (toggleDirectionBtn) {
+    const isClockwise = getDirection();
+    toggleDirectionBtn.innerHTML = isClockwise ? '🔄 Против часовой' : '🔄 По часовой';
+  }
 }
 
 // Показать секцию последовательности
 function showSequenceSection() {
-  if (sequenceSection) {
-    sequenceSection.style.display = 'block';
-  }
+  // В новом интерфейсе последовательность отображается в info-panel
+  // Эта функция теперь не нужна, так как info-panel управляется uiController
+  console.log('✅ Последовательность готова для отображения');
 }
 
 // Скрыть секцию последовательности
 function hideSequenceSection() {
-  if (sequenceSection) {
-    sequenceSection.style.display = 'none';
-  }
+  // В новом интерфейсе последовательность скрывается через uiController
+  console.log('❌ Последовательность скрыта');
 }
 
 // Открыть редактор последовательности
