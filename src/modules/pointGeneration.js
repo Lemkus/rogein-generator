@@ -226,6 +226,13 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
       }).catch(err => {
         console.error('Ошибка обновления UI:', err);
       });
+      
+      // Генерируем и отображаем последовательность
+      import('./sequenceUI.js').then(sequenceUI => {
+        sequenceUI.generateAndDisplaySequence();
+      }).catch(err => {
+        console.error('Ошибка генерации последовательности:', err);
+      });
     } else {
       statusCallback('❌ Не удалось сгенерировать ни одной точки. Попробуйте другую область или уменьшите количество точек.');
     }
