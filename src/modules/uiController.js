@@ -328,6 +328,14 @@ export function showInfoPanel() {
     console.log('  ✅ Класс show добавлен к infoPanel');
     console.log('  Текущие классы:', infoPanel.className);
     console.log('  Текущий display:', window.getComputedStyle(infoPanel).display);
+    
+    // КРИТИЧНО: Убираем disabled с кнопки навигации
+    const navBtn = document.getElementById('startNavBtn');
+    if (navBtn) {
+      navBtn.disabled = false;
+      navBtn.removeAttribute('disabled');
+      console.log('  ✅ Кнопка навигации разблокирована');
+    }
   } else {
     console.error('  ❌ infoPanel не найден!');
   }
