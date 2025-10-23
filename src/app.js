@@ -13,46 +13,34 @@ import { resetSequence } from './modules/routeSequence.js';
 import { initFullscreenNavigation } from './modules/fullscreenNavigation.js';
 import { initMediaSession } from './modules/mediaSessionManager.js';
 import { clearMapDataCache } from './modules/optimizedOverpassAPI.js';
+import { initUI, setStep as setUIStep, addApiLog, updateInfoPanel, showInfoPanel } from './modules/uiController.js';
 
 // DOM элементы (будут инициализированы в initApp)
-let generateBtn, pointsInput, status, cancelBtn, downloadGpxBtn, saveRouteBtn, loadRouteBtn, shareRouteBtn;
+let pointsInput, zoomInBtn, zoomOutBtn, gpsBtn;
 let routesModal, routesModalClose, routesList, routesListEmpty;
+let shareBtn, sequenceLink, startNavBtn;
 let lastSavedRouteId = null;
 
 // Инициализация приложения
 export function initApp() {
-  console.log('Инициализация приложения...');
+  console.log('🚀 Инициализация приложения TrailSpot...');
   
   // Инициализируем DOM элементы
-  generateBtn = document.getElementById('generateBtn');
   pointsInput = document.getElementById('pointsCount');
-  status = document.getElementById('status');
-  cancelBtn = document.getElementById('cancelBtn');
-  downloadGpxBtn = document.getElementById('downloadGpxBtn');
-  saveRouteBtn = document.getElementById('saveRouteBtn');
-  loadRouteBtn = document.getElementById('loadRouteBtn');
-  shareRouteBtn = document.getElementById('shareRouteBtn');
+  zoomInBtn = document.getElementById('zoomInBtn');
+  zoomOutBtn = document.getElementById('zoomOutBtn');
+  gpsBtn = document.getElementById('gpsBtn');
+  shareBtn = document.getElementById('shareBtn');
   routesModal = document.getElementById('routesModal');
   routesModalClose = document.getElementById('routesModalClose');
   routesList = document.getElementById('routesList');
   routesListEmpty = document.getElementById('routesListEmpty');
-  
-  // Проверяем наличие всех элементов
-  if (!generateBtn || !pointsInput || !status || !cancelBtn || !downloadGpxBtn || !saveRouteBtn || !loadRouteBtn || !shareRouteBtn || !routesModal || !routesModalClose || !routesList || !routesListEmpty) {
-    console.error('Не найдены необходимые DOM элементы');
-    console.error('generateBtn:', !!generateBtn);
-    console.error('pointsInput:', !!pointsInput);
-    console.error('status:', !!status);
-    console.error('cancelBtn:', !!cancelBtn);
-    console.error('downloadGpxBtn:', !!downloadGpxBtn);
-    console.error('saveRouteBtn:', !!saveRouteBtn);
-    console.error('loadRouteBtn:', !!loadRouteBtn);
-    console.error('shareRouteBtn:', !!shareRouteBtn);
-    return;
-  }
+  sequenceLink = document.getElementById('sequenceLink');
+  startNavBtn = document.getElementById('startNavBtn');
   
   // Инициализируем модули
   initMap();
+  initUI(); // Новый UI контроллер
   initNavigation();
   initSequenceUI();
   initFullscreenNavigation();
@@ -68,28 +56,84 @@ export function initApp() {
   updateGlobalVars();
   setInterval(updateGlobalVars, 1000); // Обновляем каждую секунду
   
-  console.log('Приложение инициализировано');
+  addApiLog('✅ Приложение готово к работе');
+  console.log('✅ Приложение инициализировано');
 }
 
 // Настройка обработчиков событий
 function setupEventHandlers() {
-  // Обработчик кнопки генерации
-  generateBtn.addEventListener('click', handleGenerateClick);
+  // Zoom кнопки
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      if (map) map.zoomIn();
+    });
+  }
   
-  // Обработчик кнопки отмены
-  cancelBtn.addEventListener('click', handleCancelClick);
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      if (map) map.zoomOut();
+    });
+  }
   
-  // Обработчик кнопки скачивания GPX
-  downloadGpxBtn.addEventListener('click', handleDownloadGPX);
+  // GPS кнопка
+  if (gpsBtn) {
+    gpsBtn.addEventListener('click', () => {
+      if ('geolocation' in navigator) {
+        addApiLog('Определение позиции...');
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            if (map) {
+              map.setView([latitude, longitude], 16);
+              addApiLog(`Позиция: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+            }
+          },
+          (error) => {
+            addApiLog('❌ Ошибка определения позиции');
+            console.error('Geolocation error:', error);
+          }
+        );
+      } else {
+        addApiLog('❌ Геолокация недоступна');
+      }
+    });
+  }
+  
+  // Кнопка "Поделиться"
+  if (shareBtn) {
+    shareBtn.addEventListener('click', handleShareRoute);
+  }
+  
+  // Кнопка "Начать навигацию"
+  if (startNavBtn) {
+    startNavBtn.addEventListener('click', () => {
+      import('./modules/navigation.js').then(nav => {
+        // Запуск навигации
+        addApiLog('🎯 Запуск навигации...');
+      });
+    });
+  }
+  
+  // Ссылка на последовательность
+  if (sequenceLink) {
+    sequenceLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sequenceModal = document.getElementById('sequenceModal');
+      if (sequenceModal) {
+        sequenceModal.style.display = 'flex';
+      }
+    });
+  }
 
-  // Сохранение/загрузка/шаринг
-  saveRouteBtn.addEventListener('click', handleSaveRoute);
-  loadRouteBtn.addEventListener('click', openRoutesModal);
-  shareRouteBtn.addEventListener('click', handleShareRoute);
-
-  // Модалка
-  routesModalClose.addEventListener('click', closeRoutesModal);
-  routesModal.addEventListener('click', (e) => { if (e.target === routesModal) closeRoutesModal(); });
+  // Модалка маршрутов
+  if (routesModalClose) {
+    routesModalClose.addEventListener('click', closeRoutesModal);
+  }
+  if (routesModal) {
+    routesModal.addEventListener('click', (e) => { 
+      if (e.target === routesModal) closeRoutesModal(); 
+    });
+  }
 }
 
 // Обработчик клика по кнопке генерации

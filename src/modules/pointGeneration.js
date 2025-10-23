@@ -218,6 +218,14 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     if (points.length > 0) {
       statusCallback(`✅ Сгенерировано ${points.length} точек из ${count} запрошенных`);
       updateTargetPointsList(); // Обновляем список точек для навигации
+      
+      // Уведомляем UI контроллер о завершении генерации
+      import('./uiController.js').then(ui => {
+        ui.setStep('points_generated');
+        ui.updateInfoPanel(points.length, 'Посмотреть', 0); // Дистанция будет обновлена после генерации последовательности
+      }).catch(err => {
+        console.error('Ошибка обновления UI:', err);
+      });
     } else {
       statusCallback('❌ Не удалось сгенерировать ни одной точки. Попробуйте другую область или уменьшите количество точек.');
     }
