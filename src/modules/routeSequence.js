@@ -338,12 +338,18 @@ export function resetSequence() {
  * Получение статистики маршрута с учетом графа троп
  */
 export function getRouteStats() {
+  console.log('🔍 getRouteStats: currentSequence =', currentSequence);
+  console.log('🔍 getRouteStats: pointMarkers =', pointMarkers);
+  
   if (currentSequence.length === 0) {
+    console.warn('⚠️ getRouteStats: currentSequence пустая');
     return null;
   }
   
   const startPoint = getStartPoint();
+  console.log('🔍 getRouteStats: startPoint =', startPoint);
   if (!startPoint) {
+    console.warn('⚠️ getRouteStats: startPoint не найден');
     return null;
   }
   

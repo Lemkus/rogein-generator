@@ -317,7 +317,8 @@ export function updateInfoPanel(pointsCount, sequenceText, distance) {
   }
   
   if (sequenceDistance && distance !== undefined) {
-    sequenceDistance.textContent = `Дистанция: ${distance.toFixed(2)} км`;
+    const distanceValue = typeof distance === 'number' ? distance : parseFloat(distance) || 0;
+    sequenceDistance.textContent = `Дистанция: ${distanceValue.toFixed(2)} км`;
   }
 }
 
