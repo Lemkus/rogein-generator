@@ -73,6 +73,95 @@ function setupEventHandlers() {
     if (e.target === menuModal) menuModal.classList.remove('show');
   });
   
+  // Кнопка выбора области
+  drawAreaBtn.addEventListener('click', () => {
+    console.log('🎯 Активация режима выбора области');
+    // Импортируем mapModule для доступа к drawControl
+    import('./mapModule.js').then(module => {
+      if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
+        const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
+        if (rectangleButton && rectangleButton.handler) {
+          rectangleButton.handler.enable();
+          addApiLog('🎯 Режим выбора области активирован. Нарисуйте прямоугольник на карте.');
+        }
+      }
+    });
+  });
+  
+  // Кнопка очистки области
+  clearAreaBtn.addEventListener('click', () => {
+    console.log('🗑️ Очистка выбранной области');
+    import('./mapModule.js').then(module => {
+      module.clearAll();
+      addApiLog('🗑️ Область очищена');
+    });
+  });
+  
+  // Кнопки в info-panel
+  refreshBtn.addEventListener('click', () => {
+    console.log('🔄 Перегенерация точек');
+    import('./mapModule.js').then(module => {
+      module.triggerPointGeneration();
+      addApiLog('🔄 Перегенерация точек...');
+    });
+  });
+  
+  deleteBtn.addEventListener('click', () => {
+    console.log('🗑️ Удаление всех данных');
+    import('./mapModule.js').then(module => {
+      module.clearAll();
+      addApiLog('🗑️ Все данные удалены');
+    });
+  });
+  
+  startNavBtn.addEventListener('click', () => {
+    console.log('🎧 Запуск навигации');
+    addApiLog('🎧 Запуск навигации...');
+    // Здесь будет логика запуска навигации
+  });
+  
+  // Кнопки зума и GPS
+  zoomInBtn.addEventListener('click', () => {
+    import('./mapModule.js').then(module => {
+      if (module.map) {
+        module.map.zoomIn();
+        addApiLog('🔍 Приближение');
+      }
+    });
+  });
+  
+  zoomOutBtn.addEventListener('click', () => {
+    import('./mapModule.js').then(module => {
+      if (module.map) {
+        module.map.zoomOut();
+        addApiLog('🔍 Отдаление');
+      }
+    });
+  });
+  
+  gpsBtn.addEventListener('click', () => {
+    if ('geolocation' in navigator) {
+      addApiLog('📍 Определение позиции...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          import('./mapModule.js').then(module => {
+            if (module.map) {
+              module.map.setView([latitude, longitude], 16);
+              addApiLog(`📍 Позиция: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+            }
+          });
+        },
+        (error) => {
+          addApiLog('❌ Ошибка определения позиции');
+          console.error('Geolocation error:', error);
+        }
+      );
+    } else {
+      addApiLog('❌ Геолокация недоступна');
+    }
+  });
+  
   // Настройки
   settingsBtn.addEventListener('click', () => settingsModal.classList.add('show'));
   settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));

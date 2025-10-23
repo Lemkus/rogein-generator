@@ -62,9 +62,18 @@ export function initMap() {
       },
       edit: {
         featureGroup: drawnItems
-      }
+      },
+      position: 'topright' // Позиционируем контролы
     });
     map.addControl(drawControl);
+    
+    // Скрываем стандартные контролы Leaflet Draw, так как у нас есть свои кнопки
+    setTimeout(() => {
+      const drawToolbar = document.querySelector('.leaflet-draw-toolbar');
+      if (drawToolbar) {
+        drawToolbar.style.display = 'none';
+      }
+    }, 100);
 
     // Обработчик создания объектов на карте
     map.on(L.Draw.Event.CREATED, handleDrawCreated);
