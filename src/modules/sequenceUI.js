@@ -36,10 +36,21 @@ export function initSequenceUI() {
   sequenceInput = document.getElementById('sequenceInput');
   applySequenceBtn = document.getElementById('applySequenceBtn');
   
-  // Проверка наличия элементов
-  if (!sequenceSection || !sequenceLink || !routeStatsSpan || !toggleDirectionBtn) {
-    console.error('Не найдены необходимые DOM элементы для последовательности');
+  // Проверка наличия основных элементов
+  if (!sequenceLink) {
+    console.warn('Основной элемент sequenceLink не найден, последовательность будет недоступна');
     return false;
+  }
+  
+  // Проверяем дополнительные элементы (могут отсутствовать в новом интерфейсе)
+  if (!sequenceSection) {
+    console.warn('sequenceSection не найден - некоторые функции последовательности недоступны');
+  }
+  if (!routeStatsSpan) {
+    console.warn('routeStatsSpan не найден - статистика маршрута недоступна');
+  }
+  if (!toggleDirectionBtn) {
+    console.warn('toggleDirectionBtn не найден - смена направления недоступна');
   }
   
   // Установка обработчиков
@@ -52,36 +63,48 @@ export function initSequenceUI() {
 // Настройка обработчиков событий
 function setupEventHandlers() {
   // Клик по ссылке последовательности - открыть редактор
-  sequenceLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    openSequenceEditor();
-  });
+  if (sequenceLink) {
+    sequenceLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openSequenceEditor();
+    });
+  }
   
-  // Кнопка смены направления
-  toggleDirectionBtn.addEventListener('click', () => {
-    const isClockwise = toggleDirection();
-    updateSequenceDisplay();
-    
-    // Показываем уведомление
-    const direction = isClockwise ? 'по часовой' : 'против часовой';
-    showNotification(`🔄 Направление изменено: ${direction}`);
-  });
+  // Кнопка смены направления (если есть)
+  if (toggleDirectionBtn) {
+    toggleDirectionBtn.addEventListener('click', () => {
+      const isClockwise = toggleDirection();
+      updateSequenceDisplay();
+      
+      // Показываем уведомление
+      const direction = isClockwise ? 'по часовой' : 'против часовой';
+      showNotification(`🔄 Направление изменено: ${direction}`);
+    });
+  }
   
-  // Закрытие модального окна
-  sequenceModalClose.addEventListener('click', closeSequenceEditor);
-  sequenceModal.addEventListener('click', (e) => {
-    if (e.target === sequenceModal) closeSequenceEditor();
-  });
+  // Закрытие модального окна (если есть)
+  if (sequenceModalClose) {
+    sequenceModalClose.addEventListener('click', closeSequenceEditor);
+  }
+  if (sequenceModal) {
+    sequenceModal.addEventListener('click', (e) => {
+      if (e.target === sequenceModal) closeSequenceEditor();
+    });
+  }
   
-  // Применение новой последовательности
-  applySequenceBtn.addEventListener('click', applyNewSequence);
+  // Применение новой последовательности (если есть)
+  if (applySequenceBtn) {
+    applySequenceBtn.addEventListener('click', applyNewSequence);
+  }
   
-  // Enter в поле ввода
-  sequenceInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      applyNewSequence();
-    }
-  });
+  // Enter в поле ввода (если есть)
+  if (sequenceInput) {
+    sequenceInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        applyNewSequence();
+      }
+    });
+  }
 }
 
 // Генерация и отображение последовательности
