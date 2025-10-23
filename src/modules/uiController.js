@@ -3,6 +3,8 @@
  * Управляет новым мобильным интерфейсом
  */
 
+console.log('🚀 uiController.js загружается...');
+
 // DOM элементы
 let drawAreaBtn, hintSticker, clearAreaBtn, infoPanel, apiLogs;
 let menuBtn, menuModal, menuClose, settingsBtn, settingsModal, settingsClose;
@@ -20,6 +22,7 @@ let isStartPlaced = false;
  */
 export function initUI() {
   console.log('🎨 Инициализация UI контроллера...');
+  console.log('🔍 DOM готов?', document.readyState);
   
   // Получаем DOM элементы
   drawAreaBtn = document.getElementById('drawAreaBtn');

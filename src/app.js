@@ -3,6 +3,8 @@
  * Инициализирует все компоненты и связывает их между собой
  */
 
+console.log('🚀 app.js загружается...');
+
 import { initMap, map, drawnItems, pointMarkers, getSelectedBounds, getStartPoint, updateSelectedBounds, updateStartPointPosition, clearPointMarkers } from './modules/mapModule.js';
 import { initNavigation, updateTargetPointsList, resetCompletedPoints } from './modules/navigation.js';
 import { generatePoints, cancelPointGeneration, downloadGPX } from './modules/pointGeneration.js';
