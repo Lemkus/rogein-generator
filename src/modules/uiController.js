@@ -59,6 +59,10 @@ export function initUI() {
   console.log('  refreshBtn:', refreshBtn);
   console.log('  deleteBtn:', deleteBtn);
   
+  // Дополнительная проверка - поиск кнопки независимо от видимости родителя
+  const startNavBtnDirect = document.getElementById('startNavBtn');
+  console.log('🔍 Прямой поиск startNavBtn:', startNavBtnDirect);
+  
   // Настраиваем обработчики
   setupEventHandlers();
   
@@ -120,8 +124,10 @@ function setupEventHandlers() {
     });
   });
   
-  if (startNavBtn) {
-    startNavBtn.addEventListener('click', () => {
+  // Используем прямой поиск кнопки
+  const navBtn = document.getElementById('startNavBtn');
+  if (navBtn) {
+    navBtn.addEventListener('click', () => {
       console.log('🎧 Кнопка "Начать навигацию" нажата');
       addApiLog('🎧 Запуск навигации...');
       
@@ -135,9 +141,9 @@ function setupEventHandlers() {
         addApiLog('❌ Ошибка запуска навигации');
       });
     });
-    console.log('✅ Обработчик startNavBtn добавлен');
+    console.log('✅ Обработчик startNavBtn добавлен (прямой поиск)');
   } else {
-    console.error('❌ startNavBtn не найден в DOM!');
+    console.error('❌ startNavBtn не найден в DOM даже при прямом поиске!');
   }
   
   // Кнопки зума и GPS
