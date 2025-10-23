@@ -73,7 +73,24 @@ export function initMap() {
       if (drawToolbar) {
         drawToolbar.style.display = 'none';
       }
+      // Также скрываем все кнопки рисования
+      const drawButtons = document.querySelectorAll('.leaflet-draw-toolbar a');
+      drawButtons.forEach(btn => {
+        btn.style.display = 'none';
+      });
     }, 100);
+    
+    // Дополнительно скрываем через CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      .leaflet-draw-toolbar {
+        display: none !important;
+      }
+      .leaflet-draw-toolbar a {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
 
     // Обработчик создания объектов на карте
     map.on(L.Draw.Event.CREATED, handleDrawCreated);
