@@ -53,6 +53,12 @@ export function initUI() {
   refreshBtn = document.getElementById('refreshBtn');
   deleteBtn = document.getElementById('deleteBtn');
   
+  // Отладка DOM элементов
+  console.log('🔍 Проверка DOM элементов:');
+  console.log('  startNavBtn:', startNavBtn);
+  console.log('  refreshBtn:', refreshBtn);
+  console.log('  deleteBtn:', deleteBtn);
+  
   // Настраиваем обработчики
   setupEventHandlers();
   
@@ -114,20 +120,25 @@ function setupEventHandlers() {
     });
   });
   
-  startNavBtn.addEventListener('click', () => {
-    console.log('🎧 Кнопка "Начать навигацию" нажата');
-    addApiLog('🎧 Запуск навигации...');
-    
-    // Импортируем и запускаем навигацию
-    import('./navigation.js').then(nav => {
-      console.log('📦 Модуль navigation.js загружен');
-      nav.startNavigation();
-      addApiLog('✅ Навигация запущена');
-    }).catch(err => {
-      console.error('❌ Ошибка загрузки модуля navigation.js:', err);
-      addApiLog('❌ Ошибка запуска навигации');
+  if (startNavBtn) {
+    startNavBtn.addEventListener('click', () => {
+      console.log('🎧 Кнопка "Начать навигацию" нажата');
+      addApiLog('🎧 Запуск навигации...');
+      
+      // Импортируем и запускаем навигацию
+      import('./navigation.js').then(nav => {
+        console.log('📦 Модуль navigation.js загружен');
+        nav.startNavigation();
+        addApiLog('✅ Навигация запущена');
+      }).catch(err => {
+        console.error('❌ Ошибка загрузки модуля navigation.js:', err);
+        addApiLog('❌ Ошибка запуска навигации');
+      });
     });
-  });
+    console.log('✅ Обработчик startNavBtn добавлен');
+  } else {
+    console.error('❌ startNavBtn не найден в DOM!');
+  }
   
   // Кнопки зума и GPS
   zoomInBtn.addEventListener('click', () => {
