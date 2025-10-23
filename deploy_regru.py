@@ -61,6 +61,13 @@ def deploy_to_regru():
         print(f"   ssh-keygen -t rsa -b 4096 -f {ssh_key_path} -N ''")
         return False
     
+    # Сначала создаем папку assets на сервере
+    print("\nСоздаем папку assets на сервере...")
+    mkdir_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && mkdir -p assets/icons\""
+    if not run_command(mkdir_cmd, "Создание папки assets"):
+        print("Ошибка создания папки assets")
+        return False
+    
     # Список файлов для загрузки
     files_to_upload = [
         'backend_simple.py',
@@ -102,7 +109,7 @@ def deploy_to_regru():
     
     if success_count == len(upload_commands):
         print("\nИсправляем права доступа...")
-        chmod_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod -R 755 src/ && chmod 644 src/*.js\""
+        chmod_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod -R 755 src/ && chmod 644 src/*.js && chmod -R 755 assets/\""
         
         if run_command(chmod_cmd, "Исправление прав доступа"):
             print("\nНастраиваем виртуальное окружение...")
