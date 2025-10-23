@@ -200,9 +200,13 @@ export function updateSequenceDisplay() {
   
   // Обновляем статистику маршрута
   const stats = getRouteStats();
+  console.log('📊 Статистика маршрута:', stats);
   let distanceKm = 0;
   if (stats) {
-    distanceKm = (stats.totalDistance / 1000).toFixed(2);
+    distanceKm = stats.totalDistance / 1000; // Оставляем как число
+    console.log('📏 Дистанция:', distanceKm, 'км');
+  } else {
+    console.warn('⚠️ Статистика маршрута не получена');
   }
   
   // Обновляем новый info-panel через uiController
