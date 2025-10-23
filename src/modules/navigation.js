@@ -458,9 +458,14 @@ function onPositionError(error) {
 
 // Начало навигации
 async function startNavigation() {
+  console.log('🚀 startNavigation вызвана');
+  
   // Проверяем наличие последовательности
   const sequence = getCurrentSequence();
+  console.log('📋 Полученная последовательность:', sequence);
+  
   if (!sequence || sequence.length === 0) {
+    console.warn('⚠️ Последовательность пустая или не найдена');
     alert('Сначала сгенерируйте точки!');
     return;
   }
