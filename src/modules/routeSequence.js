@@ -159,20 +159,21 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
   const maxIterations = Math.min(50, sequence.length * 2); // Адаптивное ограничение
   let iteration = 0;
   let improved = true;
+  let bestImprovement = 0; // Общее улучшение за все итерации
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
     // Ищем лучшее улучшение в текущей итерации
-    let bestImprovement = 0;
+    let currentBestImprovement = 0;
     let bestI = -1, bestJ = -1;
     
     for (let i = 0; i < currentSequence.length - 1; i++) {
       for (let j = i + 2; j < currentSequence.length; j++) {
         const improvement = calculateSwapImprovement(currentSequence, i, j);
-        if (improvement > bestImprovement) {
-          bestImprovement = improvement;
+        if (improvement > currentBestImprovement) {
+          currentBestImprovement = improvement;
           bestI = i;
           bestJ = j;
         }
@@ -180,13 +181,14 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
     }
     
     // Применяем лучшее улучшение
-    if (bestImprovement > 0) {
+    if (currentBestImprovement > 0) {
       const newSequence = [
         ...currentSequence.slice(0, bestI + 1),
         ...currentSequence.slice(bestI + 1, bestJ + 1).reverse(),
         ...currentSequence.slice(bestJ + 1)
       ];
       currentSequence = newSequence;
+      bestImprovement += currentBestImprovement; // Накопляем общее улучшение
       improved = true;
     }
 
