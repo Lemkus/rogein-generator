@@ -131,6 +131,10 @@ function setupEventHandlers() {
   const navBtn = document.getElementById('startNavBtn');
   console.log('🔍 Поиск кнопки startNavBtn:', navBtn);
   if (navBtn) {
+    // КРИТИЧНО: Убираем disabled, если он был добавлен
+    navBtn.disabled = false;
+    navBtn.removeAttribute('disabled');
+    
     const clickHandler = () => {
       console.log('🎧🎧🎧 КНОПКА НАВИГАЦИИ НАЖАТА!!!');
       addApiLog('🎧 Запуск навигации...');
@@ -150,7 +154,7 @@ function setupEventHandlers() {
     console.log('✅ Обработчик startNavBtn добавлен');
     console.log('   Элемент:', navBtn);
     console.log('   ID:', navBtn.id);
-    console.log('   Класс:', navBtn.className);
+    console.log('   disabled:', navBtn.disabled);
   } else {
     console.error('❌ startNavBtn не найден в DOM!');
   }
