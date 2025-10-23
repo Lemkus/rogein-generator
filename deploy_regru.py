@@ -68,6 +68,7 @@ def deploy_to_regru():
         'requirements.txt',
         'index.html',
         'src/',
+        'assets/',
         'favicon.svg',
         'manifest.json',
         '.htaccess',
@@ -100,16 +101,23 @@ def deploy_to_regru():
     print(f"   Успешно загружено: {success_count}/{len(upload_commands)} файлов")
     
     if success_count == len(upload_commands):
-        print("\nНастраиваем виртуальное окружение...")
-        setup_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod +x setup_venv.sh && ./setup_venv.sh\""
+        print("\nИсправляем права доступа...")
+        chmod_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod -R 755 src/ && chmod 644 src/*.js\""
         
-        if run_command(setup_cmd, "Настройка виртуального окружения"):
-            print("Деплой завершен успешно!")
-            print(f"Приложение должно быть доступно по адресу:")
-            print(f"   https://trailspot.app")
-            return True
+        if run_command(chmod_cmd, "Исправление прав доступа"):
+            print("\nНастраиваем виртуальное окружение...")
+            setup_cmd = f"ssh -i {ssh_key_path} {server['user']}@{server['host']} \"cd {server['path']} && chmod +x setup_venv.sh && ./setup_venv.sh\""
+            
+            if run_command(setup_cmd, "Настройка виртуального окружения"):
+                print("Деплой завершен успешно!")
+                print(f"Приложение должно быть доступно по адресу:")
+                print(f"   https://trailspot.app")
+                return True
+            else:
+                print("Ошибка при настройке виртуального окружения")
+                return False
         else:
-            print("Ошибка при настройке виртуального окружения")
+            print("Ошибка при исправлении прав доступа")
             return False
     else:
         print("Деплой завершен с ошибками")

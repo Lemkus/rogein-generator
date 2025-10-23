@@ -33,17 +33,37 @@ const CRITICAL_ZONE_DISTANCE = 15; // Критическая зона (метр�
 let wakeLock = null;
 let noSleepInterval = null; // Fallback для браузеров без Wake Lock API
 
-// DOM элементы
-const audioNavBtn = document.getElementById('audioNavBtn');
-const stopNavBtn = document.getElementById('stopNavBtn');
-const navStatus = document.getElementById('navStatus');
-const targetPointSelect = document.getElementById('targetPointSelect');
-const targetPointContainer = document.getElementById('targetPointContainer');
+// DOM элементы (новый интерфейс)
+let audioNavBtn, stopNavBtn, navStatus, targetPointSelect, targetPointContainer;
 
 // Инициализация модуля навигации
 export function initNavigation() {
-  audioNavBtn.addEventListener('click', startNavigation);
-  stopNavBtn.addEventListener('click', stopNavigation);
+  // Получаем элементы из нового интерфейса
+  audioNavBtn = document.getElementById('startNavBtn'); // Новая кнопка
+  stopNavBtn = document.getElementById('navStopBtn'); // Из полноэкранного режима
+  navStatus = document.getElementById('navStatus'); // Может не существовать
+  targetPointSelect = document.getElementById('navTargetSelect'); // Из полноэкранного режима
+  targetPointContainer = document.getElementById('targetPointContainer'); // Может не существовать
+  
+  // Добавляем обработчики только если элементы существуют
+  if (audioNavBtn) {
+    audioNavBtn.addEventListener('click', startNavigation);
+  }
+  
+  if (stopNavBtn) {
+    stopNavBtn.addEventListener('click', stopNavigation);
+  }
+  
+  console.log('✅ Навигация инициализирована');
+}
+
+// Безопасная функция обновления статуса
+function updateNavStatus(text, color = 'black') {
+  if (navStatus) {
+    navStatus.textContent = text;
+    navStatus.style.color = color;
+  }
+}
   
   // Обработчик изменения целевой точки
   if (targetPointSelect) {
@@ -62,8 +82,7 @@ export function initNavigation() {
         currentTargetIndex = pointIdx;
         lastDistance = null;
         
-        navStatus.textContent = `🎯 Целевая точка изменена на ${pointIdx + 1}`;
-        navStatus.style.color = 'blue';
+        updateNavStatus(`🎯 Целевая точка изменена на ${pointIdx + 1}`, 'blue');
         
         console.log(`🎯 Пользователь выбрал точку ${pointIdx + 1}`);
       }
@@ -345,20 +364,20 @@ function navigationStep() {
   const statusText = getZoneStatusText(distance, direction);
   
   // Обновляем статус с улучшенной индикацией
-  navStatus.textContent = statusText;
+  updateNavStatus(statusText);
   
   // Обновляем отображение расстояния в полноэкранном режиме
   updateDistanceDisplay(distance, statusText);
   
   // Устанавливаем цвет в зависимости от зоны
   if (distance < 10) {
-    navStatus.style.color = 'green';
+    updateNavStatus(statusText, 'green');
   } else if (distance < CRITICAL_ZONE_DISTANCE) {
-    navStatus.style.color = 'red';
+    updateNavStatus(statusText, 'red');
   } else if (distance < ACCURACY_ZONE_DISTANCE) {
-    navStatus.style.color = 'orange';
+    updateNavStatus(statusText, 'orange');
   } else {
-    navStatus.style.color = 'black';
+    updateNavStatus(statusText, 'black');
   }
   
   // Проверяем достижение цели
@@ -377,8 +396,7 @@ function navigationStep() {
       }
     });
     
-    navStatus.textContent = '🎯 ЦЕЛЬ ДОСТИГНУТА!';
-    navStatus.style.color = 'green';
+    updateNavStatus('🎯 ЦЕЛЬ ДОСТИГНУТА!', 'green');
     
     // Показываем уведомление
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -390,7 +408,7 @@ function navigationStep() {
     
     setTimeout(() => {
       if (!isAutoSequenceMode) {
-        navStatus.style.color = 'black';
+        updateNavStatus('', 'black');
       }
     }, 3000);
     return;
@@ -436,8 +454,7 @@ function onPositionUpdate(position) {
 
 // Обработка ошибок геолокации
 function onPositionError(error) {
-  navStatus.textContent = `❌ Ошибка геолокации: ${error.message}`;
-  navStatus.style.color = 'red';
+  updateNavStatus(`❌ Ошибка геолокации: ${error.message}`, 'red');
 }
 
 // Начало навигации
@@ -493,11 +510,10 @@ async function startNavigation() {
       }
     );
     
-    navStatus.textContent = '🔍 Поиск GPS...';
-    navStatus.style.color = 'blue';
+    updateNavStatus('🔍 Поиск GPS...', 'blue');
     
-    audioNavBtn.style.display = 'none';
-    stopNavBtn.style.display = 'inline-block';
+    if (audioNavBtn) audioNavBtn.style.display = 'none';
+    if (stopNavBtn) stopNavBtn.style.display = 'inline-block';
     
     // Приветственный звуковой сигнал
     playNavigationSound(100, 0); // Расстояние 100м, скорость 0
@@ -548,8 +564,7 @@ function switchToNextPoint() {
       currentTarget = { lat: startPoint.lat, lng: startPoint.lng };
       currentTargetIndex = -1;
       lastDistance = null;
-      navStatus.textContent = '🏁 Возврат к старту...';
-      navStatus.style.color = 'blue';
+      updateNavStatus('🏁 Возврат к старту...', 'blue');
       console.log('🏁 Все точки взяты! Возврат к старту');
       
       // Обновляем список точек
@@ -567,8 +582,7 @@ function switchToNextPoint() {
   currentTargetIndex = nextPointIdx;
   lastDistance = null;
   
-  navStatus.textContent = `📍 Следующая: Точка ${nextPointIdx + 1}`;
-  navStatus.style.color = 'blue';
+  updateNavStatus(`📍 Следующая: Точка ${nextPointIdx + 1}`, 'blue');
   console.log(`📍 Переключение на точку ${nextPointIdx + 1}`);
   
   // Обновляем список точек для отображения галочек
@@ -613,9 +627,9 @@ async function stopNavigation() {
     navigationInterval = null;
   }
   
-  navStatus.textContent = '';
-  audioNavBtn.style.display = 'inline-block';
-  stopNavBtn.style.display = 'none';
+  updateNavStatus('');
+  if (audioNavBtn) audioNavBtn.style.display = 'inline-block';
+  if (stopNavBtn) stopNavBtn.style.display = 'none';
   
   // Скрываем селект с целевой точкой
   if (targetPointContainer) {
