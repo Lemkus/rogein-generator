@@ -54,17 +54,6 @@ export function initNavigation() {
     stopNavBtn.addEventListener('click', stopNavigation);
   }
   
-  console.log('✅ Навигация инициализирована');
-}
-
-// Безопасная функция обновления статуса
-function updateNavStatus(text, color = 'black') {
-  if (navStatus) {
-    navStatus.textContent = text;
-    navStatus.style.color = color;
-  }
-}
-  
   // Обработчик изменения целевой точки
   if (targetPointSelect) {
     targetPointSelect.addEventListener('change', () => {
@@ -89,20 +78,30 @@ function updateNavStatus(text, color = 'black') {
     });
   }
   
-  // Обработка изменения видимости страницы (для Wake Lock)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // Страница скрыта - Wake Lock может быть потерян
-      console.log('📱 Страница скрыта - проверяем Wake Lock');
-    } else {
-      // Страница снова видна - пытаемся восстановить Wake Lock
-      if (isNavigating && !wakeLock) {
-        console.log('📱 Страница видна - восстанавливаем Wake Lock');
-        activateWakeLock();
-      }
-    }
-  });
+  console.log('✅ Навигация инициализирована');
 }
+
+// Безопасная функция обновления статуса
+function updateNavStatus(text, color = 'black') {
+  if (navStatus) {
+    navStatus.textContent = text;
+    navStatus.style.color = color;
+  }
+}
+
+// Обработка изменения видимости страницы (для Wake Lock)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Страница скрыта - Wake Lock может быть потерян
+    console.log('📱 Страница скрыта - проверяем Wake Lock');
+  } else {
+    // Страница снова видна - пытаемся восстановить Wake Lock
+    if (isNavigating && !wakeLock) {
+      console.log('📱 Страница видна - восстанавливаем Wake Lock');
+      activateWakeLock();
+    }
+  }
+});
 
 // Функция для добавления значения в историю
 function addToHistory(history, value, maxSize = MAX_HISTORY_SIZE) {
