@@ -707,4 +707,4 @@ function resetCompletedPoints() {
 }
 
 // Экспорт функций для внешнего использования
-export { isNavigating, currentTarget, userPosition, resetCompletedPoints, stopNavigation, updateTargetPointsList }; 
+export { isNavigating, currentTarget, userPosition, resetCompletedPoints, stopNavigation, updateTargetPointsList, startNavigation }; 
