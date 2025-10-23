@@ -98,7 +98,27 @@ function handleDrawCreated(event) {
       north: bounds.getNorth(),
       east: bounds.getEast()
     };
+    
+    // Сохраняем bounds для доступа
+    selectedBounds.getBounds = () => bounds;
+    
     console.log('Выбрана область:', selectedBounds);
+    
+    // Уведомляем UI контроллер
+    import('./uiController.js').then(ui => {
+      ui.setStep('area_selected');
+      ui.positionClearButton(bounds, map);
+      
+      // Автоматически активируем режим рисования маркера
+      setTimeout(() => {
+        if (drawControl && drawControl._toolbars && drawControl._toolbars.draw) {
+          const markerButton = drawControl._toolbars.draw._modes.marker;
+          if (markerButton && markerButton.handler) {
+            markerButton.handler.enable();
+          }
+        }
+      }, 100);
+    });
   } else if (layer instanceof L.Marker) {
     // Обработка маркера старта
     if (startMarker) {
@@ -115,6 +135,16 @@ function handleDrawCreated(event) {
     .bindPopup('Точка старта')
     .openPopup();
     console.log('Точка старта установлена:', startPoint);
+    
+    // Уведомляем UI контроллер и автоматически запускаем генерацию
+    import('./uiController.js').then(ui => {
+      ui.setStep('start_placed');
+      
+      // Автоматически запускаем генерацию точек
+      setTimeout(() => {
+        triggerPointGeneration();
+      }, 500);
+    });
   }
 }
 
@@ -371,4 +401,87 @@ export function updateStartPointPosition(lat, lng) {
   .openPopup();
   
   console.log('Точка старта обновлена:', startPoint);
+}
+
+// Функция для автоматического запуска генерации точек
+function triggerPointGeneration() {
+  console.log('🎯 Автоматическая генерация точек...');
+  
+  // Получаем количество точек из настроек
+  const pointsInput = document.getElementById('pointsCount');
+  const count = pointsInput ? parseInt(pointsInput.value) : 10;
+  
+  // Импортируем и запускаем генерацию
+  import('./pointGeneration.js').then(module => {
+    import('./uiController.js').then(ui => {
+      ui.addApiLog(`Генерация ${count} точек...`);
+      
+      module.generatePoints(
+        selectedBounds,
+        startPoint,
+        count,
+        (message) => ui.addApiLog(message),
+        () => {}, // toggleGenerateButton не нужна
+        () => {}  // toggleCancelButton не нужна
+      );
+    });
+  });
+}
+
+// Функция очистки всего
+export function clearAll() {
+  console.log('🗑️ Очистка всех данных...');
+  
+  // Очищаем прямоугольник
+  drawnItems.clearLayers();
+  selectedBounds = null;
+  
+  // Удаляем маркер старта
+  if (startMarker) {
+    map.removeLayer(startMarker);
+    startMarker = null;
+  }
+  startPoint = null;
+  
+  // Очищаем точки маршрута
+  clearPointMarkers();
+  
+  // Очищаем закрытые зоны
+  closedAreaLayers.forEach(l => map.removeLayer(l));
+  closedAreaLayers = [];
+  closedAreas = [];
+  
+  // Очищаем водные зоны
+  waterAreaLayers.forEach(l => map.removeLayer(l));
+  waterAreaLayers = [];
+  waterAreas = [];
+  
+  // Очищаем барьеры
+  barrierLayers.forEach(l => map.removeLayer(l));
+  barrierLayers = [];
+  barriers = [];
+  
+  // Очищаем линию маршрута
+  if (routeLine) {
+    map.removeLayer(routeLine);
+    routeLine = null;
+  }
+  
+  // Очищаем отладочные слои
+  failedAttemptMarkers.forEach(m => map.removeLayer(m));
+  failedAttemptMarkers = [];
+  
+  graphDebugLayers.forEach(l => map.removeLayer(l));
+  graphDebugLayers = [];
+  
+  excludedPathSegments = [];
+  
+  // Уведомляем UI
+  import('./uiController.js').then(ui => {
+    ui.clearApiLogs();
+    ui.hideInfoPanel();
+    ui.hideClearButton();
+  });
+  
+  console.log('✅ Все данные очищены');
 } 

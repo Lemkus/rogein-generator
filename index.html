@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <title>TrailSpot - Find Your Spots on the Trail</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <meta name="theme-color" content="#4CAF50">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TrailSpot">
   <meta http-equiv="Cache-Control" content="max-age=3600">
   <meta http-equiv="Pragma" content="cache">
@@ -15,9 +15,12 @@
   <link rel="stylesheet" href="./libs/leaflet/leaflet.css" />
   <link rel="stylesheet" href="./libs/leaflet/leaflet.draw.css" />
   <style>
+    /* ========== БАЗОВЫЕ СТИЛИ ========== */
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
     }
     
     body {
@@ -26,21 +29,20 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #f5f5f5;
       overflow-x: hidden;
+      position: relative;
+      height: 100vh;
     }
     
-    h2 {
-      margin: 10px;
-      font-size: 1.2rem;
-      text-align: center;
-      color: #333;
-    }
-    
+    /* ========== КАРТА (ПОЛНОЭКРАННАЯ) ========== */
     #map { 
-      height: 60vh; 
-      width: 100%; 
-      border-radius: 8px;
-      margin: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
     }
     
     /* Убираем украинский флаг из атрибуции Leaflet */
@@ -48,143 +50,407 @@
       display: none !important;
     }
     
-    .controls { 
-      margin: 10px; 
-      padding: 15px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /* ========== ВЕРХНЯЯ ПАНЕЛЬ ИКОНОК ========== */
+    .top-toolbar {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
     
-    .controls h3 {
-      margin: 0 0 15px 0;
-      font-size: 1.1rem;
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 50%;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .icon-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    /* ========== ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ========== */
+    .left-controls {
+      position: fixed;
+      left: 10px;
+      top: 20%;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .left-bottom-controls {
+      position: fixed;
+      left: 10px;
+      bottom: 80px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    /* ========== КНОПКА РИСОВАНИЯ ОБЛАСТИ ========== */
+    #drawAreaBtn {
+      position: relative;
+    }
+    
+    #drawAreaBtn.active {
+      background: #4CAF50;
+      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+      }
+    }
+    
+    /* ========== ПОДСКАЗКА-СТИКЕР ========== */
+    .hint-sticker {
+      position: fixed;
+      left: 70px;
+      top: 20%;
+      z-index: 1001;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-width: 220px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      display: none;
+    }
+    
+    .hint-sticker::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-right: 8px solid white;
+    }
+    
+    .hint-sticker.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    /* ========== КРЕСТИК ДЛЯ ОЧИСТКИ ОБЛАСТИ ========== */
+    .clear-area-btn {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: white;
+      border: 2px solid #d32f2f;
+      border-radius: 50%;
+      color: #d32f2f;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 999;
+      line-height: 1;
+      padding: 0;
+    }
+    
+    .clear-area-btn:hover {
+      background: #d32f2f;
+      color: white;
+    }
+    
+    /* ========== ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ) ========== */
+    .info-panel {
+      position: fixed;
+      left: 10px;
+      top: 20%;
+      z-index: 1000;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      padding: 12px;
+      max-width: 280px;
+      display: none;
+    }
+    
+    .info-panel.show {
+      display: block;
+    }
+    
+    .info-panel-header {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-points {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-sequence {
+      margin-bottom: 12px;
+    }
+    
+    .sequence-link {
+      color: #4CAF50;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .sequence-distance {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .info-panel-nav-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      width: 100%;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-nav-btn:active {
+      background: #45a049;
+    }
+    
+    .info-panel-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .info-panel-action-btn {
+      flex: 1;
+      background: #f5f5f5;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .info-panel-action-btn img {
+      width: 20px;
+      height: 20px;
+    }
+    
+    /* ========== ЛОГИ API (ПРАВЫЙ НИЖНИЙ УГОЛ) ========== */
+    .api-logs {
+      position: fixed;
+      right: 10px;
+      bottom: 80px;
+      z-index: 999;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #2196F3;
+      font-family: 'Courier New', monospace;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+    
+    .api-log-entry {
+      margin-bottom: 4px;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* ========== МЕНЮ (МОДАЛЬНОЕ) ========== */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .menu-modal.show {
+      display: flex;
+    }
+    
+    .menu-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .menu-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .menu-close {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+    }
+    
+    .menu-item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .menu-item:last-child {
+      border-bottom: none;
+    }
+    
+    .menu-item:active {
+      background: #f5f5f5;
+    }
+    
+    .menu-item-icon {
+      width: 24px;
+      height: 24px;
+    }
+    
+    /* ========== НАСТРОЙКИ (МОДАЛЬНОЕ) ========== */
+    .settings-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .settings-modal.show {
+      display: flex;
+    }
+    
+    .settings-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .settings-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .settings-close {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+    }
+    
+    .settings-item {
+      margin-bottom: 20px;
+    }
+    
+    .settings-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
       color: #333;
     }
     
-    label {
-      display: block;
-      margin: 10px 0 5px 0;
-      font-weight: 500;
-      color: #555;
-    }
-    
-    input[type="number"] {
+    .settings-input {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: 2px solid #e0e0e0;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 16px;
-      margin: 5px 0;
     }
     
-    input[type="number"]:focus {
+    .settings-input:focus {
       outline: none;
       border-color: #4CAF50;
-    }
-    
-    button { 
-      width: 100%;
-      padding: 15px 12px; 
-      margin: 5px 0;
-      border: none;
-      border-radius: 6px; 
-      background-color: #4CAF50; 
-      color: white;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    button:hover { 
-      background-color: #45a049; 
-    }
-    
-    button:disabled { 
-      opacity: 0.6; 
-      cursor: not-allowed;
-      background-color: #ccc;
-    }
-    
-    button:active {
-      transform: translateY(1px);
-    }
-    
-    select {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 6px;
-      font-size: 16px;
-      background: white;
-    }
-    
-    select:focus {
-      outline: none;
-      border-color: #4CAF50;
-    }
-    
-    #status {
-      display: block;
-      margin: 10px 0;
-      padding: 10px;
-      background: #e8f5e8;
-      border-radius: 6px;
-      font-weight: 500;
-      text-align: center;
-    }
-    
-    #navStatus {
-      display: block;
-      margin: 10px 0;
-      padding: 10px;
-      background: #f0f8ff;
-      border-radius: 6px;
-      font-weight: 500;
-      text-align: center;
-    }
-    
-    .error { color: #d32f2f; }
-    .success { color: #388e3c; }
-    
-    /* Мобильные улучшения */
-    @media (max-width: 768px) {
-      #map {
-        height: 50vh;
-        margin: 5px;
-      }
-      
-      .controls {
-        margin: 5px;
-        padding: 10px;
-      }
-      
-      button {
-        padding: 12px;
-        font-size: 14px;
-      }
-      
-      input[type="number"] {
-        padding: 10px;
-        font-size: 14px;
-      }
-    }
-    
-    /* Улучшения для очень маленьких экранов */
-    @media (max-width: 480px) {
-      h2 {
-        font-size: 1rem;
-        margin: 5px;
-      }
-      
-      #map {
-        height: 45vh;
-      }
-      
-      .controls h3 {
-        font-size: 1rem;
-      }
     }
     
     /* Footer styles */
@@ -336,47 +602,71 @@
   </style>
 </head>
 <body>
-  <h2>TrailSpot — Find Your Spots on the Trail</h2>
-  
-
-  
-  <div class="controls">
-    <label>Количество точек: <input type="number" id="pointsCount" min="1" value="10"></label>
-    <button id="generateBtn">Сгенерировать точки (автоматическое распределение)</button>
-    <button id="cancelBtn" style="display:none;">Отмена</button>
-    <button id="downloadGpxBtn">Скачать точки для Garmin (GPX)</button>
-    <button id="saveRouteBtn">Сохранить распределение</button>
-    <button id="loadRouteBtn">Загрузить распределение</button>
-    <button id="shareRouteBtn">Поделиться ссылкой</button>
-    <span id="status"></span>
-  </div>
-  <div class="controls" style="border-top: 2px solid #ccc; padding-top: 10px;">
-    <h3>🎯 Вибро-навигация "Горячо-Холодно"</h3>
-    
-    <!-- Секция последовательности точек -->
-    <div id="sequenceSection" style="display:none; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 6px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <span style="font-weight: 500; color: #555;">Маршрут:</span>
-        <button id="toggleDirectionBtn" style="width: auto; padding: 8px 12px; margin: 0;">🔄 Изменить направление</button>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <a href="#" id="sequenceLink" style="color: #4CAF50; text-decoration: none; font-weight: 500; font-size: 15px; flex: 1;">-</a>
-        <span id="routeStats" style="font-size: 12px; color: #777;"></span>
-      </div>
-    </div>
-    
-    <div id="targetPointContainer" style="display:none;">
-      <label>Следующая точка: 
-        <select id="targetPointSelect">
-          <option value="">Выберите точку...</option>
-        </select>
-      </label>
-    </div>
-    <button id="audioNavBtn" disabled>🔊 Начать звуковую навигацию</button>
-    <button id="stopNavBtn" style="display:none;">⏹️ Остановить</button>
-    <span id="navStatus" style="margin-left: 10px; font-weight: bold;"></span>
-  </div>
+  <!-- КАРТА (ПОЛНОЭКРАННАЯ) -->
   <div id="map"></div>
+  
+  <!-- ВЕРХНЯЯ ПАНЕЛЬ ИКОНОК (СПРАВА) -->
+  <div class="top-toolbar">
+    <button class="icon-btn" id="shareBtn" title="Поделиться">
+      <img src="./assets/icons/Share.png" alt="Share">
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="Настройки">
+      <img src="./assets/icons/Settings.png" alt="Settings">
+    </button>
+    <button class="icon-btn" id="menuBtn" title="Меню">
+      <img src="./assets/icons/Menu.png" alt="Menu">
+    </button>
+  </div>
+  
+  <!-- ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКА РИСОВАНИЯ ОБЛАСТИ) -->
+  <div class="left-controls">
+    <button class="icon-btn active" id="drawAreaBtn" title="Выбрать область">
+      <img src="./assets/icons/DrawArea.png" alt="Draw Area">
+    </button>
+  </div>
+  
+  <!-- ПОДСКАЗКА-СТИКЕР -->
+  <div class="hint-sticker show" id="hintSticker">
+    Укажите область для тренировки
+  </div>
+  
+  <!-- ЛЕВАЯ НИЖНЯЯ ПАНЕЛЬ (ZOOM И GPS) -->
+  <div class="left-bottom-controls">
+    <button class="icon-btn" id="zoomInBtn" title="Приблизить">
+      <span style="font-size: 20px; font-weight: bold;">+</span>
+    </button>
+    <button class="icon-btn" id="zoomOutBtn" title="Отдалить">
+      <span style="font-size: 20px; font-weight: bold;">−</span>
+    </button>
+    <button class="icon-btn" id="gpsBtn" title="Моя позиция">
+      <img src="./assets/icons/GPS_Position.png" alt="GPS">
+    </button>
+  </div>
+  
+  <!-- КРЕСТИК ДЛЯ ОЧИСТКИ ОБЛАСТИ -->
+  <button class="clear-area-btn" id="clearAreaBtn">×</button>
+  
+  <!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ ТОЧЕК) -->
+  <div class="info-panel" id="infoPanel">
+    <div class="info-panel-header">Маршрут готов</div>
+    <div class="info-panel-points" id="infoPanelPoints">Точек: 10</div>
+    <div class="info-panel-sequence">
+      <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
+      <div class="sequence-distance" id="sequenceDistance">Дистанция: 0 км</div>
+    </div>
+    <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
+    <div class="info-panel-actions">
+      <button class="info-panel-action-btn" id="refreshBtn" title="Обновить">
+        <img src="./assets/icons/Refresh.png" alt="Refresh">
+      </button>
+      <button class="info-panel-action-btn" id="deleteBtn" title="Удалить">
+        <img src="./assets/icons/Delete.png" alt="Delete">
+      </button>
+    </div>
+  </div>
+  
+  <!-- ЛОГИ API (ПРАВЫЙ НИЖНИЙ УГОЛ) -->
+  <div class="api-logs" id="apiLogs"></div>
   
   <!-- Полноэкранный режим навигации -->
   <div id="navigationFullscreen" class="navigation-fullscreen">
@@ -405,12 +695,45 @@
     <button id="navExitBtn" class="nav-exit-btn" title="Выйти из полноэкранного режима">✕</button>
   </div>
   
+  <!-- МЕНЮ -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content">
+      <div class="menu-header">
+        <span>Меню</span>
+        <button class="menu-close" id="menuClose">×</button>
+      </div>
+      <div class="menu-item" id="saveGpxMenuItem">
+        <span>📥 Сохранить GPX</span>
+      </div>
+      <div class="menu-item" id="loadGpxMenuItem">
+        <span>📤 Загрузить GPX</span>
+      </div>
+      <div class="menu-item" id="savedRoutesMenuItem">
+        <span>📂 Сохранённые маршруты</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- НАСТРОЙКИ -->
+  <div class="settings-modal" id="settingsModal">
+    <div class="settings-content">
+      <div class="settings-header">
+        <span>Настройки</span>
+        <button class="settings-close" id="settingsClose">×</button>
+      </div>
+      <div class="settings-item">
+        <label class="settings-label" for="pointsCount">Количество точек</label>
+        <input type="number" id="pointsCount" class="settings-input" min="1" max="50" value="10">
+      </div>
+    </div>
+  </div>
+  
   <!-- Modal: список маршрутов -->
-  <div id="routesModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;">
+  <div id="routesModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
     <div style="background: #fff; width: min(520px, 92vw); max-height: 80vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
       <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
         <div style="font-weight: 600; font-size: 16px;">Сохранённые маршруты</div>
-        <button id="routesModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333;">Закрыть</button>
+        <button id="routesModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
       </div>
       <div id="routesModalBody" style="padding: 10px 12px;">
         <div id="routesListEmpty" style="color:#777; padding: 8px;">Пока нет сохранённых маршрутов</div>
@@ -420,11 +743,11 @@
   </div>
 
   <!-- Modal: редактирование последовательности -->
-  <div id="sequenceModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;">
+  <div id="sequenceModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
     <div style="background: #fff; width: min(520px, 92vw); max-height: 80vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
       <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
         <div style="font-weight: 600; font-size: 16px;">✏️ Редактирование последовательности</div>
-        <button id="sequenceModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333;">Закрыть</button>
+        <button id="sequenceModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
       </div>
       <div id="sequenceModalBody" style="padding: 16px;">
         <p style="margin: 0 0 12px 0; color: #666; font-size: 14px;">
@@ -437,10 +760,13 @@
           Или введите последовательность (через запятую):
         </label>
         <input type="text" id="sequenceInput" placeholder="Например: 8, 5, 4, 1, 3" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;">
-        <button id="applySequenceBtn" style="margin-top: 12px;">Применить</button>
+        <button id="applySequenceBtn" style="margin-top: 12px; width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">Применить</button>
       </div>
     </div>
   </div>
+  
+  <!-- Скрытый input для загрузки GPX -->
+  <input type="file" id="gpxFileInput" accept=".gpx" style="display: none;">
   
   <script src="./libs/leaflet/leaflet.js"></script>
   <script src="./libs/leaflet/leaflet.draw.js"></script>
