@@ -311,8 +311,15 @@ export function positionClearButton(bounds, map) {
  * Показать информационную панель
  */
 export function showInfoPanel() {
+  console.log('🎯 showInfoPanel вызвана');
+  console.log('  infoPanel:', infoPanel);
   if (infoPanel) {
     infoPanel.classList.add('show');
+    console.log('  ✅ Класс show добавлен к infoPanel');
+    console.log('  Текущие классы:', infoPanel.className);
+    console.log('  Текущий display:', window.getComputedStyle(infoPanel).display);
+  } else {
+    console.error('  ❌ infoPanel не найден!');
   }
 }
 
