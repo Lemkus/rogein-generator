@@ -43,15 +43,7 @@ export function initSequenceUI() {
   }
   
   // Проверяем дополнительные элементы (могут отсутствовать в новом интерфейсе)
-  if (!sequenceSection) {
-    console.warn('sequenceSection не найден - некоторые функции последовательности недоступны');
-  }
-  if (!routeStatsSpan) {
-    console.warn('routeStatsSpan не найден - статистика маршрута недоступна');
-  }
-  if (!toggleDirectionBtn) {
-    console.warn('toggleDirectionBtn не найден - смена направления недоступна');
-  }
+  // Эти элементы больше не используются в новом интерфейсе
   
   // Установка обработчиков
   setupEventHandlers();
