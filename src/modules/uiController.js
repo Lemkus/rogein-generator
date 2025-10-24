@@ -59,6 +59,8 @@ export function initUI() {
   
   // Отладка DOM элементов
   console.log('🔍 Проверка DOM элементов:');
+  console.log('  drawAreaBtn:', drawAreaBtn);
+  console.log('  polygonBtn:', polygonBtn);
   console.log('  startNavBtn:', startNavBtn);
   console.log('  refreshBtn:', refreshBtn);
   console.log('  deleteBtn:', deleteBtn);
@@ -90,6 +92,11 @@ function setupEventHandlers() {
   // Кнопка выбора области (прямоугольник)
   drawAreaBtn.addEventListener('click', () => {
     console.log('🎯 Активация режима выбора области (прямоугольник)');
+    
+    // Активируем кнопку прямоугольника и деактивируем полигон
+    drawAreaBtn.classList.add('active');
+    polygonBtn.classList.remove('active');
+    
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
@@ -105,6 +112,11 @@ function setupEventHandlers() {
   // Кнопка выбора области (полигон)
   polygonBtn.addEventListener('click', () => {
     console.log('🎯 Активация режима выбора области (полигон)');
+    
+    // Активируем кнопку полигона и деактивируем прямоугольник
+    polygonBtn.classList.add('active');
+    drawAreaBtn.classList.remove('active');
+    
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
