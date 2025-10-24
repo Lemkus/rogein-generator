@@ -6,7 +6,7 @@
 console.log('🚀 uiController.js загружается...');
 
 // DOM элементы
-let drawAreaBtn, hintSticker, clearAreaBtn, infoPanel, apiLogs;
+let drawAreaBtn, polygonBtn, hintSticker, clearAreaBtn, infoPanel, apiLogs;
 let menuBtn, menuModal, menuClose, settingsBtn, settingsModal, settingsClose;
 let shareBtn, zoomInBtn, zoomOutBtn, gpsBtn;
 let saveGpxMenuItem, loadGpxMenuItem, savedRoutesMenuItem, gpxFileInput;
@@ -26,6 +26,7 @@ export function initUI() {
   
   // Получаем DOM элементы
   drawAreaBtn = document.getElementById('drawAreaBtn');
+  polygonBtn = document.getElementById('polygonBtn');
   hintSticker = document.getElementById('hintSticker');
   clearAreaBtn = document.getElementById('clearAreaBtn');
   infoPanel = document.getElementById('infoPanel');
@@ -86,9 +87,9 @@ function setupEventHandlers() {
     if (e.target === menuModal) menuModal.classList.remove('show');
   });
   
-  // Кнопка выбора области
+  // Кнопка выбора области (прямоугольник)
   drawAreaBtn.addEventListener('click', () => {
-    console.log('🎯 Активация режима выбора области');
+    console.log('🎯 Активация режима выбора области (прямоугольник)');
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
@@ -96,6 +97,21 @@ function setupEventHandlers() {
         if (rectangleButton && rectangleButton.handler) {
           rectangleButton.handler.enable();
           addApiLog('🎯 Режим выбора области активирован. Нарисуйте прямоугольник на карте.');
+        }
+      }
+    });
+  });
+  
+  // Кнопка выбора области (полигон)
+  polygonBtn.addEventListener('click', () => {
+    console.log('🎯 Активация режима выбора области (полигон)');
+    // Импортируем mapModule для доступа к drawControl
+    import('./mapModule.js').then(module => {
+      if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
+        const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
+        if (polygonButton && polygonButton.handler) {
+          polygonButton.handler.enable();
+          addApiLog('🎯 Режим выбора области активирован. Нарисуйте многоугольник на карте.');
         }
       }
     });
@@ -237,6 +253,7 @@ export function setStep(step) {
     case 'select_area':
       showHint('Укажите область для тренировки');
       drawAreaBtn.classList.add('active');
+      polygonBtn.classList.remove('active');
       hideInfoPanel();
       hideClearButton();
       break;
@@ -256,6 +273,7 @@ export function setStep(step) {
     case 'points_generated':
       hideHint();
       drawAreaBtn.classList.remove('active');
+      polygonBtn.classList.remove('active');
       showInfoPanel();
       break;
       
