@@ -298,6 +298,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     invalidPath: 0,
     noRandomPoint: 0,
     outOfBounds: 0,
+    outOfPolygon: 0,
     tooClose: 0,
     inForbiddenZone: 0,
     noNearestNode: 0,
@@ -360,6 +361,15 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
         pointObj.lng < selectedBounds.west || pointObj.lng > selectedBounds.east) {
       debugStats.outOfBounds++;
       continue;
+    }
+
+    // Дополнительная проверка для полигона
+    if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
+      const polygonCoords = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
+      if (!pointInPolygon(pointObj.lat, pointObj.lng, polygonCoords)) {
+        debugStats.outOfPolygon++;
+        continue;
+      }
     }
 
     // Проверяем минимальное расстояние от других точек
@@ -463,6 +473,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   console.log(`   Невалидные тропы: ${debugStats.invalidPath}`);
   console.log(`   Не удалось получить случайную точку: ${debugStats.noRandomPoint}`);
   console.log(`   Вне области: ${debugStats.outOfBounds}`);
+  console.log(`   Вне полигона: ${debugStats.outOfPolygon}`);
   console.log(`   Слишком близко: ${debugStats.tooClose}`);
   console.log(`   В запретной зоне: ${debugStats.inForbiddenZone}`);
   console.log(`   Не найден ближайший узел: ${debugStats.noNearestNode}`);

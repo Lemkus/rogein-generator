@@ -112,12 +112,12 @@
       gap: 10px;
     }
     
-    /* ========== КНОПКА РИСОВАНИЯ ОБЛАСТИ ========== */
-    #drawAreaBtn {
+    /* ========== КНОПКИ РИСОВАНИЯ ОБЛАСТИ ========== */
+    #drawAreaBtn, #polygonBtn {
       position: relative;
     }
     
-    #drawAreaBtn.active {
+    #drawAreaBtn.active, #polygonBtn.active {
       background: #4CAF50;
       box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
       animation: pulse 2s infinite;
@@ -623,10 +623,13 @@
     </button>
   </div>
   
-  <!-- ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКА РИСОВАНИЯ ОБЛАСТИ) -->
+  <!-- ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКИ РИСОВАНИЯ ОБЛАСТИ) -->
   <div class="left-controls">
-    <button class="icon-btn active" id="drawAreaBtn" title="Выбрать область">
+    <button class="icon-btn active" id="drawAreaBtn" title="Выбрать область (прямоугольник)">
       <img src="./assets/icons/DrawArea.png" alt="Draw Area">
+    </button>
+    <button class="icon-btn" id="polygonBtn" title="Выбрать область (многоугольник)">
+      <img src="./assets/icons/Polygon.png" alt="Polygon">
     </button>
   </div>
   

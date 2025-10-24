@@ -145,6 +145,46 @@ function handleDrawCreated(event) {
         }
       }, 100);
     });
+  } else if (layer instanceof L.Polygon) {
+    // Очищаем предыдущий полигон
+    drawnItems.getLayers().forEach(l => {
+      if (l instanceof L.Polygon) {
+        drawnItems.removeLayer(l);
+      }
+    });
+    drawnItems.addLayer(layer);
+    
+    // Обновляем selectedBounds с правильной структурой
+    const bounds = layer.getBounds();
+    selectedBounds = {
+      south: bounds.getSouth(),
+      west: bounds.getWest(),
+      north: bounds.getNorth(),
+      east: bounds.getEast(),
+      type: 'polygon',
+      polygon: layer // Сохраняем сам полигон для точной проверки
+    };
+    
+    // Сохраняем bounds для доступа
+    selectedBounds.getBounds = () => bounds;
+    
+    console.log('Выбрана область (полигон):', selectedBounds);
+    
+    // Уведомляем UI контроллер
+    import('./uiController.js').then(ui => {
+      ui.setStep('area_selected');
+      ui.positionClearButton(bounds, map);
+      
+      // Автоматически активируем режим рисования маркера
+      setTimeout(() => {
+        if (drawControl && drawControl._toolbars && drawControl._toolbars.draw) {
+          const markerButton = drawControl._toolbars.draw._modes.marker;
+          if (markerButton && markerButton.handler) {
+            markerButton.handler.enable();
+          }
+        }
+      }, 100);
+    });
   } else if (layer instanceof L.Marker) {
     // Обработка маркера старта
     if (startMarker) {
