@@ -53,7 +53,7 @@ export function initMap() {
 
     drawControl = new L.Control.Draw({
       draw: {
-        polygon: false,
+        polygon: true,  // Включаем режим полигона
         marker: true,  // Разрешаем маркеры для точки старта
         circle: false,
         circlemarker: false,
