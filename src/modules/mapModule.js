@@ -41,7 +41,9 @@ export function initMap() {
     }
 
     // Создаем новую карту
-    map = L.map('map').setView([60.1105, 30.3705], 15);
+    map = L.map('map', {
+      zoomControl: false  // Отключаем стандартные контролы зума
+    }).setView([60.1105, 30.3705], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
@@ -87,6 +89,12 @@ export function initMap() {
         display: none !important;
       }
       .leaflet-draw-toolbar a {
+        display: none !important;
+      }
+      .leaflet-control-zoom {
+        display: none !important;
+      }
+      .leaflet-control-zoom a {
         display: none !important;
       }
     `;
