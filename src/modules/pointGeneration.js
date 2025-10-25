@@ -25,6 +25,32 @@ function rectangleArea(bounds) {
   return latDiff * latToMeters * lngDiff * lngToMeters;
 }
 
+// Функция расчета площади полигона в квадратных метрах (формула шнура)
+function calculatePolygonArea(polygon) {
+  const latLngs = polygon.getLatLngs()[0];
+  if (latLngs.length < 3) return 0;
+  
+  let area = 0;
+  const n = latLngs.length;
+  
+  // Используем формулу шнура для расчета площади на сфере
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const lat1 = latLngs[i].lat * Math.PI / 180;
+    const lng1 = latLngs[i].lng * Math.PI / 180;
+    const lat2 = latLngs[j].lat * Math.PI / 180;
+    const lng2 = latLngs[j].lng * Math.PI / 180;
+    
+    area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  
+  // Радиус Земли в метрах
+  const R = 6371000;
+  area = Math.abs(area) * R * R / 2;
+  
+  return area;
+}
+
 // Основная функция генерации точек
 export async function generatePoints(selectedBounds, startPoint, count, statusCallback, buttonCallback, cancelCallback) {
   if (!selectedBounds) {
@@ -50,8 +76,18 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
   const ne = { lat: selectedBounds.north, lng: selectedBounds.east };
 
   // Вычисляем площадь области и минимальное расстояние
-  const area = rectangleArea(selectedBounds); // в м^2
+  let area;
+  if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
+    // Для полигона рассчитываем реальную площадь
+    area = calculatePolygonArea(selectedBounds.polygon);
+    console.log('🔍 Площадь полигона:', area, 'м²');
+  } else {
+    // Для прямоугольника используем стандартный расчет
+    area = rectangleArea(selectedBounds);
+    console.log('🔍 Площадь прямоугольника:', area, 'м²');
+  }
   const minDist = Math.sqrt(area / count) * 0.8; // Упрощенная формула для минимального расстояния
+  console.log('🔍 Минимальное расстояние:', minDist, 'м');
 
   try {
     // Очищаем предыдущие точки и отладочные слои
