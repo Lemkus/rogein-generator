@@ -365,10 +365,24 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
     // Дополнительная проверка для полигона
     if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
-      const polygonCoords = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
+      const polygonLatLngs = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
+      
+      // Конвертируем LatLng объекты в массивы [lat, lng]
+      const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
+      
+      // Отладочная информация
+      console.log('🔍 Проверка точки в полигоне:', {
+        point: { lat: pointObj.lat, lng: pointObj.lng },
+        polygonCoords: polygonCoords.slice(0, 3), // первые 3 точки для отладки
+        polygonLength: polygonCoords.length
+      });
+      
       if (!pointInPolygon(pointObj.lat, pointObj.lng, polygonCoords)) {
         debugStats.outOfPolygon++;
+        console.log('🔍 Точка вне полигона:', pointObj);
         continue;
+      } else {
+        console.log('🔍 Точка внутри полигона:', pointObj);
       }
     }
 
