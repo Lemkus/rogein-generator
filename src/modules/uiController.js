@@ -339,11 +339,19 @@ export function positionClearButton(bounds, map) {
     const northEast = bounds.getNorthEast();
     const point = map.latLngToContainerPoint(northEast);
     
-    clearAreaBtn.style.left = (point.x + 5) + 'px';
-    clearAreaBtn.style.top = (point.y - 35) + 'px';
-    clearAreaBtn.style.display = 'flex';
+    // Проверяем, что точка находится в видимой области карты
+    const mapSize = map.getSize();
+    if (point.x >= 0 && point.x <= mapSize.x && point.y >= 0 && point.y <= mapSize.y) {
+      clearAreaBtn.style.left = (point.x + 5) + 'px';
+      clearAreaBtn.style.top = (point.y - 35) + 'px';
+      clearAreaBtn.style.display = 'flex';
+    } else {
+      // Если область не видна, скрываем кнопку
+      clearAreaBtn.style.display = 'none';
+    }
   } catch (e) {
     console.error('Ошибка позиционирования кнопки очистки:', e);
+    clearAreaBtn.style.display = 'none';
   }
 }
 
