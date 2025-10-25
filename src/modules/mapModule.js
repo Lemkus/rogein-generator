@@ -487,7 +487,7 @@ export function updateStartPointPosition(lat, lng) {
 }
 
 // Функция для автоматического запуска генерации точек
-function triggerPointGeneration() {
+export function triggerPointGeneration() {
   console.log('🎯 Автоматическая генерация точек...');
   
   // Получаем количество точек из настроек
