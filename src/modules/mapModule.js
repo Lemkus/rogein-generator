@@ -95,12 +95,29 @@ export function initMap() {
     // Обработчик создания объектов на карте
     map.on(L.Draw.Event.CREATED, handleDrawCreated);
     
+    // Обработчики событий карты для обновления позиции крестика
+    map.on('move', updateClearButtonPosition);
+    map.on('zoom', updateClearButtonPosition);
+    map.on('viewreset', updateClearButtonPosition);
+    
     console.log('Карта инициализирована успешно');
     return true;
   } catch (error) {
     console.error('Ошибка инициализации карты:', error);
     return false;
   }
+}
+
+// Функция обновления позиции крестика при движении карты
+function updateClearButtonPosition() {
+  if (!selectedBounds || !map) return;
+  
+  // Импортируем UI контроллер для обновления позиции
+  import('./uiController.js').then(ui => {
+    if (selectedBounds.getBounds) {
+      ui.positionClearButton(selectedBounds.getBounds(), map);
+    }
+  });
 }
 
 // Обработчик создания объектов на карте
