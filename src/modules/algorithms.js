@@ -58,61 +58,138 @@ export function segmentIntersectsBarriers(p1, p2, barrierObjs) {
   return { intersects: false };
 }
 
-// Построение графа троп с удалением рёбер, пересекающих запрещённые зоны
+// Построение графа троп с удалением рёбер, пересекающих запрещённые зоны (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ)
 export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
-  const nodes = []; // Stores {lat, lon} objects for graph nodes
+  const nodes = []; 
   const edges = [];
-  const nodeTolerance = 0.5; // Meters. Nodes within this distance are considered the same.
+  const nodeTolerance = 0.5; // Meters
   const excludedSegments = [];
 
-  // Helper function to find the index of an existing node or add a new one
-  function getOrCreateNodeIndex(lat, lon) {
-    for (let i = 0; i < nodes.length; i++) {
-      if (haversine(lat, lon, nodes[i].lat, nodes[i].lon) < nodeTolerance) {
-        return i; // Found an existing node within tolerance
+  // ОПТИМИЗАЦИЯ 1: Spatial Grid Hash для быстрого поиска узлов
+  // Разбиваем пространство на сетку ячеек
+  const GRID_SIZE = 0.001; // ~100 метров на ячейку
+  const spatialGrid = new Map(); // key: "lat_grid,lon_grid" -> array of node indices
+  
+  function getGridKey(lat, lon) {
+    const latGrid = Math.floor(lat / GRID_SIZE);
+    const lonGrid = Math.floor(lon / GRID_SIZE);
+    return `${latGrid},${lonGrid}`;
+  }
+  
+  function getNeighborGridKeys(lat, lon) {
+    // Возвращает текущую ячейку и 8 соседних для поиска
+    const latGrid = Math.floor(lat / GRID_SIZE);
+    const lonGrid = Math.floor(lon / GRID_SIZE);
+    const keys = [];
+    for (let dLat = -1; dLat <= 1; dLat++) {
+      for (let dLon = -1; dLon <= 1; dLon++) {
+        keys.push(`${latGrid + dLat},${lonGrid + dLon}`);
       }
     }
-    // No existing node found within tolerance, add a new one
+    return keys;
+  }
+
+  // ОПТИМИЗИРОВАННАЯ функция поиска/создания узла
+  function getOrCreateNodeIndex(lat, lon) {
+    // Ищем только в соседних ячейках сетки (9 ячеек вместо всех узлов)
+    const neighborKeys = getNeighborGridKeys(lat, lon);
+    
+    for (const key of neighborKeys) {
+      const cellNodes = spatialGrid.get(key);
+      if (cellNodes) {
+        for (const nodeIdx of cellNodes) {
+          const node = nodes[nodeIdx];
+          if (haversine(lat, lon, node.lat, node.lon) < nodeTolerance) {
+            return nodeIdx; // Нашли существующий узел
+          }
+        }
+      }
+    }
+    
+    // Узел не найден, создаем новый
+    const newIdx = nodes.length;
     nodes.push({lat, lon});
-    return nodes.length - 1;
+    
+    // Добавляем в пространственную сетку
+    const gridKey = getGridKey(lat, lon);
+    if (!spatialGrid.has(gridKey)) {
+      spatialGrid.set(gridKey, []);
+    }
+    spatialGrid.get(gridKey).push(newIdx);
+    
+    return newIdx;
+  }
+
+  // ОПТИМИЗАЦИЯ 2: Предварительный расчет bounding boxes для запретных зон
+  const forbiddenBBoxes = forbiddenPolygons.map(poly => {
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLon = Infinity, maxLon = -Infinity;
+    
+    for (const point of poly) {
+      const lat = point[0];
+      const lon = point[1];
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    }
+    
+    return { minLat, maxLat, minLon, maxLon, poly };
+  });
+
+  // Быстрая проверка пересечения сегмента с bbox
+  function segmentIntersectsBBox(a, b, bbox) {
+    const segMinLat = Math.min(a.lat, b.lat);
+    const segMaxLat = Math.max(a.lat, b.lat);
+    const segMinLon = Math.min(a.lon, b.lon);
+    const segMaxLon = Math.max(a.lon, b.lon);
+    
+    // Если bboxы не пересекаются - сегмент точно не пересекает полигон
+    return !(segMaxLat < bbox.minLat || segMinLat > bbox.maxLat ||
+             segMaxLon < bbox.minLon || segMinLon > bbox.maxLon);
   }
 
   // Collect all unique nodes from all paths (snapping close points)
+  console.log('📍 Сбор уникальных узлов...');
+  let processedPoints = 0;
+  
   paths.forEach(path => {
     if (!path.geometry || path.geometry.length < 2) return;
     path.geometry.forEach(pt => {
       let lat, lon;
       
-      // Проверяем формат точки
       if (Array.isArray(pt)) {
-        // Формат массива [lat, lon]
         lat = pt[0];
         lon = pt[1];
       } else if (pt && typeof pt === 'object') {
-        // Формат объекта {lat, lon}
         lat = pt.lat;
         lon = pt.lon;
       } else {
         return;
       }
       
-      // Проверяем валидность координат
       if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
         return;
       }
       
       getOrCreateNodeIndex(lat, lon);
+      processedPoints++;
     });
   });
+  
+  console.log(`✅ Обработано ${processedPoints} точек → ${nodes.length} уникальных узлов`);
 
-  // Add edges between neighboring points of each path if they don't intersect forbidden areas or barriers
+  // Add edges between neighboring points of each path
+  console.log('🔗 Построение рёбер с проверкой запретных зон...');
+  let processedSegments = 0;
+  let bboxRejections = 0; // Счетчик отсеянных по bbox
+  
   paths.forEach(path => {
     if (!path.geometry || path.geometry.length < 2) return;
     for (let i = 0; i < path.geometry.length - 1; i++) {
       const ptA = path.geometry[i];
       const ptB = path.geometry[i+1];
       
-      // Извлекаем координаты из точек
       let latA, lonA, latB, lonB;
       
       if (Array.isArray(ptA)) {
@@ -131,7 +208,6 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
         continue;
       }
       
-      // Проверяем валидность координат
       if (typeof latA !== 'number' || typeof lonA !== 'number' || 
           typeof latB !== 'number' || typeof lonB !== 'number' ||
           isNaN(latA) || isNaN(lonA) || isNaN(latB) || isNaN(lonB)) {
@@ -143,17 +219,23 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
       let forbidden = false;
       let reason = '';
 
-      // Check for intersection with forbidden polygons
-      for (const poly of forbiddenPolygons) {
-        if (segmentIntersectsPolygon(a, b, poly)) {
-          forbidden = true;
-          reason = `Пересекает запретную зону (полигон ${poly[0][0].toFixed(4)}, ${poly[0][1].toFixed(4)}...)`;
-          break;
+      // ОПТИМИЗИРОВАННАЯ проверка с bbox
+      for (const bboxData of forbiddenBBoxes) {
+        // Сначала быстрая проверка bbox (отсеет ~95% ненужных проверок)
+        if (segmentIntersectsBBox(a, b, bboxData)) {
+          // Только если bbox пересекается - делаем полную проверку
+          if (segmentIntersectsPolygon(a, b, bboxData.poly)) {
+            forbidden = true;
+            reason = `Пересекает запретную зону`;
+            break;
+          }
+        } else {
+          bboxRejections++;
         }
       }
 
       // Check for intersection with barriers
-      if (!forbidden) {
+      if (!forbidden && barrierObjs.length > 0) {
         const barrierCheck = segmentIntersectsBarriers(a, b, barrierObjs);
         if (barrierCheck.intersects) {
           forbidden = true;
@@ -162,36 +244,47 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
       }
 
       if (!forbidden) {
-        // Get indices for the current segment's start and end points
         const idxA = getOrCreateNodeIndex(a.lat, a.lon);
         const idxB = getOrCreateNodeIndex(b.lat, b.lon);
 
-        if (idxA !== idxB) { // Ensure it's not a self-loop (e.g., from snapping very close points)
+        if (idxA !== idxB) {
           edges.push([idxA, idxB]);
           edges.push([idxB, idxA]); // Undirected graph
         } else {
-          // This happens if a and b are snapped to the same node due to nodeTolerance
           excludedSegments.push({segment: [a, b], reason: `Сегмент слишком короткий или узлы слились (расстояние < ${nodeTolerance}м)`});
         }
       } else {
         excludedSegments.push({segment: [a, b], reason: reason});
       }
+      
+      processedSegments++;
+      
+      // Логируем прогресс каждые 1000 сегментов
+      if (processedSegments % 1000 === 0) {
+        console.log(`  ⏳ Обработано сегментов: ${processedSegments}, отсеяно по bbox: ${bboxRejections}`);
+      }
     }
   });
+  
+  console.log(`✅ Обработано ${processedSegments} сегментов, bbox отсеял ${bboxRejections} проверок (${(bboxRejections/(processedSegments * forbiddenBBoxes.length || 1)*100).toFixed(1)}%)`);
 
-  // Build adjacency list (ensure no duplicate edges for same (u,v))
+  // Build adjacency list
+  console.log('🔨 Построение списка смежности...');
   const adj = Array(nodes.length).fill(0).map(() => []);
   const edgeSet = new Set();
+  
   edges.forEach(([u, v]) => {
     const key1 = `${u}-${v}`;
     const key2 = `${v}-${u}`;
     if (!edgeSet.has(key1)) {
       adj[u].push(v);
-      adj[v].push(u); // Add for both directions since it's undirected
+      adj[v].push(u);
       edgeSet.add(key1);
       edgeSet.add(key2);
     }
   });
+
+  console.log(`✅ Граф построен: ${nodes.length} узлов, ${edges.length/2} рёбер, ${excludedSegments.length} исключено`);
 
   return {nodes, adj, excludedSegments};
 }
