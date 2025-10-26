@@ -184,7 +184,11 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     setTrailGraph(graph);
 
     // Создаем полигоны запретных зон с кешированием
-    const dataHash = `${closedAreasData.length}_${waterAreasData.length}_${JSON.stringify(selectedBounds)}`;
+    // Простой хеш на основе координат области и количества объектов
+    const areaHash = selectedBounds.type === 'polygon' 
+      ? `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_polygon`
+      : `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_rect`;
+    const dataHash = `${closedAreasData.length}_${waterAreasData.length}_${areaHash}`;
     let forbiddenPolygons;
     
     if (cachedDataHash === dataHash && cachedForbiddenPolygons) {
