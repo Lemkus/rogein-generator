@@ -213,28 +213,89 @@ export function isReachable(graph, fromIdx, toIdx) {
   return false;
 }
 
-// Оптимизированный алгоритм Дейкстры с приоритетной очередью
+// Класс для эффективной приоритетной очереди (min-heap)
+class MinHeap {
+  constructor() {
+    this.heap = [];
+  }
+  
+  push(item) {
+    this.heap.push(item);
+    this._bubbleUp(this.heap.length - 1);
+  }
+  
+  pop() {
+    if (this.heap.length === 0) return null;
+    if (this.heap.length === 1) return this.heap.pop();
+    
+    const min = this.heap[0];
+    this.heap[0] = this.heap.pop();
+    this._bubbleDown(0);
+    return min;
+  }
+  
+  get length() {
+    return this.heap.length;
+  }
+  
+  _bubbleUp(index) {
+    while (index > 0) {
+      const parentIndex = Math.floor((index - 1) / 2);
+      if (this.heap[index][0] >= this.heap[parentIndex][0]) break;
+      
+      [this.heap[index], this.heap[parentIndex]] = [this.heap[parentIndex], this.heap[index]];
+      index = parentIndex;
+    }
+  }
+  
+  _bubbleDown(index) {
+    const length = this.heap.length;
+    while (true) {
+      let minIndex = index;
+      const leftChild = 2 * index + 1;
+      const rightChild = 2 * index + 2;
+      
+      if (leftChild < length && this.heap[leftChild][0] < this.heap[minIndex][0]) {
+        minIndex = leftChild;
+      }
+      if (rightChild < length && this.heap[rightChild][0] < this.heap[minIndex][0]) {
+        minIndex = rightChild;
+      }
+      
+      if (minIndex === index) break;
+      
+      [this.heap[index], this.heap[minIndex]] = [this.heap[minIndex], this.heap[index]];
+      index = minIndex;
+    }
+  }
+}
+
+// Оптимизированный алгоритм Дейкстры с эффективной приоритетной очередью
 export function dijkstra(graph, startIdx, endIdx) {
   const dist = Array(graph.nodes.length).fill(Infinity);
   const prev = Array(graph.nodes.length).fill(null);
+  const visited = new Set();
   dist[startIdx] = 0;
   
   // Приоритетная очередь: [distance, nodeIndex]
-  const pq = [[0, startIdx]];
+  const pq = new MinHeap();
+  pq.push([0, startIdx]);
   
   while (pq.length > 0) {
     // Извлекаем узел с минимальным расстоянием
-    pq.sort((a, b) => a[0] - b[0]);
-    const [currentDist, u] = pq.shift();
+    const [currentDist, u] = pq.pop();
+    
+    // Если уже посетили этот узел, пропускаем
+    if (visited.has(u)) continue;
+    visited.add(u);
     
     // Если достигли цели, можно остановиться
     if (u === endIdx) break;
     
-    // Если уже обработали этот узел с лучшим расстоянием, пропускаем
-    if (currentDist > dist[u]) continue;
-    
     // Обрабатываем соседей
     for (const v of graph.adj[u]) {
+      if (visited.has(v)) continue;
+      
       const d = haversine(graph.nodes[u].lat, graph.nodes[u].lon, graph.nodes[v].lat, graph.nodes[v].lon);
       const newDist = dist[u] + d;
       

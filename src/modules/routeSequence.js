@@ -58,13 +58,49 @@ function calculatePathDistance(from, to) {
 }
 
 /**
+ * Предварительный расчет матрицы расстояний между всеми точками
+ * @param {Array} points - Массив маркеров точек
+ * @param {Object} startPoint - Точка старта
+ * @returns {Map} - Кэш расстояний
+ */
+function precalculateDistanceMatrix(points, startPoint) {
+  const distanceCache = new Map();
+  const allCoords = [startPoint, ...points.map(m => m.getLatLng())];
+  
+  console.log(`📐 Расчет матрицы расстояний для ${points.length} точек...`);
+  const startTime = performance.now();
+  
+  // Рассчитываем расстояния между всеми парами точек
+  for (let i = 0; i < allCoords.length; i++) {
+    for (let j = i + 1; j < allCoords.length; j++) {
+      const from = allCoords[i];
+      const to = allCoords[j];
+      
+      const dist = calculatePathDistance(from, to);
+      
+      // Сохраняем в обе стороны (симметрично)
+      const key1 = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+      const key2 = `${to.lat},${to.lng}-${from.lat},${from.lng}`;
+      distanceCache.set(key1, dist);
+      distanceCache.set(key2, dist);
+    }
+  }
+  
+  const endTime = performance.now();
+  console.log(`✅ Матрица расстояний рассчитана за ${(endTime - startTime).toFixed(0)}мс`);
+  
+  return distanceCache;
+}
+
+/**
  * Построение оптимальной последовательности точек методом ближайшего соседа
  * @param {Array} points - Массив маркеров точек
  * @param {Object} startPoint - Точка старта {lat, lng}
  * @param {boolean} clockwise - Направление обхода
+ * @param {Map} distanceCache - Предрассчитанная матрица расстояний
  * @returns {Array} - Массив индексов в оптимальном порядке
  */
-export function buildOptimalSequence(points, startPoint, clockwise = true) {
+export function buildOptimalSequence(points, startPoint, clockwise = true, distanceCache = null) {
   if (!points || points.length === 0) {
     return [];
   }
@@ -72,6 +108,15 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
   const numPoints = points.length;
   const visited = new Array(numPoints).fill(false);
   const sequence = [];
+  
+  // Функция для получения расстояния (с кэшем или без)
+  const getDistance = (from, to) => {
+    if (distanceCache) {
+      const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+      return distanceCache.get(key) || calculatePathDistance(from, to);
+    }
+    return calculatePathDistance(from, to);
+  };
   
   // Начинаем от точки старта
   let currentPos = startPoint;
@@ -87,8 +132,8 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
         const marker = points[j];
         const coords = marker.getLatLng();
         
-        // Используем расстояние по тропам вместо прямого
-        const dist = calculatePathDistance(currentPos, coords);
+        // Используем расстояние (из кэша или рассчитываем)
+        const dist = getDistance(currentPos, coords);
         
         if (dist < minDist) {
           minDist = dist;
@@ -117,23 +162,23 @@ export function buildOptimalSequence(points, startPoint, clockwise = true) {
  * @param {Array} sequence - Исходная последовательность
  * @param {Array} points - Массив маркеров точек
  * @param {Object} startPoint - Точка старта
+ * @param {Map} distanceCache - Предрассчитанная матрица расстояний
  * @returns {Array} - Улучшенная последовательность
  */
-export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
+export function optimizeSequenceWith2Opt(sequence, points, startPoint, distanceCache = null) {
   if (sequence.length < 4) {
     return sequence; // Для маленьких маршрутов оптимизация не нужна
   }
   
   let currentSequence = [...sequence];
   
-  // Кэшируем расстояния между точками для быстрого доступа
-  const distanceCache = new Map();
+  // Функция для получения расстояния (использует предрассчитанный кэш или создает новый)
   const getCachedDistance = (from, to) => {
     const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
-    if (!distanceCache.has(key)) {
-      distanceCache.set(key, calculatePathDistance(from, to));
+    if (distanceCache && distanceCache.has(key)) {
+      return distanceCache.get(key);
     }
-    return distanceCache.get(key);
+    return calculatePathDistance(from, to);
   };
   
   // Функция быстрого расчета изменения расстояния при 2-opt swap
@@ -155,46 +200,50 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint) {
     return oldDist - newDist; // Положительное значение = улучшение
   };
   
-  // Оптимизированная 2-opt с ограниченным количеством итераций
-  const maxIterations = Math.min(50, sequence.length * 2); // Адаптивное ограничение
+  // Оптимизированная 2-opt с адаптивными ограничениями
+  const maxIterations = Math.min(100, sequence.length * 3); // Адаптивное ограничение
+  const minImprovement = 1; // Минимальное улучшение в метрах для продолжения
   let iteration = 0;
   let improved = true;
-  let bestImprovement = 0; // Общее улучшение за все итерации
+  let totalImprovement = 0; // Общее улучшение за все итерации
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
     // Ищем лучшее улучшение в текущей итерации
-    let currentBestImprovement = 0;
+    let bestImprovementThisIter = 0;
     let bestI = -1, bestJ = -1;
     
-    for (let i = 0; i < currentSequence.length - 1; i++) {
-      for (let j = i + 2; j < currentSequence.length; j++) {
+    // Оптимизация: проверяем не все пары, а с шагом для больших маршрутов
+    const step = sequence.length > 30 ? 2 : 1;
+    
+    for (let i = 0; i < currentSequence.length - 1; i += step) {
+      for (let j = i + 2; j < currentSequence.length; j += step) {
         const improvement = calculateSwapImprovement(currentSequence, i, j);
-        if (improvement > currentBestImprovement) {
-          currentBestImprovement = improvement;
+        if (improvement > bestImprovementThisIter) {
+          bestImprovementThisIter = improvement;
           bestI = i;
           bestJ = j;
         }
       }
     }
     
-    // Применяем лучшее улучшение
-    if (currentBestImprovement > 0) {
+    // Применяем лучшее улучшение, если оно достаточно значимое
+    if (bestImprovementThisIter > minImprovement) {
       const newSequence = [
         ...currentSequence.slice(0, bestI + 1),
         ...currentSequence.slice(bestI + 1, bestJ + 1).reverse(),
         ...currentSequence.slice(bestJ + 1)
       ];
       currentSequence = newSequence;
-      bestImprovement += currentBestImprovement; // Накопляем общее улучшение
+      totalImprovement += bestImprovementThisIter;
       improved = true;
     }
 
   }
   
-  console.log(`🔧 2-opt оптимизация: ${iteration} итераций, улучшение: ${(bestImprovement / 1000).toFixed(2)} км`);
+  console.log(`🔧 2-opt оптимизация: ${iteration} итераций, улучшение: ${(totalImprovement / 1000).toFixed(2)} км`);
   
   return currentSequence;
 }
@@ -215,13 +264,26 @@ export function generateOptimalSequence() {
     return [];
   }
   
-  // Строим начальную последовательность
-  const initialSequence = buildOptimalSequence(pointMarkers, startPoint, isClockwise);
+  console.log(`🚀 Генерация оптимальной последовательности для ${pointMarkers.length} точек...`);
+  const totalStartTime = performance.now();
   
-  // Оптимизируем методом 2-opt
-  currentSequence = optimizeSequenceWith2Opt(initialSequence, pointMarkers, startPoint);
+  // ОПТИМИЗАЦИЯ: Предварительный расчет всех расстояний ОДИН РАЗ
+  const distanceCache = precalculateDistanceMatrix(pointMarkers, startPoint);
   
-  console.log(`✅ Построена оптимальная последовательность (${isClockwise ? 'по часовой' : 'против часовой'}):`, currentSequence.map(i => i + 1));
+  // Строим начальную последовательность с использованием кэша
+  const greedyStartTime = performance.now();
+  const initialSequence = buildOptimalSequence(pointMarkers, startPoint, isClockwise, distanceCache);
+  const greedyEndTime = performance.now();
+  console.log(`🔸 Жадный алгоритм выполнен за ${(greedyEndTime - greedyStartTime).toFixed(0)}мс`);
+  
+  // Оптимизируем методом 2-opt с использованием кэша
+  const optStartTime = performance.now();
+  currentSequence = optimizeSequenceWith2Opt(initialSequence, pointMarkers, startPoint, distanceCache);
+  const optEndTime = performance.now();
+  console.log(`🔹 2-opt оптимизация выполнена за ${(optEndTime - optStartTime).toFixed(0)}мс`);
+  
+  const totalEndTime = performance.now();
+  console.log(`✅ Построена оптимальная последовательность за ${(totalEndTime - totalStartTime).toFixed(0)}мс (${isClockwise ? 'по часовой' : 'против часовой'}):`, currentSequence.map(i => i + 1));
   
   return currentSequence;
 }
