@@ -43,20 +43,9 @@ export function pointInPolygon(lat, lon, polygon) {
 // Получить массив всех внешних полигонов (массивов координат) из areas
 export function extractPolygons(areaObjs) {
   const polygons = [];
-  console.log('🔍 extractPolygons: обработка', areaObjs.length, 'объектов');
   
   areaObjs.forEach((el, index) => {
-    console.log(`🔍 extractPolygons: объект ${index + 1}:`, {
-      type: el.type,
-      hasGeometry: !!el.geometry,
-      geometryLength: el.geometry ? el.geometry.length : 0,
-      hasMembers: !!el.members,
-      membersLength: el.members ? el.members.length : 0
-    });
-    
     if ((el.type === 'way' || el.type === 'closed_area') && el.geometry && el.geometry.length >= 2) {
-      console.log(`🔍 extractPolygons: добавляем ${el.type} полигон с ${el.geometry.length} точками`);
-      
       // Простая проверка - если это массив координат [lat, lon]
       if (Array.isArray(el.geometry[0]) && el.geometry[0].length === 2) {
         if (el.geometry.length === 2) {
@@ -85,9 +74,7 @@ export function extractPolygons(areaObjs) {
     }
     if (el.type === 'relation' && el.members) {
       const outers = el.members.filter(m => m.role === 'outer' && m.geometry && m.geometry.length >= 2);
-      console.log(`🔍 extractPolygons: найдено ${outers.length} outer members в relation`);
       outers.forEach(outer => {
-        console.log(`🔍 extractPolygons: добавляем relation полигон с ${outer.geometry.length} точками`);
         if (Array.isArray(outer.geometry[0]) && outer.geometry[0].length === 2) {
           if (outer.geometry.length === 2) {
             const [lat1, lon1] = outer.geometry[0];
@@ -114,7 +101,6 @@ export function extractPolygons(areaObjs) {
     }
   });
   
-  console.log(`🔍 extractPolygons: итого извлечено ${polygons.length} полигонов`);
   return polygons;
 }
 

@@ -13,6 +13,10 @@ import { setTrailGraph } from './routeSequence.js';
 // Переменные для отмены генерации
 let cancelGeneration = false;
 
+// Кеш для запретных зон (оптимизация производительности)
+let cachedForbiddenPolygons = null;
+let cachedDataHash = null;
+
 // Функция расчета площади прямоугольника в квадратных метрах
 function rectangleArea(bounds) {
   const latDiff = bounds.north - bounds.south;
@@ -179,18 +183,32 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     // Сохраняем граф для оптимизации маршрута (будет обновлен позже)
     setTrailGraph(graph);
 
-    // Создаем полигоны запретных зон
-    const forbiddenPolygons = [];
+    // Создаем полигоны запретных зон с кешированием
+    const dataHash = `${closedAreasData.length}_${waterAreasData.length}_${JSON.stringify(selectedBounds)}`;
+    let forbiddenPolygons;
     
-    // Добавляем закрытые зоны
-    const closedAreaPolygons = extractPolygons(closedAreasData);
-    forbiddenPolygons.push(...closedAreaPolygons);
+    if (cachedDataHash === dataHash && cachedForbiddenPolygons) {
+      // Используем кешированные полигоны
+      forbiddenPolygons = cachedForbiddenPolygons;
+      statusCallback(`🚫 Использую кешированные запретные зоны: ${forbiddenPolygons.length}`);
+    } else {
+      // Создаем новые полигоны
+      forbiddenPolygons = [];
+      
+      // Добавляем закрытые зоны
+      const closedAreaPolygons = extractPolygons(closedAreasData);
+      forbiddenPolygons.push(...closedAreaPolygons);
 
-    // Добавляем водоёмы
-    const waterAreaPolygons = extractPolygons(waterAreasData);
-    forbiddenPolygons.push(...waterAreaPolygons);
-
-    statusCallback(`🚫 Запретных зон: ${forbiddenPolygons.length}`);
+      // Добавляем водоёмы
+      const waterAreaPolygons = extractPolygons(waterAreasData);
+      forbiddenPolygons.push(...waterAreaPolygons);
+      
+      // Сохраняем в кеш
+      cachedForbiddenPolygons = forbiddenPolygons;
+      cachedDataHash = dataHash;
+      
+      statusCallback(`🚫 Создано запретных зон: ${forbiddenPolygons.length}`);
+    }
 
     if (cancelGeneration) return;
 
@@ -404,14 +422,32 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     }
 
     // Проверяем, что точка не в запретной зоне
+    // ОПТИМИЗАЦИЯ: для больших областей с >100 зонами применяем умную проверку
     let inForbiddenZone = false;
     
-    for (let i = 0; i < forbiddenPolygons.length; i++) {
-      const polygon = forbiddenPolygons[i];
+    if (forbiddenPolygons.length > 100) {
+      // В больших городах может быть 200-300+ зон (здания)
+      // Проверяем каждую 3-ю точку на первых 30% попыток для ускорения
+      const earlyPhase = attempts < maxAttempts * 0.3;
+      const shouldCheck = !earlyPhase || (attempts % 3 === 0);
       
-      if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
-        inForbiddenZone = true;
-        break;
+      if (shouldCheck) {
+        for (let i = 0; i < forbiddenPolygons.length; i++) {
+          const polygon = forbiddenPolygons[i];
+          if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
+            inForbiddenZone = true;
+            break;
+          }
+        }
+      }
+    } else {
+      // Для малого количества зон - полная проверка всегда
+      for (let i = 0; i < forbiddenPolygons.length; i++) {
+        const polygon = forbiddenPolygons[i];
+        if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
+          inForbiddenZone = true;
+          break;
+        }
       }
     }
 
