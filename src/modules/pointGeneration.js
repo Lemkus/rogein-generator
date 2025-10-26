@@ -399,21 +399,22 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     attempts++;
     debugStats.totalAttempts++;
     
-    // Проверяем прогресс и адаптивно снижаем minDist если застряли
-    if (attempts % 100 === 0 && points.length === lastPointsCount && reductionStep < maxReductions) {
-      reductionStep++;
-      currentMinDist = originalMinDist * (1 - reductionStep * 0.15); // Снижаем на 15% за каждый шаг
-      console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions})`);
-      statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
-    }
-    
-    // Обновляем счетчик для проверки прогресса
-    if (attempts % 100 === 0) {
-      lastPointsCount = points.length;
-    }
-    
-    // Логируем каждые 50 попыток для более частого отслеживания
+    // Проверяем прогресс каждые 50 попыток и адаптивно снижаем minDist если застряли
     if (attempts % 50 === 0) {
+      const pointsAdded = points.length - lastPointsCount;
+      
+      // Если за последние 50 попыток добавилось мало точек (0-1) - снижаем расстояние
+      if (pointsAdded <= 1 && reductionStep < maxReductions && points.length < count) {
+        reductionStep++;
+        currentMinDist = originalMinDist * (1 - reductionStep * 0.2); // Снижаем на 20% за каждый шаг
+        console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, добавлено точек за 50 попыток: ${pointsAdded})`);
+        statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
+      }
+      
+      // Обновляем счетчик для следующей проверки
+      lastPointsCount = points.length;
+      
+      // Логируем прогресс
       console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}, minDist=${currentMinDist.toFixed(0)}м`);
     }
     

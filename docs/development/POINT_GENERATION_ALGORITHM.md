@@ -176,7 +176,7 @@ function calculateMaxAttempts(count, difficultyLevel) {
 
 Внутренняя функция размещения точек на тропах с адаптивным снижением минимального расстояния.
 
-**Основной цикл:**
+**Основной цикл с адаптивным снижением:**
 
 ```javascript
 let currentMinDist = minDist;
@@ -186,11 +186,18 @@ let lastPointsCount = 0;
 while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
   attempts++;
   
-  // Адаптивное снижение если застряли
-  if (attempts % 100 === 0 && points.length === lastPointsCount && reductionStep < 3) {
-    reductionStep++;
-    currentMinDist = originalMinDist * (1 - reductionStep * 0.15); // -15% за шаг
-    console.log(`⚠️ Снижение minDist: ${originalMinDist}м → ${currentMinDist}м`);
+  // Проверка прогресса каждые 50 попыток
+  if (attempts % 50 === 0) {
+    const pointsAdded = points.length - lastPointsCount;
+    
+    // Если добавлено ≤1 точки за 50 попыток - снижаем расстояние
+    if (pointsAdded <= 1 && reductionStep < 3 && points.length < count) {
+      reductionStep++;
+      currentMinDist = originalMinDist * (1 - reductionStep * 0.2); // -20% за шаг
+      console.log(`⚠️ Снижение minDist: ${originalMinDist}м → ${currentMinDist}м (добавлено: ${pointsAdded})`);
+    }
+    
+    lastPointsCount = points.length; // Обновляем ПОСЛЕ проверки
   }
   
   // 1. Выбор случайной тропы
@@ -199,7 +206,7 @@ while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
   // 2. Выбор случайной точки на тропе
   const randomPoint = getRandomPointOnLine(linePoints);
   
-  // 3. Проверки (используем currentMinDist)
+  // 3. Проверки (используем currentMinDist - адаптивное расстояние)
   if (!passesAllChecks(pointObj, currentMinDist)) continue;
   
   // 4. Добавление точки
@@ -207,6 +214,12 @@ while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
   addPointMarker(pointObj.lat, pointObj.lng, points.length);
 }
 ```
+
+**Ключевые моменты адаптации:**
+- Проверка **каждые 50 попыток** (быстрее реагирует)
+- Снижение **на 20% за шаг** (агрессивнее)
+- Условие: **≤1 точки добавлено** (учитывает медленный прогресс)
+- Обновление `lastPointsCount` **после проверки** (правильный порядок)
 
 **Адаптивное снижение гарантирует генерацию всех запрошенных точек!**
 
