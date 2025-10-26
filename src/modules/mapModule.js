@@ -249,8 +249,6 @@ export function showClosedAreasOnMap(areas) {
   const polygons = extractPolygons(areas);
   
   polygons.forEach((polygon, index) => {
-    console.log(`🔍 Отображение полигона ${index + 1} с ${polygon.length} точками`);
-    
     // Валидация координат полигона
     const validCoords = polygon.filter(coord => 
       Array.isArray(coord) && coord.length === 2 && 
@@ -259,12 +257,10 @@ export function showClosedAreasOnMap(areas) {
     );
     
     if (validCoords.length < 3) {
-      console.warn(`🔍 Отображение полигона ${index + 1}: пропускаем полигон с недостаточным количеством валидных координат: ${validCoords.length}`);
       return;
     }
     
     try {
-      console.log(`🔍 Создаем полигон с координатами:`, validCoords.slice(0, 3)); // первые 3 точки
       const polygonLayer = L.polygon(validCoords, {
         color: 'red', 
         fillColor: 'red',
@@ -272,15 +268,12 @@ export function showClosedAreasOnMap(areas) {
         weight: 2
       }).addTo(map);
       closedAreaLayers.push(polygonLayer);
-      console.log(`🔍 Полигон ${index + 1} успешно добавлен на карту`);
     } catch (error) {
-      console.error(`🔍 Ошибка создания полигона ${index + 1}:`, error);
-      console.log(`🔍 Проблемные координаты:`, validCoords);
+      // Ignore polygon creation errors
     }
   });
 
   closedAreas = areas;
-  console.log(`🔍 Отображено ${polygons.length} запретных зон на карте`);
 }
 
 // Отображение водоёмов на карте
@@ -293,7 +286,6 @@ export function showWaterAreasOnMap(areas) {
   const polygons = extractPolygons(areas);
   
   polygons.forEach((polygon, index) => {
-    console.log(`🔍 Отображение водоёма ${index + 1} с ${polygon.length} точками`);
     const polygonLayer = L.polygon(polygon, {
       color: 'blue', 
       fillColor: 'blue',
@@ -304,7 +296,6 @@ export function showWaterAreasOnMap(areas) {
   });
 
   waterAreas = areas;
-  console.log(`🔍 Отображено ${polygons.length} водоёмов на карте`);
 }
 
 // Отображение барьеров на карте
@@ -313,17 +304,7 @@ export function showBarriersOnMap(barrierData) {
   barrierLayers.forEach(l => map.removeLayer(l));
   barrierLayers = [];
 
-  console.log(`🔍 Отображение ${barrierData.length} барьеров на карте`);
-
   barrierData.forEach((el, index) => {
-    console.log(`🔍 Барьер ${index + 1}:`, {
-      type: el.type,
-      osmid: el.osmid,
-      natural: el.natural,
-      barrier_type: el.barrier_type,
-      geometry_points: el.geometry ? el.geometry.length : 0
-    });
-
     if ((el.type === 'way' || el.type === 'barrier') && el.geometry && el.geometry.length > 1) {
       // Проверяем формат координат
       const latlngs = el.geometry.map(p => {
@@ -332,7 +313,6 @@ export function showBarriersOnMap(barrierData) {
         } else if (p && typeof p === 'object') {
           return [p.lat, p.lon]; // {lat, lon}
         } else {
-          console.warn('🔍 Неизвестный формат координат барьера:', p);
           return null;
         }
       }).filter(coord => coord !== null);
@@ -344,7 +324,6 @@ export function showBarriersOnMap(barrierData) {
           opacity: 0.8
         }).addTo(map);
         barrierLayers.push(polyline);
-        console.log(`🔍 Барьер ${el.osmid} отображен как красная линия с ${latlngs.length} точками`);
       }
     } else if (el.type === 'node' && el.lat && el.lon) {
       const marker = L.circleMarker([el.lat, el.lon], {
@@ -355,12 +334,10 @@ export function showBarriersOnMap(barrierData) {
         weight: 2
       }).addTo(map);
       barrierLayers.push(marker);
-      console.log(`🔍 Барьер-точка ${el.osmid} отображен как красный маркер`);
     }
   });
 
   barriers = barrierData;
-  console.log(`🔍 Отображено ${barrierLayers.length} барьеров на карте`);
 }
 
 // Очистка маркеров точек
@@ -418,16 +395,17 @@ export function addFailedAttemptMarker(lat, lon) {
 
 // Отображение отладочной информации графа
 export function showGraphDebug(graph) {
+  // DEBUG: Отключено для производительности - не рисуем граф на карте
+  return;
+  
+  // Старый код отрисовки графа (закомментирован):
+  /*
   clearGraphDebugLayers();
   
   if (!graph || !graph.nodes || !graph.adj) {
-    console.warn('🔍 Граф для отладки пуст или некорректен');
     return;
   }
   
-  console.log(`🔍 Отображаем граф троп: ${graph.nodes.length} узлов, ${graph.adj.length} рёбер`);
-  
-  // Показываем только рёбра (убрали узлы для чистоты)
   const drawnEdges = new Set();
   let edgeCount = 0;
   
@@ -439,10 +417,10 @@ export function showGraphDebug(graph) {
           [graph.nodes[i].lat, graph.nodes[i].lon],
           [graph.nodes[j].lat, graph.nodes[j].lon]
         ], {
-          color: '#0066FF',  // Яркий синий цвет для графа троп
-          weight: 3,         // Толстые линии для лучшей видимости
-          opacity: 0.9,      // Высокая непрозрачность
-          dashArray: '5, 5'  // Пунктирные линии для отличия от маршрута
+          color: '#0066FF',
+          weight: 3,
+          opacity: 0.9,
+          dashArray: '5, 5'
         }).addTo(map);
         graphDebugLayers.push(line);
         drawnEdges.add(key);
@@ -450,8 +428,7 @@ export function showGraphDebug(graph) {
       }
     });
   });
-  
-  console.log(`🔍 Отображено ${edgeCount} рёбер графа троп синим цветом`);
+  */
 }
 
 // Геттеры для получения текущих значений

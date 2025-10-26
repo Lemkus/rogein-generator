@@ -121,16 +121,13 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
   if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
     // Для полигона рассчитываем реальную площадь
     area = calculatePolygonArea(selectedBounds.polygon);
-    console.log('🔍 Площадь полигона:', area, 'м²');
   } else {
     // Для прямоугольника используем стандартный расчет
     area = rectangleArea(selectedBounds);
-    console.log('🔍 Площадь прямоугольника:', area, 'м²');
   }
   
   // Используем новые функции расчета с учетом уровня сложности
   const minDist = calculateMinDistance(area, count, difficultyLevel);
-  console.log(`🔍 Минимальное расстояние (уровень ${difficultyLevel}):`, minDist, 'м');
 
   try {
     // Очищаем предыдущие точки и отладочные слои
@@ -140,7 +137,6 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     // Загружаем все данные одним запросом
     const bbox = `${selectedBounds.south},${selectedBounds.west},${selectedBounds.north},${selectedBounds.east}`;
-    console.log(`🎯 Выбранная область: ${bbox}`);
     const mapData = await fetchAllMapData(bbox, statusCallback);
     
     const closedAreasData = mapData.closed_areas || [];
@@ -152,33 +148,16 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     statusCallback(`✅ Данные загружены: ${pathsData.length} троп, ${closedAreasData.length} закрытых зон, ${waterAreasData.length} водоёмов, ${barriersData.length} барьеров`);
 
-
-    // Показываем данные на карте
-    showClosedAreasOnMap(closedAreasData);
-    showWaterAreasOnMap(waterAreasData);
-    showBarriersOnMap(barriersData);
+    // DEBUG: Не рисуем закрытые зоны, водоёмы и барьеры на карте для производительности
+    // showClosedAreasOnMap(closedAreasData);
+    // showWaterAreasOnMap(waterAreasData);
+    // showBarriersOnMap(barriersData);
 
     if (cancelGeneration) return;
 
     // Создаем граф троп
     statusCallback('Создание графа троп...');
     const graph = buildPathGraph(pathsData, [], barriersData);
-    
-    console.log('🔍 Информация о графе:');
-    console.log(`   Узлы: ${graph ? graph.nodes.length : 0}`);
-    console.log(`   Рёбра: ${graph ? graph.adj.length : 0}`);
-    console.log(`   Исключённые сегменты: ${graph ? graph.excludedSegments.length : 0}`);
-    
-    // Детальная информация об исключенных сегментах
-    if (graph && graph.excludedSegments.length > 0) {
-      console.log('🔍 Исключенные сегменты:');
-      graph.excludedSegments.forEach((segment, index) => {
-        console.log(`   Сегмент ${index + 1}: ${segment.reason}`);
-        if (index < 5) { // Показываем только первые 5 для краткости
-          console.log(`     Координаты: [${segment.segment[0].lat.toFixed(6)}, ${segment.segment[0].lon.toFixed(6)}] -> [${segment.segment[1].lat.toFixed(6)}, ${segment.segment[1].lon.toFixed(6)}]`);
-        }
-      });
-    }
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
@@ -188,23 +167,14 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     }
 
     // Находим ближайший узел к стартовой точке
-    console.log('🔍 Поиск ближайшего узла к стартовой точке...');
-    console.log(`   Стартовая точка: lat=${startPoint.lat}, lng=${startPoint.lng}`);
-    console.log(`   Узлов в графе: ${graph.nodes.length}`);
-    
     const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
-    console.log(`   Найденный стартовый узел: ${startNodeIdx}`);
     
     if (startNodeIdx === -1) {
-      console.log('❌ Не удалось найти ближайший узел к стартовой точке!');
       statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
       buttonCallback(false);
       cancelCallback(false);
       return;
     }
-    
-    console.log(`✅ Стартовый узел найден: ${startNodeIdx}`);
-    console.log(`   Координаты стартового узла: lat=${graph.nodes[startNodeIdx].lat}, lon=${graph.nodes[startNodeIdx].lon}`);
 
     // Сохраняем граф для оптимизации маршрута (будет обновлен позже)
     setTrailGraph(graph);
@@ -212,70 +182,24 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     // Создаем полигоны запретных зон
     const forbiddenPolygons = [];
     
-    // Отладочная информация о загруженных данных
-    console.log('🔍 Отладочная информация запретных зон:');
-    console.log(`   Закрытые зоны (raw): ${closedAreasData.length}`);
-    console.log(`   Водоёмы (raw): ${waterAreasData.length}`);
-    
-    // Детальная информация о закрытых зонах
-    if (closedAreasData.length > 0) {
-      console.log('🔍 Детальная информация о закрытых зонах:');
-      closedAreasData.forEach((area, index) => {
-        console.log(`   Зона ${index + 1}:`, {
-          type: area.type,
-          osmid: area.osmid,
-          name: area.name || 'без названия',
-          military: area.military,
-          access: area.access,
-          geometry_points: area.geometry ? area.geometry.length : 0,
-          full_structure: area // показываем полную структуру
-        });
-      });
-    } else {
-      console.log('🔍 Закрытые зоны не найдены в API данных');
-    }
-    
     // Добавляем закрытые зоны
     const closedAreaPolygons = extractPolygons(closedAreasData);
     forbiddenPolygons.push(...closedAreaPolygons);
-    console.log(`   Закрытые зоны (полигоны): ${closedAreaPolygons.length}`);
 
     // Добавляем водоёмы
     const waterAreaPolygons = extractPolygons(waterAreasData);
     forbiddenPolygons.push(...waterAreaPolygons);
-    console.log(`   Водоёмы (полигоны): ${waterAreaPolygons.length}`);
 
     statusCallback(`🚫 Запретных зон: ${forbiddenPolygons.length}`);
-    console.log(`🔍 Создано запретных зон: ${forbiddenPolygons.length}`);
-
-    // Отображаем запретные зоны на карте красным цветом
-    if (closedAreasData.length > 0) {
-      console.log('🔍 Отображение закрытых зон на карте...');
-      showClosedAreasOnMap(closedAreasData);
-    }
-    
-    if (waterAreasData.length > 0) {
-      console.log('🔍 Отображение водоёмов на карте...');
-      showWaterAreasOnMap(waterAreasData);
-    }
 
     if (cancelGeneration) return;
 
     // Пересоздаем граф с учетом запретных зон
     statusCallback('Обновление графа с запретными зонами...');
-    console.log('🔍 Пересоздание графа с запретными зонами...');
     const updatedGraph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
-    
-    console.log('🔍 Обновленный граф:');
-    console.log(`   Узлы: ${updatedGraph ? updatedGraph.nodes.length : 0}`);
-    console.log(`   Рёбра: ${updatedGraph ? updatedGraph.adj.length : 0}`);
-    console.log(`   Исключённые сегменты: ${updatedGraph ? updatedGraph.excludedSegments.length : 0}`);
     
     // Обновляем граф для оптимизации маршрута
     setTrailGraph(updatedGraph);
-    
-    // Отображаем граф троп на карте для отладки
-    showGraphDebug(updatedGraph);
     
     // Генерируем точки
     statusCallback('Генерация точек...');
@@ -328,9 +252,6 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
 // Генерация точек на тропах
 async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, count, minDist, difficultyLevel, forbiddenPolygons, graph, startNodeIdx, statusCallback) {
-  console.log('🔍 Начало генерации точек на тропах...');
-  console.log(`   Параметры: count=${count}, minDist=${minDist}, difficultyLevel=${difficultyLevel}, startNodeIdx=${startNodeIdx}`);
-  
   const points = [];
   const maxAttempts = calculateMaxAttempts(count, difficultyLevel); // Используем функцию расчета
   let attempts = 0;
@@ -344,42 +265,17 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   let stuckCounter = 0; // Счётчик "застреваний"
 
   // Фильтруем тропы по выбранной области
-  console.log('🔍 Фильтрация троп...');
-  console.log(`   Всего троп: ${pathsData.length}`);
-  
-  // Проверяем структуру первых нескольких троп
-  if (pathsData.length > 0) {
-    console.log('🔍 Структура первой тропы:', pathsData[0]);
-    console.log('🔍 Ключи первой тропы:', Object.keys(pathsData[0]));
-    if (pathsData[0].geometry) {
-      console.log('🔍 Ключи geometry:', Object.keys(pathsData[0].geometry));
-    }
-  }
-  
   const filteredPaths = pathsData.filter(path => {
     // Проверяем, что geometry существует и является массивом с координатами
     return path.geometry && Array.isArray(path.geometry) && path.geometry.length > 0;
   });
-
-  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
   
   if (filteredPaths.length === 0) {
-    console.log('❌ Не найдено подходящих троп!');
     statusCallback('❌ Не найдено подходящих троп в выбранной области!');
     return points;
   }
 
   statusCallback(`🎯 Генерация точек на ${filteredPaths.length} тропах...`);
-
-  // Дополнительная отладочная информация
-  console.log('🔍 Дополнительная отладочная информация:');
-  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
-  console.log(`   Запрошено точек: ${count}`);
-  console.log(`   Минимальное расстояние: ${minDist}м`);
-  console.log(`   Максимальных попыток: ${maxAttempts}`);
-  console.log(`   Запретных зон: ${forbiddenPolygons.length}`);
-  console.log(`   Узлов в графе: ${graph.nodes.length}`);
-  console.log(`   Стартовый узел: ${startNodeIdx}`);
 
   let debugStats = {
     totalAttempts: 0,
@@ -393,8 +289,6 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     notReachable: 0,
     success: 0
   };
-
-  console.log('🔍 Начинаем цикл генерации точек...');
   
   while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
     attempts++;
@@ -415,7 +309,6 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
           // Прогрессивное снижение: чем больше шаг, тем агрессивнее
           const reductionFactor = reductionStep <= 3 ? 0.15 : 0.25; // Первые 3 шага -15%, далее -25%
           currentMinDist = originalMinDist * Math.pow(1 - reductionFactor, reductionStep);
-          console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, добавлено: ${pointsAdded})`);
           statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
         }
       } else {
@@ -428,16 +321,12 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
         const emergencyMinDist = originalMinDist * 0.3;
         if (currentMinDist > emergencyMinDist) {
           currentMinDist = emergencyMinDist;
-          console.log(`🚨 АВАРИЙНЫЙ РЕЖИМ: minDist снижен до ${currentMinDist.toFixed(0)}м (осталось ${remainingPoints} точек, ${remainingAttempts} попыток)`);
           statusCallback(`🚨 Аварийный режим генерации...`);
         }
       }
       
       // Обновляем счетчик для следующей проверки
       lastPointsCount = points.length;
-      
-      // Логируем прогресс
-      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}, minDist=${currentMinDist.toFixed(0)}м, осталось попыток: ${remainingAttempts}`);
     }
     
     // Выбираем случайную тропу
@@ -446,9 +335,6 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     
     if (coordinates.length < 2) {
       debugStats.invalidPath++;
-      if (debugStats.invalidPath <= 3) {
-        console.log(`🔍 Невалидная тропа ${debugStats.invalidPath}:`, randomPath);
-      }
       continue;
     }
 
@@ -463,13 +349,6 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     
     if (!randomPoint) {
       debugStats.noRandomPoint++;
-      if (debugStats.noRandomPoint <= 3) {
-        console.log(`🔍 Не удалось получить случайную точку ${debugStats.noRandomPoint}:`, {
-          path: randomPath,
-          coordinates: coordinates.slice(0, 3), // первые 3 точки для примера
-          linePoints: linePoints.slice(0, 3)
-        });
-      }
       continue;
     }
     
@@ -493,19 +372,9 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       // Конвертируем LatLng объекты в массивы [lat, lng]
       const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
       
-      // Отладочная информация
-      console.log('🔍 Проверка точки в полигоне:', {
-        point: { lat: pointObj.lat, lng: pointObj.lng },
-        polygonCoords: polygonCoords.slice(0, 3), // первые 3 точки для отладки
-        polygonLength: polygonCoords.length
-      });
-      
       if (!pointInPolygon(pointObj.lat, pointObj.lng, polygonCoords)) {
         debugStats.outOfPolygon++;
-        console.log('🔍 Точка вне полигона:', pointObj);
         continue;
-      } else {
-        console.log('🔍 Точка внутри полигона:', pointObj);
       }
     }
 
@@ -531,41 +400,18 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 
     if (tooClose) {
       debugStats.tooClose++;
-      if (debugStats.tooClose <= 3) {
-        console.log(`🔍 Слишком близко ${debugStats.tooClose}:`, {
-          point: pointObj,
-          currentMinDist: currentMinDist,
-          existingPoints: points.length
-        });
-      }
       continue;
     }
 
     // Проверяем, что точка не в запретной зоне
     let inForbiddenZone = false;
-    console.log(`🔍 Проверяем точку на запретные зоны:`, {
-      point: pointObj,
-      forbiddenPolygons: forbiddenPolygons.length
-    });
     
     for (let i = 0; i < forbiddenPolygons.length; i++) {
       const polygon = forbiddenPolygons[i];
-      console.log(`🔍 Проверяем полигон ${i + 1}:`, {
-        polygon_points: polygon.length,
-        first_point: polygon[0],
-        last_point: polygon[polygon.length - 1]
-      });
       
       if (pointInPolygon(pointObj.lat, pointObj.lng, polygon)) {
         inForbiddenZone = true;
-        console.log(`🔍 ❌ Точка ПОПАЛА в запретную зону ${i + 1}:`, {
-          point: pointObj,
-          polygon_points: polygon.length,
-          polygon_preview: polygon.slice(0, 3)
-        });
         break;
-      } else {
-        console.log(`🔍 ✅ Точка НЕ в запретной зоне ${i + 1}`);
       }
     }
 
@@ -578,27 +424,12 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     const pointNodeIdx = findNearestNodeIdx(pointObj.lat, pointObj.lng, graph.nodes);
     if (pointNodeIdx === -1) {
       debugStats.noNearestNode++;
-      if (debugStats.noNearestNode <= 3) {
-        console.log(`🔍 Не найден ближайший узел ${debugStats.noNearestNode}:`, {
-          point: pointObj,
-          startNodeIdx: startNodeIdx
-        });
-      }
       continue;
     }
 
     const isReachableResult = isReachable(graph, startNodeIdx, pointNodeIdx);
     if (!isReachableResult) {
       debugStats.notReachable++;
-      if (debugStats.notReachable <= 5) {
-        console.log(`🔍 Недостижимо ${debugStats.notReachable}:`, {
-          point: pointObj,
-          pointNodeIdx: pointNodeIdx,
-          startNodeIdx: startNodeIdx,
-          graphNodes: graph.nodes.length,
-          graphAdj: graph.adj.length
-        });
-      }
       addFailedAttemptMarker(pointObj.lat, pointObj.lng);
       continue;
     }
@@ -612,27 +443,6 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     if (points.length % 5 === 0) {
       statusCallback(`🎯 Сгенерировано ${points.length}/${count} точек...`);
     }
-  }
-
-  // Выводим отладочную информацию
-  console.log('🔍 Отладочная информация генерации точек:');
-  console.log(`   Всего попыток: ${debugStats.totalAttempts}`);
-  console.log(`   Невалидные тропы: ${debugStats.invalidPath}`);
-  console.log(`   Не удалось получить случайную точку: ${debugStats.noRandomPoint}`);
-  console.log(`   Вне области: ${debugStats.outOfBounds}`);
-  console.log(`   Вне полигона: ${debugStats.outOfPolygon}`);
-  console.log(`   Слишком близко: ${debugStats.tooClose}`);
-  console.log(`   В запретной зоне: ${debugStats.inForbiddenZone}`);
-  console.log(`   Не найден ближайший узел: ${debugStats.noNearestNode}`);
-  console.log(`   Недостижимо: ${debugStats.notReachable}`);
-  console.log(`   Успешно: ${debugStats.success}`);
-  console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
-  console.log(`   Запретных зон: ${forbiddenPolygons.length}`);
-  console.log(`   Узлов в графе: ${graph.nodes.length}`);
-  console.log(`   Минимальное расстояние (начальное): ${originalMinDist.toFixed(0)}м`);
-  console.log(`   Минимальное расстояние (финальное): ${currentMinDist.toFixed(0)}м`);
-  if (reductionStep > 0) {
-    console.log(`   ⚠️ Применено адаптивное снижение: ${reductionStep} шага(ов), снижение на ${((1 - currentMinDist/originalMinDist) * 100).toFixed(0)}%`);
   }
 
   return points;

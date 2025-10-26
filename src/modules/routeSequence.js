@@ -20,7 +20,6 @@ let trailGraph = null;
  */
 export function setTrailGraph(graph) {
   trailGraph = graph;
-  console.log(`📊 Граф троп сохранен для оптимизации маршрута: ${graph?.nodes?.length || 0} узлов`);
 }
 
 /**
@@ -67,9 +66,6 @@ function precalculateDistanceMatrix(points, startPoint) {
   const distanceCache = new Map();
   const allCoords = [startPoint, ...points.map(m => m.getLatLng())];
   
-  console.log(`📐 Расчет матрицы расстояний для ${points.length} точек...`);
-  const startTime = performance.now();
-  
   // Рассчитываем расстояния между всеми парами точек
   for (let i = 0; i < allCoords.length; i++) {
     for (let j = i + 1; j < allCoords.length; j++) {
@@ -85,9 +81,6 @@ function precalculateDistanceMatrix(points, startPoint) {
       distanceCache.set(key2, dist);
     }
   }
-  
-  const endTime = performance.now();
-  console.log(`✅ Матрица расстояний рассчитана за ${(endTime - startTime).toFixed(0)}мс`);
   
   return distanceCache;
 }
