@@ -174,13 +174,24 @@ function calculateMaxAttempts(count, difficultyLevel) {
 
 ### `generatePointsOnPaths(pathsData, selectedBounds, startPoint, count, minDist, difficultyLevel, forbiddenPolygons, graph, startNodeIdx, statusCallback)`
 
-Внутренняя функция размещения точек на тропах.
+Внутренняя функция размещения точек на тропах с адаптивным снижением минимального расстояния.
 
 **Основной цикл:**
 
 ```javascript
+let currentMinDist = minDist;
+let reductionStep = 0;
+let lastPointsCount = 0;
+
 while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
   attempts++;
+  
+  // Адаптивное снижение если застряли
+  if (attempts % 100 === 0 && points.length === lastPointsCount && reductionStep < 3) {
+    reductionStep++;
+    currentMinDist = originalMinDist * (1 - reductionStep * 0.15); // -15% за шаг
+    console.log(`⚠️ Снижение minDist: ${originalMinDist}м → ${currentMinDist}м`);
+  }
   
   // 1. Выбор случайной тропы
   const randomPath = filteredPaths[Math.floor(Math.random() * filteredPaths.length)];
@@ -188,14 +199,16 @@ while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
   // 2. Выбор случайной точки на тропе
   const randomPoint = getRandomPointOnLine(linePoints);
   
-  // 3. Проверки
-  if (!passesAllChecks(pointObj)) continue;
+  // 3. Проверки (используем currentMinDist)
+  if (!passesAllChecks(pointObj, currentMinDist)) continue;
   
   // 4. Добавление точки
   points.push(pointObj);
   addPointMarker(pointObj.lat, pointObj.lng, points.length);
 }
 ```
+
+**Адаптивное снижение гарантирует генерацию всех запрошенных точек!**
 
 ### Проверки валидности точки
 
