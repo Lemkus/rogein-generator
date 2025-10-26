@@ -93,46 +93,40 @@ function precalculateDistanceMatrix(points, startPoint) {
 }
 
 /**
- * Построение оптимальной последовательности точек методом ближайшего соседа
+ * Построение последовательности методом ближайшего соседа с заданной стартовой точкой
  * @param {Array} points - Массив маркеров точек
  * @param {Object} startPoint - Точка старта {lat, lng}
- * @param {boolean} clockwise - Направление обхода
+ * @param {number} firstPointIdx - Индекс первой точки (или -1 для автоподбора)
  * @param {Map} distanceCache - Предрассчитанная матрица расстояний
- * @returns {Array} - Массив индексов в оптимальном порядке
+ * @returns {Array} - Массив индексов в порядке обхода
  */
-export function buildOptimalSequence(points, startPoint, clockwise = true, distanceCache = null) {
-  if (!points || points.length === 0) {
-    return [];
-  }
-
+function buildNearestNeighborSequence(points, startPoint, firstPointIdx, distanceCache) {
   const numPoints = points.length;
   const visited = new Array(numPoints).fill(false);
   const sequence = [];
   
-  // Функция для получения расстояния (с кэшем или без)
+  // Функция для получения расстояния из кэша
   const getDistance = (from, to) => {
-    if (distanceCache) {
-      const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
-      return distanceCache.get(key) || calculatePathDistance(from, to);
-    }
-    return calculatePathDistance(from, to);
+    const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+    return distanceCache.get(key) || Infinity;
   };
   
-  // Начинаем от точки старта
+  // Если указана первая точка, начинаем с нее
   let currentPos = startPoint;
+  if (firstPointIdx !== -1) {
+    sequence.push(firstPointIdx);
+    visited[firstPointIdx] = true;
+    currentPos = points[firstPointIdx].getLatLng();
+  }
   
-  // Жадный алгоритм ближайшего соседа с учетом графа троп
-  for (let i = 0; i < numPoints; i++) {
+  // Жадный алгоритм ближайшего соседа
+  while (sequence.length < numPoints) {
     let nearestIdx = -1;
     let minDist = Infinity;
     
-    // Находим ближайшую непосещенную точку по тропам
     for (let j = 0; j < numPoints; j++) {
       if (!visited[j]) {
-        const marker = points[j];
-        const coords = marker.getLatLng();
-        
-        // Используем расстояние (из кэша или рассчитываем)
+        const coords = points[j].getLatLng();
         const dist = getDistance(currentPos, coords);
         
         if (dist < minDist) {
@@ -146,15 +140,98 @@ export function buildOptimalSequence(points, startPoint, clockwise = true, dista
       visited[nearestIdx] = true;
       sequence.push(nearestIdx);
       currentPos = points[nearestIdx].getLatLng();
+    } else {
+      break; // Не должно происходить, но на всякий случай
     }
   }
   
-  // Применяем направление (для против часовой стрелки - разворачиваем)
-  if (!clockwise) {
-    sequence.reverse();
+  return sequence;
+}
+
+/**
+ * Расчет общей длины маршрута
+ */
+function calculateTotalDistance(sequence, points, startPoint, distanceCache) {
+  if (sequence.length === 0) return Infinity;
+  
+  const getDistance = (from, to) => {
+    const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+    return distanceCache.get(key) || Infinity;
+  };
+  
+  let totalDist = 0;
+  let prevPos = startPoint;
+  
+  for (const idx of sequence) {
+    const currPos = points[idx].getLatLng();
+    totalDist += getDistance(prevPos, currPos);
+    prevPos = currPos;
   }
   
-  return sequence;
+  // Возврат к старту
+  totalDist += getDistance(prevPos, startPoint);
+  
+  return totalDist;
+}
+
+/**
+ * Построение оптимальной последовательности с использованием множественных стартовых стратегий
+ * @param {Array} points - Массив маркеров точек
+ * @param {Object} startPoint - Точка старта {lat, lng}
+ * @param {boolean} clockwise - Направление обхода
+ * @param {Map} distanceCache - Предрассчитанная матрица расстояний
+ * @returns {Array} - Массив индексов в оптимальном порядке
+ */
+export function buildOptimalSequence(points, startPoint, clockwise = true, distanceCache = null) {
+  if (!points || points.length === 0) {
+    return [];
+  }
+
+  const numPoints = points.length;
+  
+  // Стратегия 1: Начинаем с ближайшей точки к старту
+  const seq1 = buildNearestNeighborSequence(points, startPoint, -1, distanceCache);
+  let bestSequence = seq1;
+  let bestDistance = calculateTotalDistance(seq1, points, startPoint, distanceCache);
+  
+  console.log(`📍 Стратегия 1 (ближайшая к старту): ${(bestDistance / 1000).toFixed(2)} км`);
+  
+  // Стратегия 2-N: Начинаем с каждой точки по очереди (для маленьких маршрутов)
+  if (numPoints <= 12) {
+    for (let startIdx = 0; startIdx < numPoints; startIdx++) {
+      const seq = buildNearestNeighborSequence(points, startPoint, startIdx, distanceCache);
+      const dist = calculateTotalDistance(seq, points, startPoint, distanceCache);
+      
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestSequence = seq;
+        console.log(`📍 Стратегия с точки ${startIdx + 1}: ${(dist / 1000).toFixed(2)} км ✓ (лучше)`);
+      }
+    }
+  } else {
+    // Для больших маршрутов пробуем несколько случайных стартовых точек
+    const tryCount = Math.min(numPoints, 5);
+    for (let i = 0; i < tryCount; i++) {
+      const startIdx = Math.floor(Math.random() * numPoints);
+      const seq = buildNearestNeighborSequence(points, startPoint, startIdx, distanceCache);
+      const dist = calculateTotalDistance(seq, points, startPoint, distanceCache);
+      
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestSequence = seq;
+        console.log(`📍 Стратегия с точки ${startIdx + 1}: ${(dist / 1000).toFixed(2)} км ✓ (лучше)`);
+      }
+    }
+  }
+  
+  console.log(`✅ Лучшая начальная последовательность: ${(bestDistance / 1000).toFixed(2)} км`);
+  
+  // Применяем направление
+  if (!clockwise) {
+    bestSequence.reverse();
+  }
+  
+  return bestSequence;
 }
 
 /**
@@ -200,26 +277,23 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint, distanceC
     return oldDist - newDist; // Положительное значение = улучшение
   };
   
-  // Оптимизированная 2-opt с адаптивными ограничениями
-  const maxIterations = Math.min(100, sequence.length * 3); // Адаптивное ограничение
-  const minImprovement = 1; // Минимальное улучшение в метрах для продолжения
+  // Улучшенная 2-opt без пропусков
+  const maxIterations = Math.min(200, sequence.length * 5); // Больше итераций
+  const minImprovement = 0.5; // Минимальное улучшение в метрах
   let iteration = 0;
   let improved = true;
-  let totalImprovement = 0; // Общее улучшение за все итерации
+  let totalImprovement = 0;
   
   while (improved && iteration < maxIterations) {
     improved = false;
     iteration++;
     
-    // Ищем лучшее улучшение в текущей итерации
     let bestImprovementThisIter = 0;
     let bestI = -1, bestJ = -1;
     
-    // Оптимизация: проверяем не все пары, а с шагом для больших маршрутов
-    const step = sequence.length > 30 ? 2 : 1;
-    
-    for (let i = 0; i < currentSequence.length - 1; i += step) {
-      for (let j = i + 2; j < currentSequence.length; j += step) {
+    // Проверяем ВСЕ пары без пропусков
+    for (let i = 0; i < currentSequence.length - 1; i++) {
+      for (let j = i + 2; j < currentSequence.length; j++) {
         const improvement = calculateSwapImprovement(currentSequence, i, j);
         if (improvement > bestImprovementThisIter) {
           bestImprovementThisIter = improvement;
@@ -229,7 +303,7 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint, distanceC
       }
     }
     
-    // Применяем лучшее улучшение, если оно достаточно значимое
+    // Применяем лучшее улучшение
     if (bestImprovementThisIter > minImprovement) {
       const newSequence = [
         ...currentSequence.slice(0, bestI + 1),
@@ -240,10 +314,127 @@ export function optimizeSequenceWith2Opt(sequence, points, startPoint, distanceC
       totalImprovement += bestImprovementThisIter;
       improved = true;
     }
-
   }
   
   console.log(`🔧 2-opt оптимизация: ${iteration} итераций, улучшение: ${(totalImprovement / 1000).toFixed(2)} км`);
+  
+  return currentSequence;
+}
+
+/**
+ * Or-opt оптимизация - перемещение сегментов из 1-3 точек
+ * @param {Array} sequence - Исходная последовательность
+ * @param {Array} points - Массив маркеров точек
+ * @param {Object} startPoint - Точка старта
+ * @param {Map} distanceCache - Предрассчитанная матрица расстояний
+ * @returns {Array} - Улучшенная последовательность
+ */
+function optimizeSequenceWithOrOpt(sequence, points, startPoint, distanceCache) {
+  if (sequence.length < 4) {
+    return sequence;
+  }
+  
+  let currentSequence = [...sequence];
+  
+  const getCachedDistance = (from, to) => {
+    const key = `${from.lat},${from.lng}-${to.lat},${to.lng}`;
+    return distanceCache?.get(key) || calculatePathDistance(from, to);
+  };
+  
+  // Функция расчета улучшения при перемещении сегмента
+  const calculateOrOptImprovement = (seq, segStart, segLen, insertPos) => {
+    if (segStart === insertPos || segStart + segLen > seq.length) return 0;
+    if (insertPos > segStart && insertPos <= segStart + segLen) return 0;
+    
+    const n = seq.length;
+    
+    // Координаты точек
+    const getCoord = (idx) => {
+      if (idx < 0) return startPoint;
+      if (idx >= n) return startPoint;
+      return points[seq[idx]].getLatLng();
+    };
+    
+    // Старая конфигурация
+    const beforeSeg = getCoord(segStart - 1);
+    const segFirst = getCoord(segStart);
+    const segLast = getCoord(segStart + segLen - 1);
+    const afterSeg = getCoord(segStart + segLen);
+    
+    const beforeInsert = getCoord(insertPos - 1);
+    const afterInsert = getCoord(insertPos);
+    
+    // Старое расстояние
+    let oldDist = getCachedDistance(beforeSeg, segFirst);
+    oldDist += getCachedDistance(segLast, afterSeg);
+    
+    if (insertPos < segStart) {
+      oldDist += getCachedDistance(beforeInsert, afterInsert);
+    } else {
+      oldDist += getCachedDistance(beforeInsert, afterInsert);
+    }
+    
+    // Новое расстояние
+    let newDist = getCachedDistance(beforeSeg, afterSeg); // Убрали сегмент
+    newDist += getCachedDistance(beforeInsert, segFirst); // Вставили сегмент
+    newDist += getCachedDistance(segLast, afterInsert);
+    
+    return oldDist - newDist;
+  };
+  
+  let improved = true;
+  let totalImprovement = 0;
+  const maxIterations = 50;
+  let iteration = 0;
+  
+  while (improved && iteration < maxIterations) {
+    improved = false;
+    iteration++;
+    
+    let bestImprovement = 0;
+    let bestSegStart = -1, bestSegLen = -1, bestInsertPos = -1;
+    
+    // Пробуем сегменты длиной 1, 2, 3
+    for (let segLen = 1; segLen <= Math.min(3, currentSequence.length - 1); segLen++) {
+      for (let segStart = 0; segStart < currentSequence.length - segLen + 1; segStart++) {
+        // Пробуем вставить в разные позиции
+        for (let insertPos = 0; insertPos <= currentSequence.length; insertPos++) {
+          if (insertPos >= segStart && insertPos <= segStart + segLen) continue;
+          
+          const improvement = calculateOrOptImprovement(currentSequence, segStart, segLen, insertPos);
+          if (improvement > bestImprovement) {
+            bestImprovement = improvement;
+            bestSegStart = segStart;
+            bestSegLen = segLen;
+            bestInsertPos = insertPos;
+          }
+        }
+      }
+    }
+    
+    // Применяем лучшее улучшение
+    if (bestImprovement > 0.5) {
+      const segment = currentSequence.slice(bestSegStart, bestSegStart + bestSegLen);
+      const remaining = [
+        ...currentSequence.slice(0, bestSegStart),
+        ...currentSequence.slice(bestSegStart + bestSegLen)
+      ];
+      
+      const newInsertPos = bestInsertPos > bestSegStart ? bestInsertPos - bestSegLen : bestInsertPos;
+      currentSequence = [
+        ...remaining.slice(0, newInsertPos),
+        ...segment,
+        ...remaining.slice(newInsertPos)
+      ];
+      
+      totalImprovement += bestImprovement;
+      improved = true;
+    }
+  }
+  
+  if (totalImprovement > 0) {
+    console.log(`🔧 Or-opt оптимизация: ${iteration} итераций, улучшение: ${(totalImprovement / 1000).toFixed(2)} км`);
+  }
   
   return currentSequence;
 }
@@ -270,17 +461,25 @@ export function generateOptimalSequence() {
   // ОПТИМИЗАЦИЯ: Предварительный расчет всех расстояний ОДИН РАЗ
   const distanceCache = precalculateDistanceMatrix(pointMarkers, startPoint);
   
-  // Строим начальную последовательность с использованием кэша
+  // Строим начальную последовательность с использованием кэша (пробуем разные стартовые точки)
   const greedyStartTime = performance.now();
   const initialSequence = buildOptimalSequence(pointMarkers, startPoint, isClockwise, distanceCache);
   const greedyEndTime = performance.now();
-  console.log(`🔸 Жадный алгоритм выполнен за ${(greedyEndTime - greedyStartTime).toFixed(0)}мс`);
+  console.log(`🔸 Множественные стратегии выполнены за ${(greedyEndTime - greedyStartTime).toFixed(0)}мс`);
   
   // Оптимизируем методом 2-opt с использованием кэша
   const optStartTime = performance.now();
-  currentSequence = optimizeSequenceWith2Opt(initialSequence, pointMarkers, startPoint, distanceCache);
+  let optimizedSequence = optimizeSequenceWith2Opt(initialSequence, pointMarkers, startPoint, distanceCache);
   const optEndTime = performance.now();
   console.log(`🔹 2-opt оптимизация выполнена за ${(optEndTime - optStartTime).toFixed(0)}мс`);
+  
+  // Дополнительная оптимизация методом Or-opt
+  const orOptStartTime = performance.now();
+  optimizedSequence = optimizeSequenceWithOrOpt(optimizedSequence, pointMarkers, startPoint, distanceCache);
+  const orOptEndTime = performance.now();
+  console.log(`🔹 Or-opt оптимизация выполнена за ${(orOptEndTime - orOptStartTime).toFixed(0)}мс`);
+  
+  currentSequence = optimizedSequence;
   
   const totalEndTime = performance.now();
   console.log(`✅ Построена оптимальная последовательность за ${(totalEndTime - totalStartTime).toFixed(0)}мс (${isClockwise ? 'по часовой' : 'против часовой'}):`, currentSequence.map(i => i + 1));
