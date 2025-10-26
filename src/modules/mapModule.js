@@ -502,6 +502,10 @@ export function triggerPointGeneration() {
   const pointsInput = document.getElementById('pointsCount');
   const count = pointsInput ? parseInt(pointsInput.value) : 10;
   
+  // Получаем уровень сложности из настроек
+  const difficultyLevelSelect = document.getElementById('difficultyLevel');
+  const difficultyLevel = difficultyLevelSelect ? parseInt(difficultyLevelSelect.value) : 2;
+  
   // Импортируем и запускаем генерацию
   import('./pointGeneration.js').then(module => {
     import('./uiController.js').then(ui => {
@@ -511,6 +515,7 @@ export function triggerPointGeneration() {
         selectedBounds,
         startPoint,
         count,
+        difficultyLevel,
         (message) => ui.addApiLog(message),
         () => {}, // toggleGenerateButton не нужна
         () => {}  // toggleCancelButton не нужна

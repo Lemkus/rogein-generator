@@ -51,8 +51,49 @@ function calculatePolygonArea(polygon) {
   return area;
 }
 
+/**
+ * Расчет минимального расстояния в зависимости от уровня сложности
+ * @param {number} area - Площадь области в м²
+ * @param {number} count - Количество точек
+ * @param {number} difficultyLevel - Уровень сложности (1-3)
+ * @returns {number} - Минимальное расстояние в метрах
+ */
+function calculateMinDistance(area, count, difficultyLevel) {
+  const baseDistance = Math.sqrt(area / count);
+  
+  switch (parseInt(difficultyLevel)) {
+    case 1: // 🟢 Новичок - плотное размещение
+      return baseDistance * 0.4; // Точки могут быть в 2.5 раза ближе
+    case 2: // 🟡 Любитель - сбалансированное (текущее)
+      return baseDistance * 0.8;
+    case 3: // 🔴 Эксперт - максимальное разнесение
+      return baseDistance * 1.2; // Точки дальше друг от друга
+    default:
+      return baseDistance * 0.8;
+  }
+}
+
+/**
+ * Расчет максимального количества попыток в зависимости от уровня сложности
+ * @param {number} count - Количество точек
+ * @param {number} difficultyLevel - Уровень сложности (1-3)
+ * @returns {number} - Максимальное количество попыток
+ */
+function calculateMaxAttempts(count, difficultyLevel) {
+  switch (parseInt(difficultyLevel)) {
+    case 1: // 🟢 Новичок - больше попыток, проще найти точки
+      return count * 20;
+    case 2: // 🟡 Любитель - стандартное количество
+      return count * 15;
+    case 3: // 🔴 Эксперт - больше попыток для строгих требований
+      return count * 30;
+    default:
+      return count * 15;
+  }
+}
+
 // Основная функция генерации точек
-export async function generatePoints(selectedBounds, startPoint, count, statusCallback, buttonCallback, cancelCallback) {
+export async function generatePoints(selectedBounds, startPoint, count, difficultyLevel, statusCallback, buttonCallback, cancelCallback) {
   if (!selectedBounds) {
     statusCallback('Сначала выделите область на карте!');
     return;
@@ -75,7 +116,7 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
   const sw = { lat: selectedBounds.south, lng: selectedBounds.west };
   const ne = { lat: selectedBounds.north, lng: selectedBounds.east };
 
-  // Вычисляем площадь области и минимальное расстояние
+  // Вычисляем площадь области и минимальное расстояние с учетом уровня сложности
   let area;
   if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
     // Для полигона рассчитываем реальную площадь
@@ -86,8 +127,10 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
     area = rectangleArea(selectedBounds);
     console.log('🔍 Площадь прямоугольника:', area, 'м²');
   }
-  const minDist = Math.sqrt(area / count) * 0.8; // Упрощенная формула для минимального расстояния
-  console.log('🔍 Минимальное расстояние:', minDist, 'м');
+  
+  // Используем новые функции расчета с учетом уровня сложности
+  const minDist = calculateMinDistance(area, count, difficultyLevel);
+  console.log(`🔍 Минимальное расстояние (уровень ${difficultyLevel}):`, minDist, 'м');
 
   try {
     // Очищаем предыдущие точки и отладочные слои
@@ -241,7 +284,8 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
       selectedBounds, 
       startPoint, 
       count, 
-      minDist, 
+      minDist,
+      difficultyLevel, 
       forbiddenPolygons, 
       updatedGraph, 
       startNodeIdx, 
@@ -283,12 +327,12 @@ export async function generatePoints(selectedBounds, startPoint, count, statusCa
 }
 
 // Генерация точек на тропах
-async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, count, minDist, forbiddenPolygons, graph, startNodeIdx, statusCallback) {
+async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, count, minDist, difficultyLevel, forbiddenPolygons, graph, startNodeIdx, statusCallback) {
   console.log('🔍 Начало генерации точек на тропах...');
-  console.log(`   Параметры: count=${count}, minDist=${minDist}, startNodeIdx=${startNodeIdx}`);
+  console.log(`   Параметры: count=${count}, minDist=${minDist}, difficultyLevel=${difficultyLevel}, startNodeIdx=${startNodeIdx}`);
   
   const points = [];
-  const maxAttempts = count * 10; // Максимальное количество попыток
+  const maxAttempts = calculateMaxAttempts(count, difficultyLevel); // Используем функцию расчета
   let attempts = 0;
 
   // Фильтруем тропы по выбранной области
@@ -423,10 +467,20 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     }
 
     // Проверяем минимальное расстояние от других точек
+    // Для уровня "Новичок" добавляем случайность (jitter) для интересного распределения
     let tooClose = false;
     for (const existingPoint of points) {
       const distance = haversine(pointObj.lat, pointObj.lng, existingPoint.lat, existingPoint.lng);
-      if (distance < minDist) {
+      
+      // Динамическое минимальное расстояние с jitter для уровня 1
+      let effectiveMinDist = minDist;
+      if (parseInt(difficultyLevel) === 1) {
+        // Добавляем случайность ±30% для интересного распределения
+        const jitter = 0.7 + Math.random() * 0.6; // 0.7 - 1.3
+        effectiveMinDist = minDist * jitter;
+      }
+      
+      if (distance < effectiveMinDist) {
         tooClose = true;
         break;
       }

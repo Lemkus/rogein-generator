@@ -142,6 +142,10 @@ function setupEventHandlers() {
 async function handleGenerateClick() {
   const count = parseInt(pointsInput.value, 10);
   
+  // Получаем уровень сложности из настроек
+  const difficultyLevelSelect = document.getElementById('difficultyLevel');
+  const difficultyLevel = difficultyLevelSelect ? parseInt(difficultyLevelSelect.value) : 2;
+  
   // Сбрасываем старую последовательность и завершенные точки
   resetSequence();
   resetCompletedPoints();
@@ -163,6 +167,7 @@ async function handleGenerateClick() {
     selectedBounds,
     startPoint,
     count,
+    difficultyLevel,
     updateStatus,
     toggleGenerateButton,
     toggleCancelButton
