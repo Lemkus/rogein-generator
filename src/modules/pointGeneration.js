@@ -141,14 +141,14 @@ function calculateMinDistance(area, count, difficultyLevel) {
  */
 function calculateMaxAttempts(count, difficultyLevel) {
   switch (parseInt(difficultyLevel)) {
-    case 1: // 🟢 Новичок - больше попыток, проще найти точки
-      return count * 20;
-    case 2: // 🟡 Любитель - стандартное количество
-      return count * 15;
-    case 3: // 🔴 Эксперт - больше попыток для строгих требований
+    case 1: // 🟢 Новичок - меньше попыток, легко разместить
       return count * 30;
+    case 2: // 🟡 Любитель - стандартное количество
+      return count * 40;
+    case 3: // 🔴 Эксперт - максимум попыток для строгих требований
+      return count * 60;
     default:
-      return count * 15;
+      return count * 40;
   }
 }
 
@@ -353,10 +353,10 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   const minDistThreshold = (() => {
     const level = parseInt(difficultyLevel);
     switch (level) {
-      case 1: return originalMinDist * 0.5;  // Новичок: может снизиться до 50%
-      case 2: return originalMinDist * 0.6;  // Любитель: до 60%
-      case 3: return originalMinDist * 0.75; // Эксперт: до 75% (сохраняем высокие требования)
-      default: return originalMinDist * 0.6;
+      case 1: return originalMinDist * 0.45; // Новичок: может снизиться до 45%
+      case 2: return originalMinDist * 0.55; // Любитель: до 55%
+      case 3: return originalMinDist * 0.65; // Эксперт: до 65% (более гибко, но всё еще строже)
+      default: return originalMinDist * 0.55;
     }
   })();
 
@@ -411,20 +411,21 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
           const level = parseInt(difficultyLevel);
           let reductionFactor;
           
-          // Для Эксперта снижаем медленнее, для Новичка - быстрее
+          // Прогрессивное снижение: раньше медленнее, потом быстрее
           if (level === 3) {
-            reductionFactor = reductionStep <= 3 ? 0.10 : 0.15; // Эксперт: -10%/-15%
+            reductionFactor = reductionStep <= 2 ? 0.08 : (reductionStep <= 4 ? 0.12 : 0.18); // Эксперт: -8%/-12%/-18%
           } else if (level === 2) {
-            reductionFactor = reductionStep <= 3 ? 0.15 : 0.20; // Любитель: -15%/-20%
+            reductionFactor = reductionStep <= 2 ? 0.12 : (reductionStep <= 4 ? 0.16 : 0.22); // Любитель: -12%/-16%/-22%
           } else {
-            reductionFactor = reductionStep <= 3 ? 0.20 : 0.25; // Новичок: -20%/-25%
+            reductionFactor = reductionStep <= 2 ? 0.16 : (reductionStep <= 4 ? 0.20 : 0.26); // Новичок: -16%/-20%/-26%
           }
           
           // Применяем снижение, но не ниже порога
           const newMinDist = originalMinDist * Math.pow(1 - reductionFactor, reductionStep);
           currentMinDist = Math.max(newMinDist, minDistThreshold);
           
-          console.log(`⚠️ Снижение minDist (уровень ${level}): ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, порог: ${minDistThreshold.toFixed(0)}м)`);
+          const reachedThreshold = currentMinDist === minDistThreshold ? ' [ПОРОГ]' : '';
+          console.log(`⚠️ Снижение minDist (уровень ${level}, -${(reductionFactor*100).toFixed(0)}%): ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, порог: ${minDistThreshold.toFixed(0)}м)${reachedThreshold}`);
           statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
         }
       } else {
@@ -432,12 +433,19 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       }
       
       // АВАРИЙНЫЙ РЕЖИМ: если осталось мало попыток и не все точки размещены
-      if (remainingAttempts < 100 && remainingPoints > 0) {
-        // Снижаем до порога для данного уровня сложности
+      const emergencyThreshold = maxAttempts * 0.2; // 20% от общего количества попыток
+      if (remainingAttempts < emergencyThreshold && remainingPoints > 0) {
+        // Агрессивное снижение до порога
         if (currentMinDist > minDistThreshold) {
-          currentMinDist = minDistThreshold;
-          console.log(`🚨 АВАРИЙНЫЙ РЕЖИМ: minDist снижен до порога ${currentMinDist.toFixed(0)}м (осталось ${remainingPoints} точек, ${remainingAttempts} попыток)`);
-          statusCallback(`🚨 Аварийный режим генерации...`);
+          // Плавное снижение в зависимости от оставшихся попыток
+          const panicFactor = 1 - (remainingAttempts / emergencyThreshold);
+          const emergencyMinDist = currentMinDist - (currentMinDist - minDistThreshold) * panicFactor;
+          
+          if (emergencyMinDist < currentMinDist) {
+            currentMinDist = Math.max(emergencyMinDist, minDistThreshold);
+            console.log(`🚨 АВАРИЙНЫЙ РЕЖИМ (паника: ${(panicFactor*100).toFixed(0)}%): minDist → ${currentMinDist.toFixed(0)}м (осталось ${remainingPoints} точек, ${remainingAttempts} попыток)`);
+            statusCallback(`🚨 Аварийный режим (${remainingPoints} точек)...`);
+          }
         }
       }
       
@@ -600,13 +608,16 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   console.log(`  └─ Проверок запретных зон: ${inForbiddenZoneChecks}`);
 
   // Финальная статистика
+  const reductionPercent = ((originalMinDist - currentMinDist) / originalMinDist * 100).toFixed(1);
+  const successRate = (debugStats.success / count * 100).toFixed(1);
+  const attemptsPerPoint = (debugStats.totalAttempts / debugStats.success).toFixed(1);
+  
   console.log(`\n📊 Финальная статистика генерации:`);
-  console.log(`  ├─ Всего попыток: ${debugStats.totalAttempts}`);
-  console.log(`  ├─ Успешных точек: ${debugStats.success} из ${count} (${(debugStats.success/count*100).toFixed(1)}%)`);
-  console.log(`  ├─ Уровень сложности: ${difficultyLevel} (${['Новичок', 'Любитель', 'Эксперт'][parseInt(difficultyLevel)-1]})`);
+  console.log(`  ├─ Успех: ${debugStats.success}/${count} точек (${successRate}%), ${attemptsPerPoint} попыток/точку`);
+  console.log(`  ├─ Уровень: ${difficultyLevel} (${['🟢 Новичок', '🟡 Любитель', '🔴 Эксперт'][parseInt(difficultyLevel)-1]})`);
   console.log(`  ├─ Начальный minDist: ${originalMinDist.toFixed(0)}м`);
-  console.log(`  ├─ Финальный minDist: ${currentMinDist.toFixed(0)}м`);
-  console.log(`  ├─ Порог minDist: ${minDistThreshold.toFixed(0)}м`);
+  console.log(`  ├─ Финальный minDist: ${currentMinDist.toFixed(0)}м (-${reductionPercent}%)`);
+  console.log(`  ├─ Порог minDist: ${minDistThreshold.toFixed(0)}м (${(minDistThreshold/originalMinDist*100).toFixed(0)}%)`);
   console.log(`  ├─ Шагов адаптации: ${reductionStep}/${maxReductions}`);
   console.log(`  └─ Причины отклонения:`);
   console.log(`     ├─ Слишком близко: ${debugStats.tooClose} (${(debugStats.tooClose/debugStats.totalAttempts*100).toFixed(1)}%)`);
