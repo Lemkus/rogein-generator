@@ -339,8 +339,9 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   let currentMinDist = minDist;
   const originalMinDist = minDist;
   let reductionStep = 0;
-  const maxReductions = 3; // Максимум 3 снижения
+  const maxReductions = 5; // Максимум 5 снижений
   let lastPointsCount = 0;
+  let stuckCounter = 0; // Счётчик "застреваний"
 
   // Фильтруем тропы по выбранной области
   console.log('🔍 Фильтрация троп...');
@@ -402,20 +403,41 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // Проверяем прогресс каждые 50 попыток и адаптивно снижаем minDist если застряли
     if (attempts % 50 === 0) {
       const pointsAdded = points.length - lastPointsCount;
+      const remainingAttempts = maxAttempts - attempts;
+      const remainingPoints = count - points.length;
       
       // Если за последние 50 попыток добавилось мало точек (0-1) - снижаем расстояние
-      if (pointsAdded <= 1 && reductionStep < maxReductions && points.length < count) {
-        reductionStep++;
-        currentMinDist = originalMinDist * (1 - reductionStep * 0.2); // Снижаем на 20% за каждый шаг
-        console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, добавлено точек за 50 попыток: ${pointsAdded})`);
-        statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
+      if (pointsAdded <= 1 && points.length < count) {
+        stuckCounter++;
+        
+        if (reductionStep < maxReductions) {
+          reductionStep++;
+          // Прогрессивное снижение: чем больше шаг, тем агрессивнее
+          const reductionFactor = reductionStep <= 3 ? 0.15 : 0.25; // Первые 3 шага -15%, далее -25%
+          currentMinDist = originalMinDist * Math.pow(1 - reductionFactor, reductionStep);
+          console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions}, добавлено: ${pointsAdded})`);
+          statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
+        }
+      } else {
+        stuckCounter = 0; // Сбрасываем счётчик если прогресс есть
+      }
+      
+      // АВАРИЙНЫЙ РЕЖИМ: если осталось мало попыток и не все точки размещены
+      if (remainingAttempts < 100 && remainingPoints > 0) {
+        // Снижаем до минимума - 30% от оригинала
+        const emergencyMinDist = originalMinDist * 0.3;
+        if (currentMinDist > emergencyMinDist) {
+          currentMinDist = emergencyMinDist;
+          console.log(`🚨 АВАРИЙНЫЙ РЕЖИМ: minDist снижен до ${currentMinDist.toFixed(0)}м (осталось ${remainingPoints} точек, ${remainingAttempts} попыток)`);
+          statusCallback(`🚨 Аварийный режим генерации...`);
+        }
       }
       
       // Обновляем счетчик для следующей проверки
       lastPointsCount = points.length;
       
       // Логируем прогресс
-      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}, minDist=${currentMinDist.toFixed(0)}м`);
+      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}, minDist=${currentMinDist.toFixed(0)}м, осталось попыток: ${remainingAttempts}`);
     }
     
     // Выбираем случайную тропу
