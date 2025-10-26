@@ -40,4 +40,7 @@ venv.bak/
 # Файлы деплоя (содержат конфиденциальную информацию)
 deploy_regru.py
 deploy_regru.bat
-deploy_config.json 
+deploy_config.json
+
+# Временные документация
+SEQUENCE_OPTIMIZATION_FIX.md
