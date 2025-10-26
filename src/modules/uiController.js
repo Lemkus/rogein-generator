@@ -505,18 +505,31 @@ function handleClearArea() {
  */
 function handleRefresh() {
   addApiLog('Регенерация точек...');
+  
+  // Получаем текущее количество точек
+  const pointsInput = document.getElementById('pointsCount');
+  const count = pointsInput ? parseInt(pointsInput.value) : 10;
+  
+  // Получаем уровень сложности
+  const difficultyLevelSelect = document.getElementById('difficultyLevel');
+  const difficultyLevel = difficultyLevelSelect ? parseInt(difficultyLevelSelect.value) : 2;
+  
   // Импортируем и вызываем генерацию
   import('./pointGeneration.js').then(module => {
-    // Получаем текущее количество точек
-    const pointsInput = document.getElementById('pointsCount');
-    const count = pointsInput ? parseInt(pointsInput.value) : 10;
-    
     import('./mapModule.js').then(mapModule => {
       const selectedBounds = mapModule.getSelectedBounds();
       const startPoint = mapModule.getStartPoint();
       
       if (selectedBounds && startPoint) {
-        module.regeneratePoints(selectedBounds, startPoint, count);
+        module.generatePoints(
+          selectedBounds,
+          startPoint,
+          count,
+          difficultyLevel,
+          (message) => addApiLog(message),
+          () => {}, // toggleGenerateButton
+          () => {}  // toggleCancelButton
+        );
       }
     });
   });
