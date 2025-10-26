@@ -17,6 +17,62 @@ let cancelGeneration = false;
 let cachedForbiddenPolygons = null;
 let cachedDataHash = null;
 
+// Умный таймер для профилирования
+class SmartTimer {
+  constructor() {
+    this.timers = new Map();
+    this.loopCounters = new Map();
+  }
+
+  start(name) {
+    this.timers.set(name, performance.now());
+  }
+
+  end(name, options = {}) {
+    const startTime = this.timers.get(name);
+    if (!startTime) return;
+    
+    const elapsed = performance.now() - startTime;
+    this.timers.delete(name);
+    
+    const { isLoop = false, logEvery = 1, logThreshold = 100 } = options;
+    
+    if (isLoop) {
+      // Для циклов - считаем количество итераций
+      const count = this.loopCounters.get(name) || 0;
+      this.loopCounters.set(name, count + 1);
+      
+      // Логируем только каждую N-ую итерацию или если время превысило порог
+      if (count % logEvery === 0 || elapsed > logThreshold) {
+        console.log(`⏱️ ${name}: ${elapsed.toFixed(2)}ms (итерация ${count + 1})`);
+      }
+    } else {
+      // Для обычных операций - всегда логируем
+      console.log(`⏱️ ${name}: ${elapsed.toFixed(2)}ms`);
+    }
+    
+    return elapsed;
+  }
+
+  // Для циклических операций - логирует итог
+  endLoop(name, totalIterations) {
+    const startTime = this.timers.get(name);
+    if (!startTime) return;
+    
+    const elapsed = performance.now() - startTime;
+    this.timers.delete(name);
+    const count = this.loopCounters.get(name) || totalIterations;
+    this.loopCounters.delete(name);
+    
+    const avgTime = elapsed / count;
+    console.log(`⏱️ ${name}: всего ${elapsed.toFixed(2)}ms за ${count} итераций (avg: ${avgTime.toFixed(2)}ms)`);
+    
+    return elapsed;
+  }
+}
+
+const timer = new SmartTimer();
+
 // Функция расчета площади прямоугольника в квадратных метрах
 function rectangleArea(bounds) {
   const latDiff = bounds.north - bounds.south;
@@ -111,6 +167,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     return;
   }
 
+  timer.start('ГЕНЕРАЦИЯ ТОЧЕК (ОБЩЕЕ)');
   buttonCallback(true); // Отключаем кнопку генерации
   cancelCallback(true); // Показываем кнопку отмены
   cancelGeneration = false; // Сбрасываем флаг отмены
@@ -140,8 +197,10 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     clearGraphDebugLayers();
 
     // Загружаем все данные одним запросом
+    timer.start('API запрос (fetchAllMapData)');
     const bbox = `${selectedBounds.south},${selectedBounds.west},${selectedBounds.north},${selectedBounds.east}`;
     const mapData = await fetchAllMapData(bbox, statusCallback);
+    timer.end('API запрос (fetchAllMapData)');
     
     const closedAreasData = mapData.closed_areas || [];
     const waterAreasData = mapData.water_areas || [];
@@ -161,7 +220,9 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     // Создаем граф троп
     statusCallback('Создание графа троп...');
+    timer.start('Построение графа троп (начальное)');
     const graph = buildPathGraph(pathsData, [], barriersData);
+    timer.end('Построение графа троп (начальное)');
     
     if (!graph || graph.nodes.length === 0) {
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
@@ -171,7 +232,9 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     }
 
     // Находим ближайший узел к стартовой точке
+    timer.start('Поиск ближайшего узла к старту');
     const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
+    timer.end('Поиск ближайшего узла к старту');
     
     if (startNodeIdx === -1) {
       statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
@@ -197,6 +260,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
       statusCallback(`🚫 Использую кешированные запретные зоны: ${forbiddenPolygons.length}`);
     } else {
       // Создаем новые полигоны
+      timer.start('Создание запретных зон');
       forbiddenPolygons = [];
       
       // Добавляем закрытые зоны
@@ -211,6 +275,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
       cachedForbiddenPolygons = forbiddenPolygons;
       cachedDataHash = dataHash;
       
+      timer.end('Создание запретных зон');
       statusCallback(`🚫 Создано запретных зон: ${forbiddenPolygons.length}`);
     }
 
@@ -218,13 +283,16 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     // Пересоздаем граф с учетом запретных зон
     statusCallback('Обновление графа с запретными зонами...');
+    timer.start('Построение графа с запретными зонами');
     const updatedGraph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
+    timer.end('Построение графа с запретными зонами');
     
     // Обновляем граф для оптимизации маршрута
     setTrailGraph(updatedGraph);
     
     // Генерируем точки
     statusCallback('Генерация точек...');
+    timer.start('Генерация точек (общее время)');
     const points = await generatePointsOnPaths(
       pathsData, 
       selectedBounds, 
@@ -239,6 +307,8 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     );
 
     if (cancelGeneration) return;
+
+    timer.end('Генерация точек (общее время)');
 
     // Показываем результат
     if (points.length > 0) {
@@ -267,6 +337,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     console.error('Ошибка генерации точек:', error);
     statusCallback(`❌ Ошибка: ${error.message}`);
   } finally {
+    timer.end('ГЕНЕРАЦИЯ ТОЧЕК (ОБЩЕЕ)');
     buttonCallback(false);
     cancelCallback(false);
   }
@@ -324,6 +395,10 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     success: 0
   };
   
+  let findNearestNodeCalls = 0;
+  let isReachableCalls = 0;
+  let inForbiddenZoneChecks = 0;
+
   while (points.length < count && attempts < maxAttempts && !cancelGeneration) {
     attempts++;
     debugStats.totalAttempts++;
@@ -457,6 +532,8 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     // ОПТИМИЗАЦИЯ: для больших областей с >100 зонами применяем умную проверку
     let inForbiddenZone = false;
     
+    inForbiddenZoneChecks++;
+    
     if (forbiddenPolygons.length > 100) {
       // В больших городах может быть 200-300+ зон (здания)
       // Проверяем каждую 3-ю точку на первых 30% попыток для ускорения
@@ -489,13 +566,25 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     }
 
     // Проверяем достижимость от стартовой точки
+    timer.start('findNearestNodeIdx (в цикле)');
     const pointNodeIdx = findNearestNodeIdx(pointObj.lat, pointObj.lng, graph.nodes);
+    findNearestNodeCalls++;
+    if (findNearestNodeCalls % 50 === 0) {
+      timer.end('findNearestNodeIdx (в цикле)', { isLoop: true, logEvery: 50 });
+    }
+    
     if (pointNodeIdx === -1) {
       debugStats.noNearestNode++;
       continue;
     }
 
+    timer.start('isReachable (в цикле)');
     const isReachableResult = isReachable(graph, startNodeIdx, pointNodeIdx);
+    isReachableCalls++;
+    if (isReachableCalls % 50 === 0) {
+      timer.end('isReachable (в цикле)', { isLoop: true, logEvery: 50 });
+    }
+    
     if (!isReachableResult) {
       debugStats.notReachable++;
       addFailedAttemptMarker(pointObj.lat, pointObj.lng);
@@ -513,8 +602,14 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     }
   }
 
+  // Выводим итоговую статистику по времени для циклических операций
+  console.log(`\n⏱️ Статистика циклических операций:`);
+  console.log(`  ├─ findNearestNodeIdx вызван ${findNearestNodeCalls} раз`);
+  console.log(`  ├─ isReachable вызван ${isReachableCalls} раз`);
+  console.log(`  └─ Проверок запретных зон: ${inForbiddenZoneChecks}`);
+
   // Финальная статистика
-  console.log(`📊 Финальная статистика генерации:`);
+  console.log(`\n📊 Финальная статистика генерации:`);
   console.log(`  ├─ Всего попыток: ${debugStats.totalAttempts}`);
   console.log(`  ├─ Успешных точек: ${debugStats.success} из ${count} (${(debugStats.success/count*100).toFixed(1)}%)`);
   console.log(`  ├─ Уровень сложности: ${difficultyLevel} (${['Новичок', 'Любитель', 'Эксперт'][parseInt(difficultyLevel)-1]})`);
