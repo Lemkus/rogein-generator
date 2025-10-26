@@ -334,6 +334,13 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   const points = [];
   const maxAttempts = calculateMaxAttempts(count, difficultyLevel); // Используем функцию расчета
   let attempts = 0;
+  
+  // Адаптивное снижение minDist если не получается разместить точки
+  let currentMinDist = minDist;
+  const originalMinDist = minDist;
+  let reductionStep = 0;
+  const maxReductions = 3; // Максимум 3 снижения
+  let lastPointsCount = 0;
 
   // Фильтруем тропы по выбранной области
   console.log('🔍 Фильтрация троп...');
@@ -392,9 +399,22 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
     attempts++;
     debugStats.totalAttempts++;
     
+    // Проверяем прогресс и адаптивно снижаем minDist если застряли
+    if (attempts % 100 === 0 && points.length === lastPointsCount && reductionStep < maxReductions) {
+      reductionStep++;
+      currentMinDist = originalMinDist * (1 - reductionStep * 0.15); // Снижаем на 15% за каждый шаг
+      console.log(`⚠️ Снижение minDist: ${originalMinDist.toFixed(0)}м → ${currentMinDist.toFixed(0)}м (шаг ${reductionStep}/${maxReductions})`);
+      statusCallback(`⚙️ Адаптация расстояний (шаг ${reductionStep})...`);
+    }
+    
+    // Обновляем счетчик для проверки прогресса
+    if (attempts % 100 === 0) {
+      lastPointsCount = points.length;
+    }
+    
     // Логируем каждые 50 попыток для более частого отслеживания
     if (attempts % 50 === 0) {
-      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}`);
+      console.log(`🔍 Попытка ${attempts}: точек ${points.length}/${count}, minDist=${currentMinDist.toFixed(0)}м`);
     }
     
     // Выбираем случайную тропу
@@ -473,11 +493,11 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       const distance = haversine(pointObj.lat, pointObj.lng, existingPoint.lat, existingPoint.lng);
       
       // Динамическое минимальное расстояние с jitter для уровня 1
-      let effectiveMinDist = minDist;
+      let effectiveMinDist = currentMinDist; // Используем текущее (адаптивное) расстояние
       if (parseInt(difficultyLevel) === 1) {
         // Добавляем случайность ±30% для интересного распределения
         const jitter = 0.7 + Math.random() * 0.6; // 0.7 - 1.3
-        effectiveMinDist = minDist * jitter;
+        effectiveMinDist = currentMinDist * jitter;
       }
       
       if (distance < effectiveMinDist) {
@@ -491,7 +511,7 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
       if (debugStats.tooClose <= 3) {
         console.log(`🔍 Слишком близко ${debugStats.tooClose}:`, {
           point: pointObj,
-          minDist: minDist,
+          currentMinDist: currentMinDist,
           existingPoints: points.length
         });
       }
@@ -586,7 +606,11 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
   console.log(`   Фильтрованных троп: ${filteredPaths.length}`);
   console.log(`   Запретных зон: ${forbiddenPolygons.length}`);
   console.log(`   Узлов в графе: ${graph.nodes.length}`);
-  console.log(`   Минимальное расстояние: ${minDist}м`);
+  console.log(`   Минимальное расстояние (начальное): ${originalMinDist.toFixed(0)}м`);
+  console.log(`   Минимальное расстояние (финальное): ${currentMinDist.toFixed(0)}м`);
+  if (reductionStep > 0) {
+    console.log(`   ⚠️ Применено адаптивное снижение: ${reductionStep} шага(ов), снижение на ${((1 - currentMinDist/originalMinDist) * 100).toFixed(0)}%`);
+  }
 
   return points;
 }
