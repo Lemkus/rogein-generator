@@ -248,8 +248,7 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
         const idxB = getOrCreateNodeIndex(b.lat, b.lon);
 
         if (idxA !== idxB) {
-          edges.push([idxA, idxB]);
-          edges.push([idxB, idxA]); // Undirected graph
+          edges.push([idxA, idxB]); // Добавляем только одно направление (дублирование будет в adj)
         } else {
           excludedSegments.push({segment: [a, b], reason: `Сегмент слишком короткий или узлы слились (расстояние < ${nodeTolerance}м)`});
         }
@@ -284,19 +283,25 @@ export function buildPathGraph(paths, forbiddenPolygons, barrierObjs = []) {
     }
   });
 
-  console.log(`✅ Граф построен: ${nodes.length} узлов, ${edges.length/2} рёбер, ${excludedSegments.length} исключено`);
+  console.log(`✅ Граф построен: ${nodes.length} узлов, ${edges.length} рёбер, ${excludedSegments.length} исключено`);
 
   return {nodes, adj, excludedSegments};
 }
 
 // BFS для проверки достижимости
 export function isReachable(graph, fromIdx, toIdx) {
+  if (fromIdx === toIdx) return true; // Быстрая проверка
+  if (!graph || !graph.adj || !graph.adj[fromIdx]) return false; // Проверка корректности
+  
   const visited = new Set();
   const queue = [fromIdx];
+  visited.add(fromIdx); // ВАЖНО: добавляем стартовый узел в visited
+  
   while (queue.length) {
     const v = queue.shift();
-    if (v === toIdx) return true;
+    
     for (const u of graph.adj[v]) {
+      if (u === toIdx) return true; // Нашли целевой узел
       if (!visited.has(u)) {
         visited.add(u);
         queue.push(u);
