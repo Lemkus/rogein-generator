@@ -218,36 +218,8 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     if (cancelGeneration) return;
 
-    // Создаем граф троп
-    statusCallback('Создание графа троп...');
-    timer.start('Построение графа троп (начальное)');
-    const graph = buildPathGraph(pathsData, [], barriersData);
-    timer.end('Построение графа троп (начальное)');
-    
-    if (!graph || graph.nodes.length === 0) {
-      statusCallback('❌ Не найдено подходящих троп в выбранной области!');
-      buttonCallback(false);
-      cancelCallback(false);
-      return;
-    }
-
-    // Находим ближайший узел к стартовой точке
-    timer.start('Поиск ближайшего узла к старту');
-    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
-    timer.end('Поиск ближайшего узла к старту');
-    
-    if (startNodeIdx === -1) {
-      statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
-      buttonCallback(false);
-      cancelCallback(false);
-      return;
-    }
-
-    // Сохраняем граф для оптимизации маршрута (будет обновлен позже)
-    setTrailGraph(graph);
-
-    // Создаем полигоны запретных зон с кешированием
-    // Простой хеш на основе координат области и количества объектов
+    // Создаем полигоны запретных зон ПЕРЕД построением графа (кешируем для производительности)
+    statusCallback('Подготовка запретных зон...');
     const areaHash = selectedBounds.type === 'polygon' 
       ? `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_polygon`
       : `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_rect`;
@@ -281,14 +253,33 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     if (cancelGeneration) return;
 
-    // Пересоздаем граф с учетом запретных зон
-    statusCallback('Обновление графа с запретными зонами...');
-    timer.start('Построение графа с запретными зонами');
-    const updatedGraph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
-    timer.end('Построение графа с запретными зонами');
+    // ОДНО построение графа СРАЗУ с запретными зонами (оптимизация: убрано двойное построение)
+    statusCallback('Построение графа троп с запретными зонами...');
+    timer.start('Построение графа троп (оптимизированное)');
+    const graph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
+    timer.end('Построение графа троп (оптимизированное)');
     
-    // Обновляем граф для оптимизации маршрута
-    setTrailGraph(updatedGraph);
+    if (!graph || graph.nodes.length === 0) {
+      statusCallback('❌ Не найдено подходящих троп в выбранной области!');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+
+    // Находим ближайший узел к стартовой точке
+    timer.start('Поиск ближайшего узла к старту');
+    const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, graph.nodes);
+    timer.end('Поиск ближайшего узла к старту');
+    
+    if (startNodeIdx === -1) {
+      statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
+      buttonCallback(false);
+      cancelCallback(false);
+      return;
+    }
+
+    // Сохраняем граф для оптимизации маршрута
+    setTrailGraph(graph);
     
     // Генерируем точки
     statusCallback('Генерация точек...');
@@ -301,7 +292,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
       minDist,
       difficultyLevel, 
       forbiddenPolygons, 
-      updatedGraph, 
+      graph, 
       startNodeIdx, 
       statusCallback
     );
