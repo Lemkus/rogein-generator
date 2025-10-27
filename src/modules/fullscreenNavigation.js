@@ -203,7 +203,11 @@ function hideMainInterface() {
   const elementsToHide = [
     'h2', // Заголовок
     '.controls', // Все панели управления
-    '#sequenceSection' // Секция последовательности
+    '#sequenceSection', // Секция последовательности
+    '#routesModal', // Окно сохраненных маршрутов
+    '#sequenceModal', // Окно редактирования последовательности
+    '#menuModal', // Меню
+    '#settingsModal' // Настройки
   ];
   
   elementsToHide.forEach(selector => {
