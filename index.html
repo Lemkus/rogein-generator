@@ -540,6 +540,38 @@
       z-index: 10000;
     }
     
+    /* На десктопах делаем окно побольше */
+    @media (min-width: 768px) {
+      .nav-fullscreen-controls {
+        width: 400px;
+        padding: 12px;
+      }
+      
+      .nav-fullscreen-controls h3 {
+        font-size: 1rem;
+      }
+      
+      .nav-control-row label {
+        font-size: 0.85rem;
+        min-width: 120px;
+      }
+      
+      .nav-control-row select {
+        font-size: 0.85rem;
+        padding: 6px 8px;
+      }
+      
+      .nav-control-row button {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+      }
+      
+      .nav-distance-display {
+        font-size: 16px;
+        padding: 8px 12px;
+      }
+    }
+    
     .nav-fullscreen-controls h3 {
       margin: 0 0 6px 0;
       font-size: 0.8rem;
@@ -603,22 +635,7 @@
     }
     
     .nav-exit-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      border: none;
-      border-radius: 50%;
-      width: 35px;
-      height: 35px;
-      font-size: 16px;
-      cursor: pointer;
-      z-index: 10001;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    
-    .nav-exit-btn:hover {
-      background: rgba(255, 255, 255, 1);
+      display: none !important; /* Убираем крестик - он не нужен */
     }
     
     .nav-icon-btn {
