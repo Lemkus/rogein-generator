@@ -126,75 +126,21 @@ export function exitFullscreenNavigation() {
  * Показать основной интерфейс после выхода из полноэкранного режима
  */
 function showMainInterface() {
-  // Показываем все основные элементы интерфейса
-  const elementsToShow = [
-    'header',
-    'main',
-    '#controls',
-    '#map', 
-    '#sequenceSection',
-    '#status',
-    '.leaflet-control-container',
-    'h1',
-    'h2',
-    '.container'
-  ];
-  
-  elementsToShow.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    elements.forEach(el => {
-      el.style.display = '';
-      el.style.visibility = '';
-    });
-  });
-  
-  // Убеждаемся что карта видна
+  // Убираем все inline стили с карты
   const mapElement = document.getElementById('map');
   if (mapElement) {
-    mapElement.style.display = 'block';
-    mapElement.style.visibility = 'visible';
-    mapElement.style.height = '500px'; // Устанавливаем высоту карты
+    mapElement.style.removeProperty('display');
+    mapElement.style.removeProperty('visibility');
+    mapElement.style.removeProperty('height');
+    mapElement.style.removeProperty('width');
   }
   
-  // Убеждаемся что основной контейнер виден
-  const main = document.querySelector('main');
-  if (main) {
-    main.style.display = 'block';
-    main.style.visibility = 'visible';
-  }
-  
-  // Принудительно сбрасываем все скрытые элементы
-  const allElements = document.querySelectorAll('*');
-  allElements.forEach(el => {
-    if (el.style.display === 'none' && !el.closest('#navigationFullscreen')) {
-      el.style.display = '';
-    }
-    if (el.style.visibility === 'hidden' && !el.closest('#navigationFullscreen')) {
-      el.style.visibility = '';
-    }
-  });
-  
-  // Принудительно обновляем карту
+  // Принудительно обновляем карту - это восстановит её размер
   setTimeout(() => {
     if (map && map.invalidateSize) {
       map.invalidateSize();
     }
   }, 100);
-  
-  // Убеждаемся что модальные окна закрыты
-  const sequenceModal = document.getElementById('sequenceModal');
-  if (sequenceModal) {
-    sequenceModal.style.display = 'none';
-  }
-  
-  // Временно блокируем клики по ссылке последовательности
-  const sequenceLink = document.getElementById('sequenceLink');
-  if (sequenceLink) {
-    sequenceLink.style.pointerEvents = 'none';
-    setTimeout(() => {
-      sequenceLink.style.pointerEvents = '';
-    }, 500);
-  }
   
   console.log('🖥️ Основной интерфейс восстановлен');
 }
@@ -222,9 +168,11 @@ function updateFullscreenControls() {
  */
 function updateAudioButtonState() {
   if (isAudioOn()) {
-    toggleAudioBtn.textContent = '🔊 Включить звук';
+    toggleAudioBtn.textContent = '🔊';
+    toggleAudioBtn.title = 'Отключить звук';
   } else {
-    toggleAudioBtn.textContent = '🔇 Отключить звук';
+    toggleAudioBtn.textContent = '🔇';
+    toggleAudioBtn.title = 'Включить звук';
   }
 }
 
@@ -281,6 +229,7 @@ function handleStopNavigation() {
 function handleToggleAudio() {
   toggleAudio();
   updateAudioButtonState();
+  console.log(`🔊 Звук ${isAudioOn() ? 'включен' : 'отключен'}`);
 }
 
 /**
