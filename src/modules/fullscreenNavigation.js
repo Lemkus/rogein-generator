@@ -15,6 +15,7 @@ let targetSelect = null;
 let stopBtn = null;
 let toggleAudioBtn = null;
 let exitBtn = null;
+let closeBtn = null;
 
 // Состояние
 let isFullscreenActive = false;
@@ -32,6 +33,7 @@ export function initFullscreenNavigation() {
   stopBtn = document.getElementById('navStopBtn');
   toggleAudioBtn = document.getElementById('navToggleAudioBtn');
   exitBtn = document.getElementById('navExitBtn');
+  closeBtn = document.getElementById('navCloseBtn');
   
   if (!fullscreenContainer || !fullscreenMap) {
     console.error('❌ Не найдены элементы полноэкранного режима');
@@ -42,6 +44,9 @@ export function initFullscreenNavigation() {
   stopBtn.addEventListener('click', handleStopNavigation);
   toggleAudioBtn.addEventListener('click', handleToggleAudio);
   exitBtn.addEventListener('click', exitFullscreenNavigation);
+  if (closeBtn) {
+    closeBtn.addEventListener('click', handleStopNavigation);
+  }
   targetSelect.addEventListener('change', handleTargetChange);
   
   console.log('✅ Полноэкранный режим навигации инициализирован');
