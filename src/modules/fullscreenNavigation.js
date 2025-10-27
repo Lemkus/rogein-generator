@@ -135,6 +135,27 @@ function showMainInterface() {
     mapElement.style.removeProperty('width');
   }
   
+  // Явно закрываем все модальные окна, которые могли открыться
+  const routesModal = document.getElementById('routesModal');
+  if (routesModal) {
+    routesModal.style.display = 'none';
+  }
+  
+  const sequenceModal = document.getElementById('sequenceModal');
+  if (sequenceModal) {
+    sequenceModal.style.display = 'none';
+  }
+  
+  const menuModal = document.getElementById('menuModal');
+  if (menuModal) {
+    menuModal.classList.remove('show');
+  }
+  
+  const settingsModal = document.getElementById('settingsModal');
+  if (settingsModal) {
+    settingsModal.classList.remove('show');
+  }
+  
   // Принудительно обновляем карту - это восстановит её размер
   setTimeout(() => {
     if (map && map.invalidateSize) {
