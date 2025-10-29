@@ -66,6 +66,44 @@ def execute_query():
         logger.error(f"Ошибка execute-query: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
+@app.route('/api/shorten', methods=['POST'])
+def shorten_url():
+    """Сократить URL через is.gd API (на стороне сервера нет проблем с CORS)"""
+    try:
+        data = request.get_json()
+        url = data.get('url') if data else None
+        if not url:
+            return jsonify({'error': 'URL обязателен'}), 400
+        
+        logger.info(f"Сокращаем URL длиной {len(url)} символов")
+        
+        # Используем is.gd API для сокращения
+        response = requests.get(
+            'https://is.gd/create.php',
+            params={'format': 'json', 'url': url},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('shorturl'):
+                logger.info(f"URL сокращен: {result.get('shorturl')}")
+                return jsonify({'short_url': result.get('shorturl')})
+            elif result.get('errorcode'):
+                logger.warning(f"Ошибка is.gd: {result.get('errormessage')}")
+                return jsonify({'short_url': url, 'error': result.get('errormessage')})
+        
+        # Fallback - возвращаем исходный URL
+        logger.warning("Не удалось сократить URL, возвращаем исходный")
+        return jsonify({'short_url': url})
+        
+    except Exception as e:
+        logger.error(f"Ошибка shorten_url: {e}")
+        # В случае ошибки возвращаем исходный URL
+        data = request.get_json() if request.is_json else {}
+        url = data.get('url', '')
+        return jsonify({'short_url': url})
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'API endpoint не найден'}), 404
@@ -95,6 +133,7 @@ if __name__ == '__main__':
     logger.info("Запуск минимального Backend сервера...")
     logger.info("Доступные endpoints:")
     logger.info("  POST /api/execute-query - проксирование запросов к Overpass API")
+    logger.info("  POST /api/shorten - сокращение URL через is.gd")
     logger.info("  GET / - главная страница")
     logger.info("  GET /<filename> - статические файлы")
     
