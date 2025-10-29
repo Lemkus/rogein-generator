@@ -258,7 +258,10 @@ def serve_static(filename):
     """Обслуживает статические файлы"""
     # Игнорируем маршрут /r/ для статики
     if filename.startswith('r/'):
-        return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+        route_id = filename.split('/')[1] if len(filename.split('/')) > 1 else None
+        if route_id:
+            logger.info(f"Serving route from static: {route_id}")
+            return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
     
     # Проверяем существование файла
     file_path = os.path.join(PROJECT_ROOT, filename)
