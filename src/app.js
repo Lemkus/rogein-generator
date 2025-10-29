@@ -341,6 +341,14 @@ async function handleShareRoute() {
       return;
     }
     
+    // Получаем стартовую точку
+    const startPoint = getStartPoint();
+    if (!startPoint) {
+      addApiLog('❌ Не установлена точка старта');
+      alert('Не установлена точка старта. Установите её на карте.');
+      return;
+    }
+    
     // Собираем данные точек с координатами (уже готовые!)
     const pointsData = pointMarkers.map((marker, idx) => {
       const latlng = marker.getLatLng();
@@ -355,6 +363,7 @@ async function handleShareRoute() {
     const shareData = {
       points: pointsData,
       sequence: sequence, // Готовая последовательность!
+      startPoint: { lat: startPoint.lat, lng: startPoint.lng }, // Стартовая точка!
       timestamp: Date.now()
     };
     
@@ -538,8 +547,11 @@ async function restoreRouteFromShareData(data) {
       restoredMarkers.push(marker);
     }
     
-    // Устанавливаем стартовую точку - центр области с точками
-    if (restoredMarkers.length > 0) {
+    // Устанавливаем стартовую точку из сохраненных данных
+    if (data.startPoint && data.startPoint.lat && data.startPoint.lng) {
+      updateStartPointPosition(data.startPoint.lat, data.startPoint.lng);
+    } else if (restoredMarkers.length > 0) {
+      // Если стартовая точка не сохранена, используем центр области как fallback
       const bounds = L.latLngBounds(restoredMarkers.map(m => m.getLatLng()));
       const center = bounds.getCenter();
       updateStartPointPosition(center.lat, center.lng);
