@@ -237,20 +237,21 @@ def internal_error(error):
     return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
 # Маршруты для статических файлов (должны быть в конце)
-@app.route('/')
-def serve_index():
-    """Обслуживает главную страницу"""
-    return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
-
 @app.route('/r/<route_id>')
 def serve_route(route_id):
     """Обслуживает короткие ссылки на маршруты - редиректит на главную страницу с параметром"""
+    logger.info(f"Serving route: {route_id}")
     try:
         # Просто возвращаем index.html для фронтенда
         return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
     except Exception as e:
         logger.error(f"Error serving route {route_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/')
+def serve_index():
+    """Обслуживает главную страницу"""
+    return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
 
 @app.route('/<path:filename>')
 def serve_static(filename):
