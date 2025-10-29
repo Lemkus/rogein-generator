@@ -866,7 +866,7 @@
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
     const APP_VERSION = '1.12.1';
     
-    import(`./src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
+    import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
         module.initApp();
       } else {
