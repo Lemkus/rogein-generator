@@ -245,8 +245,12 @@ def serve_index():
 @app.route('/r/<route_id>')
 def serve_route(route_id):
     """Обслуживает короткие ссылки на маршруты - редиректит на главную страницу с параметром"""
-    # Редиректим на главную страницу с параметром route_id
-    return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+    try:
+        # Просто возвращаем index.html для фронтенда
+        return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+    except Exception as e:
+        logger.error(f"Error serving route {route_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/<path:filename>')
 def serve_static(filename):
