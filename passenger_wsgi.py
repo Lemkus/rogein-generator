@@ -36,6 +36,25 @@ else:
 try:
     from backend_simple import application
     print("Flask application imported successfully")
+    print(f"Application type: {type(application)}")
+except ImportError as e:
+    print(f"Import Error: {e}")
+    # Try to import app and create application
+    try:
+        from backend_simple import app
+        application = app
+        print("Using app as application")
+    except Exception as e2:
+        print(f"Error importing app: {e2}")
+        # Create simple application for debugging
+        from flask import Flask
+        app = Flask(__name__)
+        
+        @app.route('/')
+        def hello():
+            return f'<h1>Import Error: {e}</h1><p>Error2: {e2}</p>'
+        
+        application = app
 except Exception as e:
     print(f"Error importing Flask application: {e}")
     # Create simple application for debugging
