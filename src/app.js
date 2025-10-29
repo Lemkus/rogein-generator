@@ -349,6 +349,10 @@ async function handleShareRoute() {
       return;
     }
     
+    // Получаем статистику маршрута для сохранения дистанции
+    const { getRouteStats } = await import('./modules/routeSequence.js');
+    const stats = getRouteStats();
+    
     // Собираем данные точек с координатами (уже готовые!)
     const pointsData = pointMarkers.map((marker, idx) => {
       const latlng = marker.getLatLng();
@@ -364,6 +368,7 @@ async function handleShareRoute() {
       points: pointsData,
       sequence: sequence, // Готовая последовательность!
       startPoint: { lat: startPoint.lat, lng: startPoint.lng }, // Стартовая точка!
+      distance: stats ? stats.totalDistance : 0, // Сохраняем дистанцию!
       timestamp: Date.now()
     };
     
@@ -578,11 +583,18 @@ async function restoreRouteFromShareData(data) {
       // Обновляем отображение последовательности (она уже готова!)
       updateSequenceDisplay();
       
-      // Получаем статистику из уже готовой последовательности
-      const stats = getRouteStats();
+      // Используем сохраненную дистанцию, если она есть
       let distanceKm = 0;
-      if (stats) {
-        distanceKm = stats.totalDistance / 1000;
+      if (data.distance && data.distance > 0) {
+        // Используем сохраненную дистанцию (с учетом графа троп)
+        distanceKm = data.distance / 1000;
+        console.log('📏 Используем сохраненную дистанцию:', distanceKm, 'км');
+      } else {
+        // Fallback: рассчитываем дистанцию на лету
+        const stats = getRouteStats();
+        if (stats) {
+          distanceKm = stats.totalDistance / 1000;
+        }
       }
       
       // Формируем текст последовательности из готовых данных
