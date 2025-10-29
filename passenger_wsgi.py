@@ -34,8 +34,7 @@ else:
 
 # Import Flask application
 try:
-    from backend_simple import app
-    application = app
+    from backend_simple import application
     print("Flask application imported successfully")
 except Exception as e:
     print(f"Error importing Flask application: {e}")
