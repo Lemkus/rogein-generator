@@ -277,10 +277,11 @@ if __name__ == '__main__':
     
     # Запускаем сервер только для локальной разработки
     # Passenger запускает приложение через WSGI, не через app.run()
+    import os
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=False
+        debug=os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     )
 else:
     # Когда модуль импортируется из passenger_wsgi.py
