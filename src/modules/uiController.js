@@ -16,6 +16,7 @@ let infoPanelPoints, sequenceLink, sequenceDistance, startNavBtn, refreshBtn, de
 let currentStep = 'select_area'; // select_area, place_start, points_generated, navigating
 let isAreaSelected = false;
 let isStartPlaced = false;
+let isRestoredFromShare = false; // Флаг: восстановлен ли маршрут из shared-ссылки
 
 /**
  * Инициализация UI контроллера
@@ -496,6 +497,7 @@ function handleClearArea() {
       setStep('select_area');
       isAreaSelected = false;
       isStartPlaced = false;
+      setRestoredFromShare(false); // Разблокируем кнопку обновления
     });
   }
 }
@@ -504,6 +506,12 @@ function handleClearArea() {
  * Обработчик обновления (регенерация точек)
  */
 function handleRefresh() {
+  // Если маршрут восстановлен из shared-ссылки, ничего не делаем
+  if (isRestoredFromShare) {
+    addApiLog('⚠️ Обновление недоступно для маршрута из ссылки');
+    return;
+  }
+  
   addApiLog('Регенерация точек...');
   
   // Получаем текущее количество точек
@@ -521,6 +529,9 @@ function handleRefresh() {
       const startPoint = mapModule.getStartPoint();
       
       if (selectedBounds && startPoint) {
+        // Сбрасываем флаг после ручной генерации
+        isRestoredFromShare = false;
+        
         module.generatePoints(
           selectedBounds,
           startPoint,
@@ -533,6 +544,23 @@ function handleRefresh() {
       }
     });
   });
+}
+
+/**
+ * Установить флаг восстановления из shared-ссылки
+ */
+export function setRestoredFromShare(value) {
+  isRestoredFromShare = value;
+  
+  // Управляем видимостью кнопки refresh
+  if (refreshBtn) {
+    if (value) {
+      refreshBtn.style.display = 'none'; // Скрываем кнопку
+      addApiLog('ℹ️ Обновление недоступно для маршрута из ссылки');
+    } else {
+      refreshBtn.style.display = 'flex'; // Показываем кнопку
+    }
+  }
 }
 
 /**
