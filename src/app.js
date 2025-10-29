@@ -372,6 +372,9 @@ async function handleShareRoute() {
       timestamp: Date.now()
     };
     
+    console.log('💾 Сохраняем shareData:', shareData);
+    console.log('📏 Сохраняемая дистанция:', stats ? stats.totalDistance : 0, 'м');
+    
     // Кодируем данные в Base64
     const jsonString = JSON.stringify(shareData);
     const encoded = btoa(unescape(encodeURIComponent(jsonString)));
@@ -575,6 +578,9 @@ async function restoreRouteFromShareData(data) {
     
     // Обновляем отображение БЕЗ генерации - просто показываем готовые данные
     setTimeout(async () => {
+      console.log('📥 Восстановление данных из share:', data);
+      console.log('📏 Дистанция в данных:', data.distance, 'м');
+      
       // Скрываем подсказку и устанавливаем правильный шаг
       const { hideHint, setStep, setRestoredFromShare } = await import('./modules/uiController.js');
       hideHint();
@@ -589,12 +595,14 @@ async function restoreRouteFromShareData(data) {
       if (data.distance && data.distance > 0) {
         // Используем сохраненную дистанцию (с учетом графа троп)
         distanceKm = data.distance / 1000;
-        console.log('📏 Используем сохраненную дистанцию:', distanceKm, 'км');
+        console.log('✅ Используем сохраненную дистанцию:', distanceKm, 'км (было', data.distance, 'м)');
       } else {
         // Fallback: рассчитываем дистанцию на лету
+        console.log('⚠️ Сохраненная дистанция отсутствует, рассчитываем заново');
         const stats = getRouteStats();
         if (stats) {
           distanceKm = stats.totalDistance / 1000;
+          console.log('📏 Рассчитанная дистанция:', distanceKm, 'км');
         }
       }
       
