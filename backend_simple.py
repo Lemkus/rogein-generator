@@ -285,3 +285,5 @@ if __name__ == '__main__':
 else:
     # Когда модуль импортируется из passenger_wsgi.py
     logger.info("Backend модуль загружен для Passenger")
+    # Экспортируем application для Passenger
+    application = app
