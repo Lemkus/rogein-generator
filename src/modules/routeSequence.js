@@ -610,14 +610,27 @@ export function getRouteStats() {
   let totalDistance = 0;
   let prevPos = startPoint;
   
+  // Если графа нет (при восстановлении из ссылки), используем прямое расстояние
+  const useDirectDistance = !trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0;
+  
   for (let idx of currentSequence) {
     const coords = pointMarkers[idx].getLatLng();
-    totalDistance += calculatePathDistance(prevPos, coords);
+    if (useDirectDistance) {
+      // Используем прямое расстояние по формуле гаверсинуса
+      totalDistance += haversine(prevPos.lat, prevPos.lng, coords.lat, coords.lng);
+    } else {
+      // Используем расстояние по графу троп
+      totalDistance += calculatePathDistance(prevPos, coords);
+    }
     prevPos = coords;
   }
   
   // Добавляем расстояние возврата к старту
-  totalDistance += calculatePathDistance(prevPos, startPoint);
+  if (useDirectDistance) {
+    totalDistance += haversine(prevPos.lat, prevPos.lng, startPoint.lat, startPoint.lng);
+  } else {
+    totalDistance += calculatePathDistance(prevPos, startPoint);
+  }
   
   return {
     totalPoints: currentSequence.length,

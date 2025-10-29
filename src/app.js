@@ -361,18 +361,35 @@ async function handleShareRoute() {
     const jsonString = JSON.stringify(shareData);
     const encoded = btoa(unescape(encodeURIComponent(jsonString)));
     
-    // Проверяем длину URL (максимум ~2000 символов для безопасного обмена)
+    // Формируем URL
     const baseUrl = window.location.origin + window.location.pathname;
-    const url = `${baseUrl}?share=${encoded}`;
+    const longUrl = `${baseUrl}?share=${encoded}`;
     
-    if (url.length > 2000) {
+    // Сокращаем URL через is.gd API (бесплатный сервис)
+    try {
+      const shortUrlResponse = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
+      const shortUrlData = await shortUrlResponse.json();
+      
+      if (shortUrlData.shorturl) {
+        // Используем короткую ссылку
+        await navigator.clipboard.writeText(shortUrlData.shorturl);
+        addApiLog('✅ Ссылка скопирована в буфер обмена');
+        alert('✅ Ссылка скопирована в буфер обмена!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.');
+        return;
+      }
+    } catch (e) {
+      console.warn('Не удалось сократить URL, используем полную ссылку:', e);
+    }
+    
+    // Если сокращение не удалось - проверяем длину и используем полную ссылку
+    if (longUrl.length > 2000) {
       addApiLog('❌ Слишком много точек для обмена через URL');
       alert('Слишком много точек для обмена через URL.\nРекомендуется до 30-40 точек.');
       return;
     }
     
-    // Копируем в буфер обмена
-    await navigator.clipboard.writeText(url);
+    // Копируем полную ссылку
+    await navigator.clipboard.writeText(longUrl);
     addApiLog('✅ Ссылка скопирована в буфер обмена');
     alert('✅ Ссылка скопирована в буфер обмена!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.');
   } catch (e) {
