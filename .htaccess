@@ -32,3 +32,7 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 # Проксирование API запросов на порт 5000
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^(.*)$ http://localhost:5000/$1 [P,L]
+
+# Проксирование маршрутов /r/ на порт 5000
+RewriteCond %{REQUEST_URI} ^/r/
+RewriteRule ^(.*)$ http://localhost:5000/$1 [P,L]
