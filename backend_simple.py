@@ -246,8 +246,11 @@ def serve_index():
 def serve_route(route_id):
     """Обслуживает короткие ссылки на маршруты - редиректит на главную страницу с параметром"""
     try:
-        # Просто возвращаем index.html для фронтенда
-        return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+        # Читаем index.html и возвращаем как текст
+        index_path = os.path.join(PROJECT_ROOT, 'index.html')
+        with open(index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content, 200, {'Content-Type': 'text/html; charset=utf-8'}
     except Exception as e:
         logger.error(f"Error serving route {route_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
