@@ -10,6 +10,11 @@ import requests
 import time
 import logging
 import os
+import json
+import uuid
+import urllib.parse
+import base64
+from datetime import datetime
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +30,37 @@ TIMEOUT = 60
 # Получаем путь к корневой директории проекта
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 logger.info(f"Корневая директория проекта: {PROJECT_ROOT}")
+
+# Путь к файлу для хранения маршрутов
+ROUTES_FILE = os.path.join(PROJECT_ROOT, 'routes_storage.json')
+
+# Кэш маршрутов в памяти
+routes_cache = {}
+
+def load_routes():
+    """Загрузить маршруты из файла"""
+    global routes_cache
+    try:
+        if os.path.exists(ROUTES_FILE):
+            with open(ROUTES_FILE, 'r', encoding='utf-8') as f:
+                routes_cache = json.load(f)
+                logger.info(f"Загружено {len(routes_cache)} маршрутов из файла")
+        else:
+            routes_cache = {}
+    except Exception as e:
+        logger.error(f"Ошибка загрузки маршрутов: {e}")
+        routes_cache = {}
+
+def save_routes():
+    """Сохранить маршруты в файл"""
+    try:
+        with open(ROUTES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(routes_cache, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Ошибка сохранения маршрутов: {e}")
+
+# Загружаем маршруты при старте
+load_routes()
 
 @app.route('/api/execute-query', methods=['POST'])
 def execute_query():
@@ -66,18 +102,103 @@ def execute_query():
         logger.error(f"Ошибка execute-query: {e}")
         return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
 
+@app.route('/api/save-route', methods=['POST'])
+def save_route():
+    """Сохранить данные маршрута и вернуть короткий ID"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Данные обязательны'}), 400
+        
+        # Генерируем уникальный короткий ID
+        route_id = uuid.uuid4().hex[:8]  # 8 символов для короткого URL
+        
+        # Сохраняем данные маршрута
+        routes_cache[route_id] = {
+            'data': data,
+            'created_at': datetime.now().isoformat(),
+            'access_count': 0
+        }
+        
+        # Сохраняем в файл
+        save_routes()
+        
+        logger.info(f"Сохранен маршрут с ID: {route_id}")
+        
+        return jsonify({
+            'route_id': route_id,
+            'url': f"{request.host}/r/{route_id}"
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка сохранения маршрута: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
+@app.route('/api/r/<route_id>', methods=['GET'])
+def get_route(route_id):
+    """Получить данные маршрута по ID"""
+    try:
+        if route_id not in routes_cache:
+            return jsonify({'error': 'Маршрут не найден'}), 404
+        
+        # Увеличиваем счетчик доступа
+        routes_cache[route_id]['access_count'] += 1
+        save_routes()
+        
+        logger.info(f"Получен маршрут: {route_id}")
+        
+        return jsonify(routes_cache[route_id]['data'])
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения маршрута: {e}")
+        return jsonify({'error': 'Внутренняя ошибка сервера'}), 500
+
 @app.route('/api/shorten', methods=['POST'])
 def shorten_url():
-    """Сократить URL через Yandex Clck.ru API"""
+    """Сократить URL через Yandex Clck.ru API или сохранить на сервере"""
     try:
         data = request.get_json()
         url = data.get('url') if data else None
         if not url:
             return jsonify({'error': 'URL обязателен'}), 400
         
-        logger.info(f"Сокращаем URL длиной {len(url)} символов через clck.ru")
+        # Если URL содержит /api/save-route, это уже короткая ссылка
+        if '/r/' in url:
+            logger.info("URL уже содержит короткую ссылку")
+            return jsonify({'short_url': url})
         
-        # Используем Yandex Clck.ru API
+        # Извлекаем данные из URL если это старая ссылка с параметром share
+        if '?share=' in url:
+            # Сохраняем данные на сервере и возвращаем новую короткую ссылку
+            try:
+                # Извлекаем параметр share из URL
+                parsed = urllib.parse.urlparse(url)
+                params = urllib.parse.parse_qs(parsed.query)
+                
+                if 'share' in params:
+                    # Декодируем данные
+                    share_data = params['share'][0]
+                    decoded = base64.b64decode(share_data).decode('utf-8')
+                    route_data = json.loads(decoded)
+                    
+                    # Сохраняем на сервере
+                    route_id = uuid.uuid4().hex[:8]
+                    routes_cache[route_id] = {
+                        'data': route_data,
+                        'created_at': datetime.now().isoformat(),
+                        'access_count': 0
+                    }
+                    save_routes()
+                    
+                    # Формируем короткую ссылку
+                    short_url = f"https://{request.host}/r/{route_id}"
+                    logger.info(f"Создана короткая ссылка: {short_url}")
+                    return jsonify({'short_url': short_url})
+            except Exception as e:
+                logger.error(f"Ошибка при создании короткой ссылки: {e}")
+        
+        # Старый способ через Clck.ru для других URL
+        logger.info(f"Сокращаем URL длиной {len(url)} символов через clck.ru")
         try:
             response = requests.get(
                 'https://clck.ru/--',
@@ -87,15 +208,10 @@ def shorten_url():
             
             if response.status_code == 200:
                 short_url = response.text.strip()
-                # Проверяем, что получили валидный короткий URL
                 if short_url.startswith('https://clck.ru/'):
                     logger.info(f"URL сокращен: {short_url}")
                     return jsonify({'short_url': short_url})
-                else:
-                    logger.warning(f"Неожиданный ответ от clck.ru: {short_url}")
-            else:
-                logger.warning(f"clck.ru вернул статус: {response.status_code}")
-                
+                    
         except Exception as e:
             logger.error(f"Ошибка при запросе к clck.ru: {e}")
         
@@ -123,9 +239,19 @@ def serve_index():
     """Обслуживает главную страницу"""
     return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
 
+@app.route('/r/<route_id>')
+def serve_route(route_id):
+    """Обслуживает короткие ссылки на маршруты - редиректит на главную страницу с параметром"""
+    # Редиректим на главную страницу с параметром route_id
+    return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Обслуживает статические файлы"""
+    # Игнорируем маршрут /r/ для статики
+    if filename.startswith('r/'):
+        return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
+    
     # Проверяем существование файла
     file_path = os.path.join(PROJECT_ROOT, filename)
     if os.path.exists(file_path) and os.path.isfile(file_path):
@@ -138,7 +264,10 @@ if __name__ == '__main__':
     logger.info("Запуск минимального Backend сервера...")
     logger.info("Доступные endpoints:")
     logger.info("  POST /api/execute-query - проксирование запросов к Overpass API")
-    logger.info("  POST /api/shorten - сокращение URL через Yandex Clck.ru")
+    logger.info("  POST /api/save-route - сохранение данных маршрута")
+    logger.info("  GET /api/r/<route_id> - получение данных маршрута")
+    logger.info("  POST /api/shorten - сокращение URL через Yandex Clck.ru или сохранение на сервере")
+    logger.info("  GET /r/<route_id> - короткие ссылки на маршруты")
     logger.info("  GET / - главная страница")
     logger.info("  GET /<filename> - статические файлы")
     
