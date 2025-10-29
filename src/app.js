@@ -512,7 +512,7 @@ async function bootstrapFromUrl() {
 // Восстановление маршрута из закодированных данных (БЕЗ генерации!)
 async function restoreRouteFromShareData(data) {
   try {
-    const { clearPointMarkers } = await import('./modules/mapModule.js');
+    const { clearPointMarkers, updateStartPointPosition } = await import('./modules/mapModule.js');
     const { updateSequence, getRouteStats } = await import('./modules/routeSequence.js');
     const { updateSequenceDisplay } = await import('./modules/sequenceUI.js');
     const { showInfoPanel, updateInfoPanel } = await import('./modules/uiController.js');
@@ -536,6 +536,13 @@ async function restoreRouteFromShareData(data) {
       }).addTo(map);
       pointMarkers.push(marker);
       restoredMarkers.push(marker);
+    }
+    
+    // Устанавливаем стартовую точку - центр области с точками
+    if (restoredMarkers.length > 0) {
+      const bounds = L.latLngBounds(restoredMarkers.map(m => m.getLatLng()));
+      const center = bounds.getCenter();
+      updateStartPointPosition(center.lat, center.lng);
     }
     
     // Восстанавливаем готовую последовательность (без пересчета!)
