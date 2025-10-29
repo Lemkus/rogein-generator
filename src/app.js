@@ -489,9 +489,33 @@ function renderRouteOnMap(route) {
 // Автозагрузка из URL
 async function bootstrapFromUrl() {
   try {
-    const params = new URLSearchParams(window.location.search);
+    // Проверяем короткие ссылки типа /r/route_id
+    const pathMatch = window.location.pathname.match(/^\/r\/([a-f0-9]{8})$/);
+    if (pathMatch) {
+      const routeId = pathMatch[1];
+      console.log('🔗 Загружаем маршрут из короткой ссылки:', routeId);
+      
+      try {
+        const response = await fetch(`${BACKEND_SIMPLE_BASE}/r/${routeId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.points && Array.isArray(data.points) && data.sequence && Array.isArray(data.sequence)) {
+            await restoreRouteFromShareData(data);
+            return;
+          }
+        } else {
+          addApiLog('❌ Маршрут не найден');
+          alert('Маршрут не найден или срок действия ссылки истек.');
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки маршрута:', e);
+        addApiLog('❌ Ошибка загрузки маршрута');
+        alert('Ошибка загрузки маршрута из ссылки.');
+      }
+    }
     
-    // Проверяем новый формат с закодированными данными
+    // Проверяем старый формат с параметром share
+    const params = new URLSearchParams(window.location.search);
     const shareData = params.get('share');
     if (shareData) {
       try {
