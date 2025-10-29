@@ -68,58 +68,39 @@ def execute_query():
 
 @app.route('/api/shorten', methods=['POST'])
 def shorten_url():
-    """Сократить URL через is.gd API с резервными вариантами"""
+    """Сократить URL через Yandex Clck.ru API"""
     try:
         data = request.get_json()
         url = data.get('url') if data else None
         if not url:
             return jsonify({'error': 'URL обязателен'}), 400
         
-        logger.info(f"Сокращаем URL длиной {len(url)} символов")
+        logger.info(f"Сокращаем URL длиной {len(url)} символов через clck.ru")
         
-        # Список сервисов для сокращения URL (пробуем по очереди)
-        shorten_services = [
-            {
-                'name': 'is.gd',
-                'url': 'https://is.gd/create.php',
-                'timeout': 3,
-                'parse': lambda r: r.json().get('shorturl') if r.status_code == 200 else None
-            },
-            {
-                'name': 'v.gd',
-                'url': 'https://v.gd/create.php',
-                'timeout': 3,
-                'parse': lambda r: r.json().get('shorturl') if r.status_code == 200 else None
-            },
-            {
-                'name': 'tinyurl',
-                'url': 'https://tinyurl.com/api-create.php',
-                'timeout': 3,
-                'parse': lambda r: r.text.strip() if r.status_code == 200 and r.text.startswith('http') else None
-            }
-        ]
-        
-        # Пробуем каждый сервис
-        for service in shorten_services:
-            try:
-                logger.info(f"Пробуем сервис {service['name']}...")
-                response = requests.get(
-                    service['url'],
-                    params={'format': 'json', 'url': url} if 'gd' in service['name'] else {'url': url},
-                    timeout=service['timeout']
-                )
-                
-                short_url = service['parse'](response)
-                if short_url and short_url.startswith('http'):
-                    logger.info(f"URL сокращен через {service['name']}: {short_url}")
+        # Используем Yandex Clck.ru API
+        try:
+            response = requests.get(
+                'https://clck.ru/--',
+                params={'url': url},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                short_url = response.text.strip()
+                # Проверяем, что получили валидный короткий URL
+                if short_url.startswith('https://clck.ru/'):
+                    logger.info(f"URL сокращен: {short_url}")
                     return jsonify({'short_url': short_url})
-                    
-            except Exception as e:
-                logger.warning(f"Сервис {service['name']} не доступен: {e}")
-                continue
+                else:
+                    logger.warning(f"Неожиданный ответ от clck.ru: {short_url}")
+            else:
+                logger.warning(f"clck.ru вернул статус: {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при запросе к clck.ru: {e}")
         
-        # Если все сервисы недоступны, возвращаем исходный URL
-        logger.warning("Все сервисы сокращения недоступны, возвращаем исходный URL")
+        # Если не удалось сократить, возвращаем исходный URL
+        logger.warning("Не удалось сократить URL, возвращаем исходный")
         return jsonify({'short_url': url})
         
     except Exception as e:
@@ -157,7 +138,7 @@ if __name__ == '__main__':
     logger.info("Запуск минимального Backend сервера...")
     logger.info("Доступные endpoints:")
     logger.info("  POST /api/execute-query - проксирование запросов к Overpass API")
-    logger.info("  POST /api/shorten - сокращение URL через is.gd")
+    logger.info("  POST /api/shorten - сокращение URL через Yandex Clck.ru")
     logger.info("  GET / - главная страница")
     logger.info("  GET /<filename> - статические файлы")
     
