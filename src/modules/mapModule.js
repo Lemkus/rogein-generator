@@ -343,7 +343,7 @@ export function showBarriersOnMap(barrierData) {
 // Очистка маркеров точек
 export function clearPointMarkers() {
   pointMarkers.forEach(marker => map.removeLayer(marker));
-  pointMarkers = [];
+  pointMarkers.length = 0; // Очищаем массив на месте, не создавая новый
 }
 
 // Очистка маркеров неудачных попыток
