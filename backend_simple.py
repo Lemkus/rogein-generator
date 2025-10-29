@@ -125,9 +125,18 @@ def save_route():
         
         logger.info(f"Сохранен маршрут с ID: {route_id}")
         
+        # Получаем домен из заголовка или используем константу
+        # Для production используем домен сайта
+        if request.host.startswith('localhost') or request.host.startswith('127.0.0.1'):
+            # Локальная разработка
+            short_url = f"http://{request.host}/r/{route_id}"
+        else:
+            # Production
+            short_url = f"https://trailspot.app/r/{route_id}"
+        
         return jsonify({
             'route_id': route_id,
-            'url': f"{request.host}/r/{route_id}"
+            'url': short_url
         })
         
     except Exception as e:
@@ -191,7 +200,10 @@ def shorten_url():
                     save_routes()
                     
                     # Формируем короткую ссылку
-                    short_url = f"https://{request.host}/r/{route_id}"
+                    if request.host.startswith('localhost') or request.host.startswith('127.0.0.1'):
+                        short_url = f"http://{request.host}/r/{route_id}"
+                    else:
+                        short_url = f"https://trailspot.app/r/{route_id}"
                     logger.info(f"Создана короткая ссылка: {short_url}")
                     return jsonify({'short_url': short_url})
             except Exception as e:
