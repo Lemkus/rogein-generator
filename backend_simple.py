@@ -263,6 +263,7 @@ def serve_static(filename):
         # Если файл не найден, возвращаем главную страницу (для SPA)
         return send_file(os.path.join(PROJECT_ROOT, 'index.html'))
 
+# Логирование при импорте модуля
 if __name__ == '__main__':
     logger.info("Запуск минимального Backend сервера...")
     logger.info("Доступные endpoints:")
@@ -274,10 +275,13 @@ if __name__ == '__main__':
     logger.info("  GET / - главная страница")
     logger.info("  GET /<filename> - статические файлы")
     
-    # Запускаем сервер
+    # Запускаем сервер только для локальной разработки
+    # Passenger запускает приложение через WSGI, не через app.run()
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=True,
-        threaded=True
+        debug=False
     )
+else:
+    # Когда модуль импортируется из passenger_wsgi.py
+    logger.info("Backend модуль загружен для Passenger")
