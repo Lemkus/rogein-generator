@@ -316,23 +316,69 @@ async function renderRoutesList() {
 // Поделиться ссылкой
 async function handleShareRoute() {
   try {
-    let routeId = lastSavedRouteId;
-    if (!routeId) {
-      // Если ещё не сохранено — сохраним быстро без вопросов
-      await handleSaveRoute();
-      routeId = lastSavedRouteId;
-    }
-    if (!routeId) {
-      updateStatus('Не удалось подготовить ссылку');
+    // Проверяем наличие точек
+    if (!pointMarkers || pointMarkers.length === 0) {
+      addApiLog('❌ Нет точек для обмена');
+      alert('Сначала сгенерируйте точки на карте!');
       return;
     }
-    const url = buildShareUrl(routeId);
+    
+    // Получаем последовательность (уже готовую!)
+    const { getCurrentSequence } = await import('./modules/routeSequence.js');
+    const sequence = getCurrentSequence();
+    
+    if (!sequence || sequence.length === 0) {
+      addApiLog('❌ Нет последовательности');
+      alert('Последовательность маршрута еще не готова.\nПодождите завершения генерации маршрута.');
+      return;
+    }
+    
+    // Проверяем, что последовательность соответствует количеству точек
+    if (sequence.length !== pointMarkers.length) {
+      addApiLog('❌ Последовательность не соответствует точкам');
+      alert('Последовательность маршрута еще не готова.\nПодождите завершения генерации маршрута.');
+      return;
+    }
+    
+    // Собираем данные точек с координатами (уже готовые!)
+    const pointsData = pointMarkers.map((marker, idx) => {
+      const latlng = marker.getLatLng();
+      return {
+        lat: latlng.lat,
+        lng: latlng.lng,
+        index: idx
+      };
+    });
+    
+    // Создаем объект данных для кодирования
+    const shareData = {
+      points: pointsData,
+      sequence: sequence, // Готовая последовательность!
+      timestamp: Date.now()
+    };
+    
+    // Кодируем данные в Base64
+    const jsonString = JSON.stringify(shareData);
+    const encoded = btoa(unescape(encodeURIComponent(jsonString)));
+    
+    // Проверяем длину URL (максимум ~2000 символов для безопасного обмена)
+    const baseUrl = window.location.origin + window.location.pathname;
+    const url = `${baseUrl}?share=${encoded}`;
+    
+    if (url.length > 2000) {
+      addApiLog('❌ Слишком много точек для обмена через URL');
+      alert('Слишком много точек для обмена через URL.\nРекомендуется до 30-40 точек.');
+      return;
+    }
+    
+    // Копируем в буфер обмена
     await navigator.clipboard.writeText(url);
-    updateStatus('Ссылка скопирована в буфер обмена');
-    alert('Ссылка скопирована. Отправьте её другу.');
+    addApiLog('✅ Ссылка скопирована в буфер обмена');
+    alert('✅ Ссылка скопирована в буфер обмена!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.');
   } catch (e) {
-    console.error(e);
-    updateStatus('Ошибка при подготовке ссылки');
+    console.error('Ошибка при подготовке ссылки:', e);
+    addApiLog('❌ Ошибка при подготовке ссылки');
+    alert('Ошибка при подготовке ссылки. Попробуйте еще раз.');
   }
 }
 
@@ -392,17 +438,117 @@ function renderRouteOnMap(route) {
 async function bootstrapFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
+    
+    // Проверяем новый формат с закодированными данными
+    const shareData = params.get('share');
+    if (shareData) {
+      try {
+        // Декодируем данные
+        const decoded = decodeURIComponent(escape(atob(shareData)));
+        const data = JSON.parse(decoded);
+        
+        if (data.points && Array.isArray(data.points) && data.sequence && Array.isArray(data.sequence)) {
+          // Восстанавливаем точки и последовательность БЕЗ генерации
+          await restoreRouteFromShareData(data);
+          return;
+        }
+      } catch (e) {
+        console.error('Ошибка декодирования данных из ссылки:', e);
+        addApiLog('❌ Не удалось восстановить маршрут из ссылки');
+        alert('Не удалось восстановить маршрут из ссылки.\nПроверьте корректность ссылки.');
+      }
+    }
+    
+    // Старый формат с routeId (для обратной совместимости)
     const routeId = params.get('routeId');
     if (routeId) {
       const route = await getRouteById(routeId);
       if (route) {
         renderRouteOnMap(route);
         lastSavedRouteId = route.id;
-        updateStatus(`Загружено из ссылки (ID: ${route.id})`);
+        addApiLog(`Загружено из ссылки (ID: ${route.id})`);
       }
     }
   } catch (e) {
     console.error('Ошибка автозагрузки из URL:', e);
+  }
+}
+
+// Восстановление маршрута из закодированных данных (БЕЗ генерации!)
+async function restoreRouteFromShareData(data) {
+  try {
+    const { clearPointMarkers } = await import('./modules/mapModule.js');
+    const { updateSequence, getRouteStats } = await import('./modules/routeSequence.js');
+    const { updateSequenceDisplay } = await import('./modules/sequenceUI.js');
+    const { showInfoPanel, updateInfoPanel } = await import('./modules/uiController.js');
+    
+    addApiLog('Восстановление маршрута из ссылки...');
+    
+    // Очищаем старые точки и сбрасываем завершенные точки навигации
+    clearPointMarkers();
+    resetCompletedPoints();
+    
+    // Восстанавливаем точки на карте (без генерации!)
+    const restoredMarkers = [];
+    for (const pointData of data.points) {
+      const marker = L.marker([pointData.lat, pointData.lng], {
+        icon: L.divIcon({
+          className: 'custom-marker',
+          html: `<div style="background: green; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">${pointData.index + 1}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        })
+      }).addTo(map);
+      pointMarkers.push(marker);
+      restoredMarkers.push(marker);
+    }
+    
+    // Восстанавливаем готовую последовательность (без пересчета!)
+    updateSequence(data.sequence);
+    
+    // Вычисляем границы для позиционирования карты
+    if (restoredMarkers.length > 0) {
+      const bounds = L.latLngBounds(
+        restoredMarkers.map(m => m.getLatLng())
+      );
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
+    // Обновляем отображение БЕЗ генерации - просто показываем готовые данные
+    setTimeout(async () => {
+      // Обновляем отображение последовательности (она уже готова!)
+      updateSequenceDisplay();
+      
+      // Получаем статистику из уже готовой последовательности
+      const stats = getRouteStats();
+      let distanceKm = 0;
+      if (stats) {
+        distanceKm = stats.totalDistance / 1000;
+      }
+      
+      // Формируем текст последовательности из готовых данных
+      const sequenceText = data.sequence.map(idx => idx + 1).join(' → ');
+      
+      // Обновляем панель с готовыми данными
+      updateInfoPanel(
+        restoredMarkers.length,
+        `СТАРТ → ${sequenceText} → СТАРТ`,
+        distanceKm
+      );
+      
+      // Показываем панель с кнопкой "Начать навигацию"
+      showInfoPanel();
+      
+      // Обновляем список точек для навигации
+      updateTargetPointsList();
+      
+      addApiLog(`✅ Маршрут восстановлен (${restoredMarkers.length} точек)`);
+    }, 300);
+    
+  } catch (e) {
+    console.error('Ошибка восстановления маршрута:', e);
+    addApiLog('❌ Ошибка восстановления маршрута');
+    alert('Ошибка восстановления маршрута из ссылки.');
   }
 }
 
