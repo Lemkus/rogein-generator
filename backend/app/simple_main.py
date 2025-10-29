@@ -40,6 +40,7 @@ import json
 import os
 import uuid
 from datetime import datetime
+import requests
 
 print("✅ Все модули загружены успешно")
 
@@ -373,6 +374,37 @@ async def get_shared_route(route_id: str):
     """Получить маршрут по ссылке обмена"""
     # Перенаправляем на обычное получение маршрута
     return await get_route(route_id)
+
+
+@app.post("/api/shorten")
+async def shorten_url(data: Dict[str, str]):
+    """Сократить URL через is.gd API (на стороне сервера нет проблем с CORS)"""
+    url = data.get("url")
+    
+    if not url:
+        raise HTTPException(status_code=400, detail="URL обязателен")
+    
+    try:
+        # Используем is.gd API через сервер (избегаем CORS)
+        response = requests.get(
+            "https://is.gd/create.php",
+            params={"format": "json", "url": url},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("shorturl"):
+                return {"short_url": result["shorturl"]}
+            elif result.get("errorcode"):
+                # Если ошибка - возвращаем исходный URL
+                return {"short_url": url, "error": result.get("errormessage", "Unknown error")}
+    except Exception as e:
+        # При любой ошибке возвращаем исходный URL
+        print(f"Ошибка сокращения URL: {e}")
+    
+    # Fallback - возвращаем исходный URL
+    return {"short_url": url}
 
 
 # Простые endpoints для тренировок

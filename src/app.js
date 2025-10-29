@@ -10,6 +10,7 @@ import { initNavigation, updateTargetPointsList, resetCompletedPoints } from './
 import { generatePoints, cancelPointGeneration, downloadGPX } from './modules/pointGeneration.js';
 import './modules/audioModuleAdvanced.js'; // Инициализация продвинутого аудио модуля
 import { saveRoute, getRouteById, getRoutesList, buildShareUrl } from './modules/storageAPI.js';
+import { BACKEND_SIMPLE_BASE } from './modules/config.js';
 import { initSequenceUI, generateAndDisplaySequence } from './modules/sequenceUI.js';
 import { resetSequence } from './modules/routeSequence.js';
 import { initFullscreenNavigation } from './modules/fullscreenNavigation.js';
@@ -365,31 +366,34 @@ async function handleShareRoute() {
     const baseUrl = window.location.origin + window.location.pathname;
     const longUrl = `${baseUrl}?share=${encoded}`;
     
-    // Сокращаем URL через is.gd API (бесплатный сервис)
+    // Пытаемся сократить URL через backend (избегаем проблем с CORS)
+    let finalUrl = longUrl;
     try {
-      const shortUrlResponse = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
-      const shortUrlData = await shortUrlResponse.json();
+      const shortenResponse = await fetch(`${BACKEND_SIMPLE_BASE}/shorten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: longUrl })
+      });
       
-      if (shortUrlData.shorturl) {
-        // Используем короткую ссылку
-        await navigator.clipboard.writeText(shortUrlData.shorturl);
-        addApiLog('✅ Ссылка скопирована в буфер обмена');
-        alert('✅ Ссылка скопирована в буфер обмена!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.');
-        return;
+      if (shortenResponse.ok) {
+        const data = await shortenResponse.json();
+        if (data.short_url) {
+          finalUrl = data.short_url;
+        }
       }
     } catch (e) {
-      console.warn('Не удалось сократить URL, используем полную ссылку:', e);
+      // Тихий fallback - используем полную ссылку
     }
     
-    // Если сокращение не удалось - проверяем длину и используем полную ссылку
-    if (longUrl.length > 2000) {
+    // Проверяем длину и копируем ссылку (короткую или полную)
+    if (finalUrl.length > 2000) {
       addApiLog('❌ Слишком много точек для обмена через URL');
       alert('Слишком много точек для обмена через URL.\nРекомендуется до 30-40 точек.');
       return;
     }
     
-    // Копируем полную ссылку
-    await navigator.clipboard.writeText(longUrl);
+    // Копируем ссылку (короткую или полную)
+    await navigator.clipboard.writeText(finalUrl);
     addApiLog('✅ Ссылка скопирована в буфер обмена');
     alert('✅ Ссылка скопирована в буфер обмена!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.');
   } catch (e) {
