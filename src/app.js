@@ -576,9 +576,10 @@ async function restoreRouteFromShareData(data) {
     // Обновляем отображение БЕЗ генерации - просто показываем готовые данные
     setTimeout(async () => {
       // Скрываем подсказку и устанавливаем правильный шаг
-      const { hideHint, setStep } = await import('./modules/uiController.js');
+      const { hideHint, setStep, setRestoredFromShare } = await import('./modules/uiController.js');
       hideHint();
       setStep('points_generated');
+      setRestoredFromShare(true); // Отключаем кнопку обновления
       
       // Обновляем отображение последовательности (она уже готова!)
       updateSequenceDisplay();
