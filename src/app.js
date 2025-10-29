@@ -587,9 +587,6 @@ async function restoreRouteFromShareData(data) {
       setStep('points_generated');
       setRestoredFromShare(true); // Отключаем кнопку обновления
       
-      // Обновляем отображение последовательности (она уже готова!)
-      updateSequenceDisplay();
-      
       // Используем сохраненную дистанцию, если она есть
       let distanceKm = 0;
       if (data.distance && data.distance > 0) {
@@ -609,7 +606,7 @@ async function restoreRouteFromShareData(data) {
       // Формируем текст последовательности из готовых данных
       const sequenceText = data.sequence.map(idx => idx + 1).join(' → ');
       
-      // Обновляем панель с готовыми данными
+      // Обновляем панель с готовыми данными (БЕЗ вызова updateSequenceDisplay!)
       updateInfoPanel(
         restoredMarkers.length,
         `СТАРТ → ${sequenceText} → СТАРТ`,
