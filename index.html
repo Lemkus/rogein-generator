@@ -9,8 +9,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TrailSpot">
-  <meta http-equiv="Cache-Control" content="max-age=3600">
-  <meta http-equiv="Pragma" content="cache">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <link rel="apple-touch-icon" href="./assets/icons/MainLogo.png">
   <link rel="stylesheet" href="./libs/leaflet/leaflet.css" />
   <link rel="stylesheet" href="./libs/leaflet/leaflet.draw.css" />
@@ -862,10 +863,10 @@
   </script>
   
   <script type="module">
-    // Версия для принудительного обновления кэша
-    const APP_VERSION = '1.11.7'; // Fixed Leaflet CDN loading issues
+    // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
+    const APP_VERSION = '1.12.1';
     
-    import(`./src/app.js?v=${APP_VERSION}`).then(module => {
+    import(`./src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
         module.initApp();
       } else {
@@ -892,7 +893,7 @@
       </a>
     </div>
     <div style="margin-top: 10px; font-size: 12px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.2.1
+      Made with 💚 for outdoor enthusiasts | v1.12.1
     </div>
   </footer>
 </body>
