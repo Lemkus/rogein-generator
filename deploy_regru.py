@@ -80,7 +80,8 @@ def deploy_to_regru():
         'manifest.json',
         '.htaccess',
         'setup_venv.sh',
-        'debug_server.sh'
+        'debug_server.sh',
+        'test_import.py'
     ]
     
     # Создаем команды для загрузки

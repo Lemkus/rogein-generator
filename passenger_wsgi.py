@@ -13,8 +13,8 @@ venv_path = os.path.join(project_path, 'venv')
 
 # Add path to virtual environment libraries
 if os.path.exists(venv_path):
-    # Add path to virtual environment libraries (Python 3.6.8)
-    venv_lib_path = os.path.join(venv_path, 'lib', 'python3.6', 'site-packages')
+    # Add path to virtual environment libraries (Python 3.8)
+    venv_lib_path = os.path.join(venv_path, 'lib', 'python3.8', 'site-packages')
     
     if os.path.exists(venv_lib_path):
         sys.path.insert(0, venv_lib_path)
