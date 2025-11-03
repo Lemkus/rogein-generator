@@ -375,55 +375,54 @@ async function handleShareRoute() {
     console.log('💾 Сохраняем shareData:', shareData);
     console.log('📏 Сохраняемая дистанция:', stats ? stats.totalDistance : 0, 'м');
     
-    // Кодируем данные в Base64
-    const jsonString = JSON.stringify(shareData);
-    const encoded = btoa(unescape(encodeURIComponent(jsonString)));
-    
-    // Формируем URL
-    const baseUrl = window.location.origin + window.location.pathname;
-    const longUrl = `${baseUrl}?share=${encoded}`;
-    
-    // Пытаемся сократить URL через backend (избегаем проблем с CORS)
-    let finalUrl = longUrl;
-    console.log('🔗 Исходная ссылка:', longUrl);
+    // Сначала пытаемся сохранить на сервере и получить короткую ссылку
+    let finalUrl = '';
     try {
-      const shortenResponse = await fetch(`${BACKEND_SIMPLE_BASE}/shorten`, {
+      const saveResponse = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: longUrl })
+        body: JSON.stringify(shareData)
       });
       
-      if (shortenResponse.ok) {
-        const data = await shortenResponse.json();
-        console.log('📦 Ответ от сервера:', data);
-        if (data.short_url) {
-          finalUrl = data.short_url;
-          if (finalUrl !== longUrl) {
-            console.log('✅ Ссылка сокращена:', finalUrl);
-            addApiLog('✅ Ссылка сокращена');
-          } else {
-            console.log('⚠️ Ссылка не сокращена (используем исходную)');
-            addApiLog('⚠️ Сервисы сокращения недоступны, используем полную ссылку');
-          }
+      if (saveResponse.ok) {
+        const data = await saveResponse.json();
+        if (data.url) {
+          finalUrl = data.url;
+          console.log('✅ Маршрут сохранен на сервере, короткая ссылка:', finalUrl);
+          addApiLog('✅ Маршрут сохранен, короткая ссылка');
         }
+      } else {
+        console.warn('⚠️ Ошибка сохранения маршрута на сервере:', saveResponse.status);
+        addApiLog('⚠️ Ошибка сохранения на сервере');
       }
     } catch (e) {
-      console.error('❌ Ошибка при сокращении:', e);
-      addApiLog('⚠️ Ошибка сокращения, используем полную ссылку');
+      console.error('❌ Ошибка при сохранении на сервере:', e);
+      addApiLog('⚠️ Ошибка сохранения на сервере');
     }
     
-    // Проверяем длину и копируем ссылку (короткую или полную)
-    if (finalUrl.length > 2000) {
-      addApiLog('❌ Слишком много точек для обмена через URL');
-      alert('Слишком много точек для обмена через URL.\nРекомендуется до 30-40 точек.');
-      return;
+    // Если не удалось сохранить на сервере, используем старый метод с кодированием в URL
+    if (!finalUrl) {
+      console.log('⚠️ Возвращаемся к старому методу с кодированием в URL');
+      const jsonString = JSON.stringify(shareData);
+      const encoded = btoa(unescape(encodeURIComponent(jsonString)));
+      const baseUrl = window.location.origin + window.location.pathname;
+      finalUrl = `${baseUrl}?share=${encoded}`;
+      
+      // Проверяем длину
+      if (finalUrl.length > 2000) {
+        addApiLog('❌ Слишком много точек для обмена через URL');
+        alert('Слишком много точек для обмена через URL.\nРекомендуется до 30-40 точек.');
+        return;
+      }
     }
     
     // Копируем ссылку (короткую или полную)
     await navigator.clipboard.writeText(finalUrl);
     console.log('📋 Итоговая ссылка скопирована:', finalUrl);
     
-    const alertMessage = finalUrl !== longUrl 
+    // Определяем тип ссылки для сообщения
+    const isShortUrl = finalUrl.includes('/r/') && finalUrl.length < 100;
+    const alertMessage = isShortUrl
       ? '✅ Короткая ссылка скопирована!\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.'
       : '✅ Ссылка скопирована (использована полная версия)\n\nОтправьте её другу, и он сразу увидит все точки и последовательность маршрута.';
     alert(alertMessage);
