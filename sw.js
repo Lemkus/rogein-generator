@@ -1,5 +1,5 @@
 // Версия приложения - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-const APP_VERSION = '1.12.2';
+const APP_VERSION = '1.12.3';
 const CACHE_NAME = `rogein-v${APP_VERSION}`;
 
 const urlsToCache = [
