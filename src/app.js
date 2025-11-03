@@ -496,7 +496,7 @@ async function bootstrapFromUrl() {
       console.log('🔗 Загружаем маршрут из короткой ссылки:', routeId);
       
       try {
-        const response = await fetch(`${BACKEND_SIMPLE_BASE}/r/${routeId}`);
+        const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/r/${routeId}`);
         if (response.ok) {
           const data = await response.json();
           if (data.points && Array.isArray(data.points) && data.sequence && Array.isArray(data.sequence)) {
