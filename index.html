@@ -74,7 +74,8 @@
       left: 10px;
       z-index: 1000;
     }
-    .top-left-info .icon-btn { width: 44px; height: 44px; }
+    .top-left-info .icon-btn { width: 56px; height: 56px; padding: 10px; }
+    .top-left-info .icon-btn img { width: 100%; height: 100%; object-fit: contain; }
     
     .icon-btn {
       width: 44px;
@@ -1082,12 +1083,12 @@
       if (!demoCtx) {
         demoCtx = new (window.AudioContext || window.webkitAudioContext)();
         demoGain = demoCtx.createGain();
-        demoGain.gain.value = 0.3;
+        demoGain.gain.value = 0.6; // громче превью
         demoGain.connect(demoCtx.destination);
       }
       if (demoCtx.state === 'suspended') demoCtx.resume();
     }
-    function playToneOnce(freq, dur=0.3, type='sine', vol=0.3){
+    function playToneOnce(freq, dur=0.3, type='sine', vol=0.5){
       ensureDemoCtx();
       const osc = demoCtx.createOscillator();
       const g = demoCtx.createGain();
@@ -1104,9 +1105,9 @@
       ensureDemoCtx();
       const third = baseFreq*Math.pow(2,4/12);
       const osc1 = demoCtx.createOscillator();
-      const g1 = demoCtx.createGain(); g1.gain.value=0.25; osc1.type='triangle'; osc1.frequency.value=baseFreq; osc1.connect(g1); g1.connect(demoGain);
+      const g1 = demoCtx.createGain(); g1.gain.value=0.35; osc1.type='triangle'; osc1.frequency.value=baseFreq; osc1.connect(g1); g1.connect(demoGain);
       const osc2 = demoCtx.createOscillator();
-      const g2 = demoCtx.createGain(); g2.gain.value=0.25; osc2.type='triangle'; osc2.frequency.value=third; osc2.connect(g2); g2.connect(demoGain);
+      const g2 = demoCtx.createGain(); g2.gain.value=0.35; osc2.type='triangle'; osc2.frequency.value=third; osc2.connect(g2); g2.connect(demoGain);
       const now = demoCtx.currentTime, fade=Math.min(dur*0.1,0.05);
       g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.25, now+fade); g1.gain.linearRampToValueAtTime(0, now+dur);
       g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.25, now+fade); g2.gain.linearRampToValueAtTime(0, now+dur);
@@ -1119,7 +1120,7 @@
         if(count++>=pulses) return; const osc=demoCtx.createOscillator(); const g=demoCtx.createGain();
         osc.frequency.value=freq; osc.type='sine'; osc.connect(g); g.connect(demoGain);
         const now=demoCtx.currentTime, fade=pulseDur*0.2;
-        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.4, now+fade); g.gain.linearRampToValueAtTime(0, now+pulseDur);
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.6, now+fade); g.gain.linearRampToValueAtTime(0, now+pulseDur);
         osc.start(now); osc.stop(now+pulseDur);
         setTimeout(()=>{ try{osc.disconnect();g.disconnect();}catch(_){}; if(count<pulses) setTimeout(playOne, 50); }, pulseDur*1000);
       }; playOne();
@@ -1131,15 +1132,15 @@
     const bCrit = document.getElementById('audioDemoCritical');
     const bVictory = document.getElementById('audioDemoVictory');
     bApp && bApp.addEventListener('click', ()=> playMajorChord(520, 0.35));
-    bAway && bAway.addEventListener('click', ()=> playToneOnce(360, 0.28, 'sine', 0.28));
-    bNeutral && bNeutral.addEventListener('click', ()=> playToneOnce(500, 0.2, 'triangle', 0.2));
+    bAway && bAway.addEventListener('click', ()=> playToneOnce(360, 0.28, 'sine', 0.55));
+    bNeutral && bNeutral.addEventListener('click', ()=> playToneOnce(500, 0.22, 'triangle', 0.5));
     bCrit && bCrit.addEventListener('click', ()=> playPulse(800, 0.12, 3));
     bVictory && bVictory.addEventListener('click', ()=> {
       // Используем встроенную мелодию из навигации, если модуль инициализирован; иначе — локально проигрываем ноты
       try { if (window.openInstruction) {} } catch(_){ }
       // Локальная простая версия победной мелодии
       const notes = [ {f:523,d:0.15}, {f:659,d:0.15}, {f:784,d:0.15}, {f:1047,d:0.4} ];
-      let i=0; const playNext=()=>{ if(i>=notes.length) return; const n=notes[i++]; playToneOnce(n.f, n.d, 'sine', 0.4); setTimeout(playNext, n.d*1000+60); }; playNext();
+      let i=0; const playNext=()=>{ if(i>=notes.length) return; const n=notes[i++]; playToneOnce(n.f, n.d, 'sine', 0.65); setTimeout(playNext, n.d*1000+60); }; playNext();
     });
   </script>
   
