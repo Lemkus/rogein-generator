@@ -67,6 +67,15 @@
       align-items: center;
     }
     
+    /* Иконка инструкции (левый верхний угол) */
+    .top-left-info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
+    .top-left-info .icon-btn { width: 44px; height: 44px; }
+    
     .icon-btn {
       width: 44px;
       height: 44px;
@@ -721,6 +730,15 @@
   <div id="map"></div>
   
   <!-- ВЕРХНЯЯ ПАНЕЛЬ ИКОНОК (СПРАВА) -->
+  <!-- Иконка инструкции (СЛЕВА) -->
+  <div class="top-left-info">
+    <button class="icon-btn" id="openInfoTopBtn" title="О проекте и инструкция">
+      <!-- Если добавите файл /assets/icons/Info.png — замените содержимое на <img src="/assets/icons/Info.png" alt="Info"> -->
+      <span style="font-size:18px; font-weight:700; color:#4CAF50;">ℹ️</span>
+    </button>
+  </div>
+  
+  
   <div class="top-toolbar">
     <button class="icon-btn" id="shareBtn" title="Поделиться">
       <img src="/assets/icons/Share.png" alt="Share">
@@ -909,7 +927,6 @@
           <button data-tab="#about">О проекте</button>
           <button data-tab="#guide">Инструкция</button>
           <button data-tab="#privacy">Приватность</button>
-          <button data-tab="#faq">FAQ</button>
         </nav>
 
         <section id="quick-start" class="tab active">
@@ -961,6 +978,13 @@
               <li>≤10 м: пульсирующий «пип‑пип» вместо постоянного писка</li>
               <li>Точка взята: короткая победная мелодия</li>
             </ul>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;">
+              <button class="icon-btn" id="audioDemoApproach" title="Приближаюсь — мажорный аккорд" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Приближаюсь</button>
+              <button class="icon-btn" id="audioDemoAway" title="Удаляюсь — низкий тон" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Удаляюсь</button>
+              <button class="icon-btn" id="audioDemoNeutral" title="Нейтрально" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Нейтрально</button>
+              <button class="icon-btn" id="audioDemoCritical" title="Критически близко — пульсация" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Критически близко</button>
+              <button class="icon-btn" id="audioDemoVictory" title="Победная мелодия" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Победа</button>
+            </div>
             <p class="para">Советы: после поворота пройдите пару шагов — системе нужно 2–3 измерения, чтобы «понять» тренд; на последних метрах смотрите глазами.</p>
             <div class="grid-placeholders">
               <div class="ph">Скрин — панель навигации с расстоянием и 🔊</div>
@@ -979,21 +1003,7 @@
           <p class="para">Данные хранятся локально на вашем устройстве. Нет аккаунтов и трекинга. Навигация — вспомогательный инструмент: используйте ответственно и соблюдайте технику безопасности.</p>
         </section>
 
-        <section id="faq" class="tab">
-          <div class="section-title">FAQ</div>
-          <details>
-            <summary>Не слышу звук</summary>
-            <p class="para">Проверьте громкость, беззвучный режим, разрешите воспроизведение звука.</p>
-          </details>
-          <details>
-            <summary>Сигналы слишком редкие</summary>
-            <p class="para">На дистанции >100 м сигналы реже. Приблизьтесь — частота подсказок увеличится.</p>
-          </details>
-          <details>
-            <summary>Как установить как приложение?</summary>
-            <p class="para">Добавьте сайт на главный экран. Приложение работает офлайн.</p>
-          </details>
-        </section>
+        
       </div>
     </div>
   </div>
@@ -1030,6 +1040,7 @@
     const infoModal = document.getElementById('infoModal');
     const infoClose = document.getElementById('infoClose');
     const openInfoItem = document.getElementById('openInfoMenuItem');
+    const openInfoTopBtn = document.getElementById('openInfoTopBtn');
     const menuModal = document.getElementById('menuModal');
     const tabs = document.querySelectorAll('#infoTabs button');
     const tabSections = document.querySelectorAll('.tab');
@@ -1048,6 +1059,7 @@
     }
     
     openInfoItem && openInfoItem.addEventListener('click', () => openInfo('#quick-start'));
+    openInfoTopBtn && openInfoTopBtn.addEventListener('click', () => openInfo('#quick-start'));
     infoClose && infoClose.addEventListener('click', closeInfo);
     infoModal && infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeInfo(); });
     
@@ -1064,6 +1076,72 @@
     
     // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
     window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
+
+    // === Аудио превью (Web Audio API, независимый от навигации) ===
+    let demoCtx, demoGain;
+    function ensureDemoCtx(){
+      if (!demoCtx) {
+        demoCtx = new (window.AudioContext || window.webkitAudioContext)();
+        demoGain = demoCtx.createGain();
+        demoGain.gain.value = 0.3;
+        demoGain.connect(demoCtx.destination);
+      }
+      if (demoCtx.state === 'suspended') demoCtx.resume();
+    }
+    function playToneOnce(freq, dur=0.3, type='sine', vol=0.3){
+      ensureDemoCtx();
+      const osc = demoCtx.createOscillator();
+      const g = demoCtx.createGain();
+      osc.type = type; osc.frequency.value = freq; g.gain.value = vol;
+      osc.connect(g); g.connect(demoGain);
+      const now = demoCtx.currentTime, fade = Math.min(dur*0.1, 0.05);
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(vol, now + fade);
+      g.gain.linearRampToValueAtTime(0, now + dur);
+      osc.start(now); osc.stop(now + dur);
+      setTimeout(() => { try { osc.disconnect(); g.disconnect(); } catch(_){} }, dur*1000+100);
+    }
+    function playMajorChord(baseFreq, dur=0.35){
+      ensureDemoCtx();
+      const third = baseFreq*Math.pow(2,4/12);
+      const osc1 = demoCtx.createOscillator();
+      const g1 = demoCtx.createGain(); g1.gain.value=0.25; osc1.type='triangle'; osc1.frequency.value=baseFreq; osc1.connect(g1); g1.connect(demoGain);
+      const osc2 = demoCtx.createOscillator();
+      const g2 = demoCtx.createGain(); g2.gain.value=0.25; osc2.type='triangle'; osc2.frequency.value=third; osc2.connect(g2); g2.connect(demoGain);
+      const now = demoCtx.currentTime, fade=Math.min(dur*0.1,0.05);
+      g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.25, now+fade); g1.gain.linearRampToValueAtTime(0, now+dur);
+      g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.25, now+fade); g2.gain.linearRampToValueAtTime(0, now+dur);
+      osc1.start(now); osc2.start(now); osc1.stop(now+dur); osc2.stop(now+dur);
+      setTimeout(()=>{ try{osc1.disconnect();osc2.disconnect();g1.disconnect();g2.disconnect();}catch(_){}} , dur*1000+100);
+    }
+    function playPulse(freq=800, pulseDur=0.12, pulses=3){
+      ensureDemoCtx();
+      let count=0; const playOne=()=>{
+        if(count++>=pulses) return; const osc=demoCtx.createOscillator(); const g=demoCtx.createGain();
+        osc.frequency.value=freq; osc.type='sine'; osc.connect(g); g.connect(demoGain);
+        const now=demoCtx.currentTime, fade=pulseDur*0.2;
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.4, now+fade); g.gain.linearRampToValueAtTime(0, now+pulseDur);
+        osc.start(now); osc.stop(now+pulseDur);
+        setTimeout(()=>{ try{osc.disconnect();g.disconnect();}catch(_){}; if(count<pulses) setTimeout(playOne, 50); }, pulseDur*1000);
+      }; playOne();
+    }
+
+    const bApp = document.getElementById('audioDemoApproach');
+    const bAway = document.getElementById('audioDemoAway');
+    const bNeutral = document.getElementById('audioDemoNeutral');
+    const bCrit = document.getElementById('audioDemoCritical');
+    const bVictory = document.getElementById('audioDemoVictory');
+    bApp && bApp.addEventListener('click', ()=> playMajorChord(520, 0.35));
+    bAway && bAway.addEventListener('click', ()=> playToneOnce(360, 0.28, 'sine', 0.28));
+    bNeutral && bNeutral.addEventListener('click', ()=> playToneOnce(500, 0.2, 'triangle', 0.2));
+    bCrit && bCrit.addEventListener('click', ()=> playPulse(800, 0.12, 3));
+    bVictory && bVictory.addEventListener('click', ()=> {
+      // Используем встроенную мелодию из навигации, если модуль инициализирован; иначе — локально проигрываем ноты
+      try { if (window.openInstruction) {} } catch(_){ }
+      // Локальная простая версия победной мелодии
+      const notes = [ {f:523,d:0.15}, {f:659,d:0.15}, {f:784,d:0.15}, {f:1047,d:0.4} ];
+      let i=0; const playNext=()=>{ if(i>=notes.length) return; const n=notes[i++]; playToneOnce(n.f, n.d, 'sine', 0.4); setTimeout(playNext, n.d*1000+60); }; playNext();
+    });
   </script>
   
   <!-- Footer with copyright and legal info -->
