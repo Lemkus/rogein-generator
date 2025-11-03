@@ -1,7 +1,5 @@
-# Passenger конфигурация для Flask приложения
-Options -MultiViews
-PassengerEnabled On
-PassengerAppRoot /var/www/u3288673/data/www/trailspot.app
+# Проксирование API запросов на Passenger WSGI
+RewriteEngine On
 
 # Обработка CORS заголовков
 Header always set Access-Control-Allow-Origin "*"
@@ -9,7 +7,6 @@ Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 
 # Обработка preflight запросов
-RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
@@ -32,4 +29,10 @@ RewriteRule ^(.*)$ $1 [R=200,L]
   Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 
-# Все запросы обрабатываются через Passenger WSGI
+# Проксирование API запросов на Passenger WSGI
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ http://localhost:5000/$1 [P,L]
+
+# Проксирование маршрутов /r/ на Passenger WSGI
+RewriteCond %{REQUEST_URI} ^/r/
+RewriteRule ^(.*)$ http://localhost:5000/$1 [P,L]
