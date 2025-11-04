@@ -491,13 +491,104 @@
     .info-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 14px 16px;
-      border-bottom: 1px solid #eee;
+      justify-content: flex-end;
+      padding: 10px 14px;
       font-weight: 600;
     }
     .info-close {
       width: 30px; height: 30px; border: 0; background: none; font-size: 22px; color: #999; cursor: pointer;
+    }
+    /* ========== СЛАЙДЕР ========== */
+    .slider-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    .slider-track {
+      display: flex;
+      transition: transform 0.3s ease;
+    }
+    .slider-slide {
+      min-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      text-align: center;
+    }
+    .slider-slide img, .slider-slide .ph {
+      width: 100%;
+      max-width: 400px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: #f5f5f5;
+    }
+    .slider-slide .ph {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 13px;
+    }
+    .slider-text {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #333;
+      max-width: 500px;
+    }
+    .slider-nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .slider-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ddd;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .slider-dot.active {
+      background: #4CAF50;
+    }
+    .slider-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ddd;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: #333;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .slider-arrow:hover {
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .slider-arrow.prev {
+      left: 8px;
+    }
+    .slider-arrow.next {
+      right: 8px;
+    }
+    @media (max-width: 768px) {
+      .slider-arrow {
+        display: none;
+      }
     }
     .info-body { padding: 14px 16px; }
     .subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -918,18 +1009,17 @@
   <div class="info-modal" id="infoModal">
     <div class="info-content">
       <div class="info-header">
-        <span>О проекте и инструкция</span>
         <button class="info-close" id="infoClose">×</button>
       </div>
       <div class="info-body">
         <nav class="subtabs" id="infoTabs">
-          <button data-tab="#quick-start" class="active">Быстрый старт</button>
-          <button data-tab="#about">О проекте</button>
+          <button data-tab="#quick-start">Быстрый старт</button>
+          <button data-tab="#about" class="active">О проекте</button>
           <button data-tab="#guide">Инструкция</button>
           <button data-tab="#privacy">Приватность</button>
         </nav>
 
-        <section id="quick-start" class="tab active">
+        <section id="quick-start" class="tab">
           <div class="section-title">Быстрый старт</div>
           <ol class="list">
             <li>Переместите карту в нужный район</li>
@@ -944,16 +1034,35 @@
           </div>
         </section>
 
-        <section id="about" class="tab">
-          <div class="section-title">Что даёт TrailSpot</div>
-          <p class="para">Тренируешься в одном и том же месте? Маршруты давно наскучили? TrailSpot создаёт новую трассу на каждый раз — из OpenStreetMap, с учётом барьеров, с одной кнопки.</p>
-          <ul class="list">
-            <li><strong>Новый маршрут каждый раз</strong> — без повторений</li>
-            <li><strong>Навигация звуком «горячо‑холодно»</strong> — рук не надо</li>
-            <li><strong>Оптимальная последовательность точек</strong> — спланирована автоматически</li>
-            <li><strong>Экспорт GPX</strong> — для Garmin и других навигаторов</li>
-            <li><strong>Без аккаунтов, трекинга, рекламы</strong> — локальная работа</li>
-          </ul>
+        <section id="about" class="tab active">
+          <div class="slider-container" id="promoSlider">
+            <button class="slider-arrow prev" id="sliderPrev">‹</button>
+            <button class="slider-arrow next" id="sliderNext">›</button>
+            <div class="slider-track" id="sliderTrack">
+              <div class="slider-slide">
+                <div class="ph">Скрин 1 — новый маршрут каждый раз</div>
+                <div class="slider-text">Каждый раз новый маршрут, даже там, где знаешь каждую тропинку. TrailSpot генерирует точки по уникальному алгоритму — каждый раз по-новому.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 2 — промежуточные цели</div>
+                <div class="slider-text">Больше мотивации: каждый раз — новая цель, не только финиш. Промежуточные точки делают тренировку интереснее.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 3 — прогулки с семьёй или одному</div>
+                <div class="slider-text">Из рутинной прогулки — в квест. Один или с компанией — каждый маршрут как новая игра.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 4 — аудионавигация</div>
+                <div class="slider-text">Навигация как игра: звук подскажет — ближе или дальше. Не смотри в телефон, смотри на тропу и слушай подсказки.</div>
+              </div>
+            </div>
+            <div class="slider-nav" id="sliderNav">
+              <button class="slider-dot active" data-slide="0"></button>
+              <button class="slider-dot" data-slide="1"></button>
+              <button class="slider-dot" data-slide="2"></button>
+              <button class="slider-dot" data-slide="3"></button>
+            </div>
+          </div>
         </section>
 
         <section id="guide" class="tab">
@@ -1024,7 +1133,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.3';
+    const APP_VERSION = '1.12.4';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1058,8 +1167,8 @@
       else { const el = document.getElementById(id); el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     }
     
-    openInfoItem && openInfoItem.addEventListener('click', () => openInfo('#quick-start'));
-    openInfoTopBtn && openInfoTopBtn.addEventListener('click', () => openInfo('#quick-start'));
+    openInfoItem && openInfoItem.addEventListener('click', () => openInfo('#about'));
+    openInfoTopBtn && openInfoTopBtn.addEventListener('click', () => openInfo('#about'));
     infoClose && infoClose.addEventListener('click', closeInfo);
     infoModal && infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeInfo(); });
     
@@ -1076,6 +1185,72 @@
     
     // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
     window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
+    
+    // === СЛАЙДЕР ПРОМО ===
+    const sliderTrack = document.getElementById('sliderTrack');
+    const sliderPrev = document.getElementById('sliderPrev');
+    const sliderNext = document.getElementById('sliderNext');
+    const sliderDots = document.querySelectorAll('.slider-dot');
+    let currentSlide = 0;
+    const totalSlides = 4;
+    
+    function updateSlider() {
+      if (sliderTrack) {
+        sliderTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+      }
+      sliderDots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentSlide);
+      });
+    }
+    
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % totalSlides;
+      updateSlider();
+    }
+    
+    function prevSlide() {
+      currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+      updateSlider();
+    }
+    
+    function goToSlide(idx) {
+      currentSlide = idx;
+      updateSlider();
+    }
+    
+    sliderPrev && sliderPrev.addEventListener('click', prevSlide);
+    sliderNext && sliderNext.addEventListener('click', nextSlide);
+    sliderDots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => goToSlide(idx));
+    });
+    
+    // Swipe на мобильном
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const sliderContainer = document.getElementById('promoSlider');
+    
+    if (sliderContainer) {
+      sliderContainer.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+      
+      sliderContainer.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      }, { passive: true });
+    }
+    
+    function handleSwipe() {
+      const diff = touchStartX - touchEndX;
+      const minSwipeDistance = 50;
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0) {
+          nextSlide();
+        } else {
+          prevSlide();
+        }
+      }
+    }
 
     // === Аудио превью (Web Audio API, независимый от навигации) ===
     let demoCtx, demoGain;
