@@ -1013,24 +1013,45 @@
       </div>
       <div class="info-body">
         <nav class="subtabs" id="infoTabs">
+          <button data-tab="#about" class="active">Для чего?</button>
           <button data-tab="#quick-start">Быстрый старт</button>
-          <button data-tab="#about" class="active">О проекте</button>
           <button data-tab="#guide">Инструкция</button>
-          <button data-tab="#privacy">Приватность</button>
+          <button data-tab="#project-info">О проекте</button>
         </nav>
 
         <section id="quick-start" class="tab">
-          <div class="section-title">Быстрый старт</div>
-          <ol class="list">
-            <li>Переместите карту в нужный район</li>
-            <li id="area-selection">Укажите область и поставьте старт</li>
-            <li>Задайте количество точек и нажмите «Сгенерировать»</li>
-            <li>Выберите «🎯 Автоматическая последовательность»</li>
-            <li>Нажмите «🔊 Начать навигацию»</li>
-          </ol>
-          <div class="grid-placeholders">
-            <div class="ph">Скрин 1 — карта с выделенной областью</div>
-            <div class="ph">Скрин 2 — точки и секция маршрута</div>
+          <div class="slider-container" id="quickStartSlider">
+            <button class="slider-arrow prev" id="quickStartPrev">‹</button>
+            <button class="slider-arrow next" id="quickStartNext">›</button>
+            <div class="slider-track" id="quickStartTrack">
+              <div class="slider-slide">
+                <div class="ph">Скрин 1 — перемещение карты</div>
+                <div class="slider-text">Переместите карту в нужный район</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 2 — выделение области и старт</div>
+                <div class="slider-text">Укажите область и поставьте старт</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 3 — генерация точек</div>
+                <div class="slider-text">Задайте количество точек и нажмите «Сгенерировать»</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 4 — выбор последовательности</div>
+                <div class="slider-text">Выберите «🎯 Автоматическая последовательность»</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 5 — начало навигации</div>
+                <div class="slider-text">Нажмите «🔊 Начать навигацию»</div>
+              </div>
+            </div>
+            <div class="slider-nav" id="quickStartNav">
+              <button class="slider-dot active" data-slide="0"></button>
+              <button class="slider-dot" data-slide="1"></button>
+              <button class="slider-dot" data-slide="2"></button>
+              <button class="slider-dot" data-slide="3"></button>
+              <button class="slider-dot" data-slide="4"></button>
+            </div>
           </div>
         </section>
 
@@ -1107,9 +1128,17 @@
           </details>
         </section>
 
-        <section id="privacy" class="tab">
-          <div class="section-title">Приватность и безопасность</div>
-          <p class="para">Данные хранятся локально на вашем устройстве. Нет аккаунтов и трекинга. Навигация — вспомогательный инструмент: используйте ответственно и соблюдайте технику безопасности.</p>
+        <section id="project-info" class="tab">
+          <div class="section-title">О проекте</div>
+          <p class="para">TrailSpot — открытый проект для генерации маршрутов и аудионавигации. Использует OpenStreetMap данные и работает полностью локально.</p>
+          <p class="para" style="margin-top: 12px;">
+            <strong>Исходный код:</strong><br>
+            <a href="https://github.com/Lemkus/rogein-generator" target="_blank" rel="noopener" style="color: #4CAF50; text-decoration: underline;">GitHub: Lemkus/rogein-generator</a>
+          </p>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+            <div class="section-title" style="font-size: 14px; margin-bottom: 8px;">Приватность и безопасность</div>
+            <p class="para">Данные хранятся локально на вашем устройстве. Нет аккаунтов и трекинга. Навигация — вспомогательный инструмент: используйте ответственно и соблюдайте технику безопасности.</p>
+          </div>
         </section>
 
         
@@ -1248,6 +1277,72 @@
           nextSlide();
         } else {
           prevSlide();
+        }
+      }
+    }
+    
+    // === СЛАЙДЕР БЫСТРЫЙ СТАРТ ===
+    const quickStartTrack = document.getElementById('quickStartTrack');
+    const quickStartPrev = document.getElementById('quickStartPrev');
+    const quickStartNext = document.getElementById('quickStartNext');
+    const quickStartDots = document.querySelectorAll('#quickStartNav .slider-dot');
+    let currentQuickSlide = 0;
+    const totalQuickSlides = 5;
+    
+    function updateQuickSlider() {
+      if (quickStartTrack) {
+        quickStartTrack.style.transform = `translateX(-${currentQuickSlide * 100}%)`;
+      }
+      quickStartDots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentQuickSlide);
+      });
+    }
+    
+    function nextQuickSlide() {
+      currentQuickSlide = (currentQuickSlide + 1) % totalQuickSlides;
+      updateQuickSlider();
+    }
+    
+    function prevQuickSlide() {
+      currentQuickSlide = (currentQuickSlide - 1 + totalQuickSlides) % totalQuickSlides;
+      updateQuickSlider();
+    }
+    
+    function goToQuickSlide(idx) {
+      currentQuickSlide = idx;
+      updateQuickSlider();
+    }
+    
+    quickStartPrev && quickStartPrev.addEventListener('click', prevQuickSlide);
+    quickStartNext && quickStartNext.addEventListener('click', nextQuickSlide);
+    quickStartDots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => goToQuickSlide(idx));
+    });
+    
+    // Swipe для быстрого старта
+    let quickTouchStartX = 0;
+    let quickTouchEndX = 0;
+    const quickStartContainer = document.getElementById('quickStartSlider');
+    
+    if (quickStartContainer) {
+      quickStartContainer.addEventListener('touchstart', (e) => {
+        quickTouchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+      
+      quickStartContainer.addEventListener('touchend', (e) => {
+        quickTouchEndX = e.changedTouches[0].screenX;
+        handleQuickSwipe();
+      }, { passive: true });
+    }
+    
+    function handleQuickSwipe() {
+      const diff = quickTouchStartX - quickTouchEndX;
+      const minSwipeDistance = 50;
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0) {
+          nextQuickSlide();
+        } else {
+          prevQuickSlide();
         }
       }
     }
