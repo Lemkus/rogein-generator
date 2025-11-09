@@ -630,6 +630,11 @@ async function generatePointsOnPaths(pathsData, selectedBounds, startPoint, coun
 }
 
 // Функция отмены генерации
+// Экспорт функции для получения запретных зон (для использования в других модулях)
+export function getForbiddenPolygons() {
+  return cachedForbiddenPolygons || [];
+}
+
 export function cancelPointGeneration() {
   cancelGeneration = true;
 }
