@@ -266,6 +266,7 @@
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
+      position: relative;
     }
     
     .distance-label-text {
@@ -273,9 +274,8 @@
     }
     
     .distance-input {
-      flex: 1;
+      width: 80px;
       min-width: 60px;
-      max-width: 100px;
       padding: 4px 6px;
       border: 1px solid #ddd;
       border-radius: 4px;
@@ -287,10 +287,6 @@
     .distance-input:focus {
       outline: none;
       border-color: #4CAF50;
-    }
-    
-    .distance-input::-webkit-inner-spin-button {
-      opacity: 1;
     }
     
     /* Скрываем все стрелки по умолчанию */
@@ -306,16 +302,7 @@
       margin: 0;
     }
     
-    /* Кастомная стрелка вниз */
-    .sequence-distance {
-      position: relative;
-    }
-    
     .distance-decrease-btn {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
       background: none;
       border: none;
       cursor: pointer;
@@ -323,6 +310,7 @@
       color: #999;
       padding: 2px 4px;
       line-height: 1;
+      flex-shrink: 0;
     }
     
     .distance-decrease-btn:hover {
