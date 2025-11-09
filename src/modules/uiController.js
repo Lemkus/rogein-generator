@@ -777,12 +777,6 @@ async function handleDistanceIncrease() {
     return;
   }
   
-  // Если точек уже 10, пытаемся добавить новую как можно дальше от других
-  if (pointMarkers.length >= 10) {
-    addApiLog('⚠️ Максимальное количество точек: 10');
-    return;
-  }
-  
   // Добавляем новую точку как можно дальше от других
   await addPointFarthestFromOthers();
   
@@ -872,9 +866,10 @@ async function updateDistanceButtonsState() {
     distanceDecreaseBtn.disabled = pointMarkers.length <= 3;
   }
   
-  // Кнопка + отключается, если точек >= 10 и нет удаленных точек для восстановления
+  // Кнопка + отключается только если нет удаленных точек для восстановления и нет графа для добавления новой
   if (distanceIncreaseBtn) {
-    distanceIncreaseBtn.disabled = pointMarkers.length >= 10 && removedPointsHistory.length === 0;
+    // Кнопка всегда активна, если есть удаленные точки или граф доступен
+    distanceIncreaseBtn.disabled = false;
   }
 }
 
