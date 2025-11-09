@@ -790,7 +790,7 @@ async function handleDistanceIncrease() {
 async function addPointFarthestFromOthers() {
   const { pointMarkers, getSelectedBounds, addPointMarker, getStartPoint } = await import('./mapModule.js');
   const { getTrailGraph } = await import('./routeSequence.js');
-  const { haversine } = await import('./utils.js');
+  const { haversine, pointInPolygon } = await import('./utils.js');
   
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
@@ -812,10 +812,22 @@ async function addPointFarthestFromOthers() {
     const node = trailGraph.nodes[i];
     const nodeCoords = { lat: node.lat, lng: node.lon };
     
-    // Проверяем, что узел в выбранной области
+    // Проверяем, что узел в выбранной области (bounding box)
     if (node.lat < selectedBounds.south || node.lat > selectedBounds.north ||
         node.lon < selectedBounds.west || node.lon > selectedBounds.east) {
       continue;
+    }
+    
+    // Дополнительная проверка для полигона
+    if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
+      const polygonLatLngs = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
+      
+      // Конвертируем LatLng объекты в массивы [lat, lng]
+      const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
+      
+      if (!pointInPolygon(node.lat, node.lon, polygonCoords)) {
+        continue;
+      }
     }
     
     // Находим минимальное расстояние от этого узла до всех существующих точек
