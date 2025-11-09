@@ -60,6 +60,7 @@ export function initUI() {
   deleteBtn = document.getElementById('deleteBtn');
   distanceInput = document.getElementById('distanceInput');
   distanceHint = document.getElementById('distanceHint');
+  distanceDecreaseBtn = document.getElementById('distanceDecreaseBtn');
   
   // Отладка DOM элементов
   console.log('🔍 Проверка DOM элементов:');
@@ -263,6 +264,11 @@ function setupEventHandlers() {
     distanceInput.addEventListener('change', handleDistanceChange);
     distanceInput.addEventListener('input', handleDistanceInput);
   }
+  
+  // Обработчик кнопки уменьшения дистанции
+  if (distanceDecreaseBtn) {
+    distanceDecreaseBtn.addEventListener('click', handleDistanceDecrease);
+  }
 }
 
 /**
@@ -410,15 +416,13 @@ export function updateInfoPanel(pointsCount, sequenceText, distance) {
     sequenceLink.textContent = sequenceText;
   }
   
-  if (sequenceDistance && distance !== undefined) {
+  if (distanceInput && distance !== undefined) {
     const distanceValue = typeof distance === 'number' ? distance : parseFloat(distance) || 0;
-    sequenceDistance.textContent = `Дистанция: ${distanceValue.toFixed(2)} км`;
     
-    // Устанавливаем максимальное значение для поля ввода
-    if (distanceInput) {
-      distanceInput.setAttribute('max', (distanceValue * 1.5).toFixed(2));
-      distanceInput.setAttribute('placeholder', distanceValue.toFixed(2));
-    }
+    // Устанавливаем значение и максимальное значение для поля ввода
+    distanceInput.value = distanceValue.toFixed(2);
+    distanceInput.setAttribute('max', (distanceValue * 1.5).toFixed(2));
+    distanceInput.setAttribute('placeholder', distanceValue.toFixed(2));
   }
 }
 
@@ -506,6 +510,15 @@ function handleShowSavedRoutes() {
  */
 function handleClearArea() {
   if (confirm('Очистить всё и начать заново?')) {
+    // Очищаем поле дистанции
+    if (distanceInput) {
+      distanceInput.value = '';
+      distanceInput.placeholder = '0.0';
+    }
+    if (distanceHint) {
+      distanceHint.textContent = '';
+    }
+    
     // Импортируем функцию очистки
     import('./mapModule.js').then(module => {
       module.clearAll();
@@ -749,5 +762,33 @@ async function handleDistanceChange(event) {
       distanceHint.style.color = '#f44336';
     }
   }
+}
+
+/**
+ * Очистить поле дистанции
+ */
+export function clearDistanceField() {
+  if (distanceInput) {
+    distanceInput.value = '';
+    distanceInput.placeholder = '0.0';
+  }
+  if (distanceHint) {
+    distanceHint.textContent = '';
+  }
+}
+
+/**
+ * Обработчик кнопки уменьшения дистанции
+ */
+function handleDistanceDecrease() {
+  if (!distanceInput) return;
+  
+  const currentValue = parseFloat(distanceInput.value) || 0;
+  const newValue = Math.max(0, currentValue - 0.5);
+  
+  distanceInput.value = newValue.toFixed(1);
+  
+  // Триггерим событие change для применения изменения
+  distanceInput.dispatchEvent(new Event('change'));
 }
 
