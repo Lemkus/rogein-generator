@@ -791,13 +791,23 @@ async function addPointFarthestFromOthers() {
   const { pointMarkers, getSelectedBounds, addPointMarker, getStartPoint } = await import('./mapModule.js');
   const { getTrailGraph } = await import('./routeSequence.js');
   const { haversine, pointInPolygon } = await import('./utils.js');
+  const { getForbiddenPolygons } = await import('./pointGeneration.js');
+  const { findNearestNodeIdx, isReachable } = await import('./algorithms.js');
   
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
   const trailGraph = getTrailGraph();
+  const forbiddenPolygons = getForbiddenPolygons();
   
   if (!selectedBounds || !startPoint || !trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
     addApiLog('❌ Недостаточно данных для добавления точки');
+    return;
+  }
+  
+  // Находим ближайший узел к стартовой точке для проверки достижимости
+  const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, trailGraph.nodes);
+  if (startNodeIdx === -1) {
+    addApiLog('❌ Не найден узел графа для стартовой точки');
     return;
   }
   
@@ -835,6 +845,26 @@ async function addPointFarthestFromOthers() {
         // В случае ошибки пропускаем этот узел
         continue;
       }
+    }
+    
+    // Проверяем, что узел не в запретной зоне (используем ту же логику, что и в pointGeneration.js)
+    if (forbiddenPolygons && forbiddenPolygons.length > 0) {
+      let inForbiddenZone = false;
+      for (let j = 0; j < forbiddenPolygons.length; j++) {
+        const polygon = forbiddenPolygons[j];
+        if (pointInPolygon(node.lat, node.lon, polygon)) {
+          inForbiddenZone = true;
+          break;
+        }
+      }
+      if (inForbiddenZone) {
+        continue;
+      }
+    }
+    
+    // Проверяем достижимость от стартовой точки (используем ту же логику, что и в pointGeneration.js)
+    if (!isReachable(trailGraph, startNodeIdx, i)) {
+      continue;
     }
     
     // Находим минимальное расстояние от этого узла до всех существующих точек
