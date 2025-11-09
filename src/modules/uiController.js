@@ -11,6 +11,7 @@ let menuBtn, menuModal, menuClose, settingsBtn, settingsModal, settingsClose;
 let shareBtn, zoomInBtn, zoomOutBtn, gpsBtn;
 let saveGpxMenuItem, loadGpxMenuItem, savedRoutesMenuItem, gpxFileInput;
 let infoPanelPoints, sequenceLink, sequenceDistance, startNavBtn, refreshBtn, deleteBtn;
+let distanceInput, distanceHint;
 
 // Состояние UI
 let currentStep = 'select_area'; // select_area, place_start, points_generated, navigating
@@ -57,6 +58,8 @@ export function initUI() {
   startNavBtn = document.getElementById('startNavBtn');
   refreshBtn = document.getElementById('refreshBtn');
   deleteBtn = document.getElementById('deleteBtn');
+  distanceInput = document.getElementById('distanceInput');
+  distanceHint = document.getElementById('distanceHint');
   
   // Отладка DOM элементов
   console.log('🔍 Проверка DOM элементов:');
@@ -254,6 +257,12 @@ function setupEventHandlers() {
   // Кнопки информационной панели
   if (refreshBtn) refreshBtn.addEventListener('click', handleRefresh);
   if (deleteBtn) deleteBtn.addEventListener('click', handleDelete);
+  
+  // Обработчик изменения целевой дистанции
+  if (distanceInput) {
+    distanceInput.addEventListener('change', handleDistanceChange);
+    distanceInput.addEventListener('input', handleDistanceInput);
+  }
 }
 
 /**
@@ -404,6 +413,12 @@ export function updateInfoPanel(pointsCount, sequenceText, distance) {
   if (sequenceDistance && distance !== undefined) {
     const distanceValue = typeof distance === 'number' ? distance : parseFloat(distance) || 0;
     sequenceDistance.textContent = `Дистанция: ${distanceValue.toFixed(2)} км`;
+    
+    // Устанавливаем максимальное значение для поля ввода
+    if (distanceInput) {
+      distanceInput.setAttribute('max', (distanceValue * 1.5).toFixed(2));
+      distanceInput.setAttribute('placeholder', distanceValue.toFixed(2));
+    }
   }
 }
 
@@ -589,5 +604,126 @@ export function isAreaDrawn() {
  */
 export function isStartSet() {
   return isStartPlaced;
+}
+
+/**
+ * Обработчик ввода целевой дистанции (в реальном времени)
+ */
+function handleDistanceInput(event) {
+  const targetDistance = parseFloat(event.target.value);
+  
+  if (distanceHint) {
+    if (isNaN(targetDistance) || targetDistance <= 0) {
+      distanceHint.textContent = '';
+      distanceHint.style.color = '#999';
+    } else {
+      // Показываем подсказку, что будет применено при потере фокуса
+      distanceHint.textContent = 'Нажмите Enter для применения';
+      distanceHint.style.color = '#4CAF50';
+    }
+  }
+}
+
+/**
+ * Обработчик изменения целевой дистанции
+ */
+async function handleDistanceChange(event) {
+  const targetDistanceKm = parseFloat(event.target.value);
+  
+  if (isNaN(targetDistanceKm) || targetDistanceKm <= 0) {
+    if (distanceHint) {
+      distanceHint.textContent = 'Введите корректное значение';
+      distanceHint.style.color = '#f44336';
+    }
+    return;
+  }
+  
+  const targetDistanceM = targetDistanceKm * 1000;
+  
+  if (distanceHint) {
+    distanceHint.textContent = 'Применение...';
+    distanceHint.style.color = '#4CAF50';
+  }
+  
+  addApiLog(`🎯 Уменьшение дистанции до ${targetDistanceKm.toFixed(2)} км...`);
+  
+  try {
+    // Импортируем необходимые модули
+    const { getRouteStats } = await import('./routeSequence.js');
+    const { getStartPoint, pointMarkers } = await import('./mapModule.js');
+    const { scalePointsOnGraph } = await import('./pointGeneration.js');
+    
+    // Получаем текущую дистанцию
+    const stats = getRouteStats();
+    if (!stats) {
+      throw new Error('Не удалось получить статистику маршрута');
+    }
+    
+    const currentDistanceM = stats.totalDistance;
+    
+    if (targetDistanceM >= currentDistanceM) {
+      if (distanceHint) {
+        distanceHint.textContent = `Целевая дистанция должна быть меньше текущей (${(currentDistanceM / 1000).toFixed(2)} км)`;
+        distanceHint.style.color = '#f44336';
+      }
+      addApiLog(`⚠️ Целевая дистанция должна быть меньше текущей`);
+      return;
+    }
+    
+    // Получаем стартовую точку
+    const startPoint = getStartPoint();
+    if (!startPoint) {
+      throw new Error('Стартовая точка не найдена');
+    }
+    
+    if (pointMarkers.length === 0) {
+      throw new Error('Точки не сгенерированы');
+    }
+    
+    // Вычисляем коэффициент масштабирования
+    const scaleFactor = targetDistanceM / currentDistanceM;
+    
+    console.log(`📏 Масштабирование: ${(currentDistanceM / 1000).toFixed(2)} км → ${targetDistanceKm.toFixed(2)} км (коэффициент: ${scaleFactor.toFixed(3)})`);
+    
+    // Масштабируем точки по графу
+    const newPoints = await scalePointsOnGraph(scaleFactor, startPoint);
+    
+    if (!newPoints || newPoints.length !== pointMarkers.length) {
+      throw new Error('Ошибка масштабирования точек');
+    }
+    
+    // Обновляем позиции маркеров
+    const { updatePointMarkers } = await import('./mapModule.js');
+    updatePointMarkers(newPoints);
+    
+    // Пересчитываем последовательность
+    const { generateOptimalSequence } = await import('./routeSequence.js');
+    generateOptimalSequence();
+    
+    // Обновляем отображение
+    const { updateSequenceDisplay } = await import('./sequenceUI.js');
+    updateSequenceDisplay();
+    
+    // Получаем новую дистанцию
+    const newStats = getRouteStats();
+    if (newStats) {
+      const newDistanceKm = newStats.totalDistance / 1000;
+      addApiLog(`✅ Дистанция уменьшена до ${newDistanceKm.toFixed(2)} км`);
+      
+      if (distanceHint) {
+        distanceHint.textContent = `Применено: ${newDistanceKm.toFixed(2)} км`;
+        distanceHint.style.color = '#4CAF50';
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка уменьшения дистанции:', error);
+    addApiLog(`❌ Ошибка: ${error.message}`);
+    
+    if (distanceHint) {
+      distanceHint.textContent = `Ошибка: ${error.message}`;
+      distanceHint.style.color = '#f44336';
+    }
+  }
 }
 

@@ -23,6 +23,14 @@ export function setTrailGraph(graph) {
 }
 
 /**
+ * Получение графа троп
+ * @returns {Object|null} - Граф троп {nodes, adj} или null
+ */
+export function getTrailGraph() {
+  return trailGraph;
+}
+
+/**
  * Вычисление расстояния между двумя точками с учетом графа троп
  * @param {Object} from - Координаты начальной точки {lat, lng}
  * @param {Object} to - Координаты конечной точки {lat, lng}

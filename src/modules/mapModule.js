@@ -366,6 +366,28 @@ export function clearRouteLine() {
   }
 }
 
+// Обновление позиций маркеров точек
+export function updatePointMarkers(newPoints) {
+  if (!newPoints || newPoints.length !== pointMarkers.length) {
+    console.error('❌ Количество новых точек не совпадает с количеством маркеров');
+    return;
+  }
+  
+  console.log(`🔄 Обновление позиций ${pointMarkers.length} маркеров...`);
+  
+  for (let i = 0; i < pointMarkers.length; i++) {
+    const marker = pointMarkers[i];
+    const newPoint = newPoints[i];
+    
+    if (marker && newPoint) {
+      // Обновляем позицию маркера
+      marker.setLatLng([newPoint.lat, newPoint.lng]);
+    }
+  }
+  
+  console.log('✅ Позиции маркеров обновлены');
+}
+
 // Добавление маркера точки
 export function addPointMarker(lat, lon, number) {
   const marker = L.marker([lat, lon], {
