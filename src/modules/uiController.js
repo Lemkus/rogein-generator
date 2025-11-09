@@ -11,7 +11,7 @@ let menuBtn, menuModal, menuClose, settingsBtn, settingsModal, settingsClose;
 let shareBtn, zoomInBtn, zoomOutBtn, gpsBtn;
 let saveGpxMenuItem, loadGpxMenuItem, savedRoutesMenuItem, gpxFileInput;
 let infoPanelPoints, sequenceLink, sequenceDistance, startNavBtn, refreshBtn, deleteBtn;
-let distanceInput, distanceHint;
+let distanceInput, distanceHint, distanceDecreaseBtn;
 
 // Состояние UI
 let currentStep = 'select_area'; // select_area, place_start, points_generated, navigating
