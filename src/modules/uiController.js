@@ -11,13 +11,16 @@ let menuBtn, menuModal, menuClose, settingsBtn, settingsModal, settingsClose;
 let shareBtn, zoomInBtn, zoomOutBtn, gpsBtn;
 let saveGpxMenuItem, loadGpxMenuItem, savedRoutesMenuItem, gpxFileInput;
 let infoPanelPoints, sequenceLink, sequenceDistance, startNavBtn, refreshBtn, deleteBtn;
-let distanceInput, distanceHint, distanceDecreaseBtn;
+let distanceValue, distanceDecreaseBtn, distanceIncreaseBtn;
 
 // Состояние UI
 let currentStep = 'select_area'; // select_area, place_start, points_generated, navigating
 let isAreaSelected = false;
 let isStartPlaced = false;
 let isRestoredFromShare = false; // Флаг: восстановлен ли маршрут из shared-ссылки
+
+// История удаленных точек для восстановления
+let removedPointsHistory = []; // Массив объектов {index, coords: {lat, lng}}
 
 /**
  * Инициализация UI контроллера
@@ -58,9 +61,9 @@ export function initUI() {
   startNavBtn = document.getElementById('startNavBtn');
   refreshBtn = document.getElementById('refreshBtn');
   deleteBtn = document.getElementById('deleteBtn');
-  distanceInput = document.getElementById('distanceInput');
-  distanceHint = document.getElementById('distanceHint');
+  distanceValue = document.getElementById('distanceValue');
   distanceDecreaseBtn = document.getElementById('distanceDecreaseBtn');
+  distanceIncreaseBtn = document.getElementById('distanceIncreaseBtn');
   
   // Отладка DOM элементов
   console.log('🔍 Проверка DOM элементов:');
@@ -259,15 +262,13 @@ function setupEventHandlers() {
   if (refreshBtn) refreshBtn.addEventListener('click', handleRefresh);
   if (deleteBtn) deleteBtn.addEventListener('click', handleDelete);
   
-  // Обработчик изменения целевой дистанции
-  if (distanceInput) {
-    distanceInput.addEventListener('change', handleDistanceChange);
-    distanceInput.addEventListener('input', handleDistanceInput);
-  }
-  
-  // Обработчик кнопки уменьшения дистанции
+  // Обработчики кнопок управления дистанцией
   if (distanceDecreaseBtn) {
     distanceDecreaseBtn.addEventListener('click', handleDistanceDecrease);
+  }
+  
+  if (distanceIncreaseBtn) {
+    distanceIncreaseBtn.addEventListener('click', handleDistanceIncrease);
   }
 }
 
@@ -416,14 +417,13 @@ export function updateInfoPanel(pointsCount, sequenceText, distance) {
     sequenceLink.textContent = sequenceText;
   }
   
-  if (distanceInput && distance !== undefined) {
-    const distanceValue = typeof distance === 'number' ? distance : parseFloat(distance) || 0;
-    
-    // Устанавливаем значение и максимальное значение для поля ввода
-    distanceInput.value = distanceValue.toFixed(2);
-    distanceInput.setAttribute('max', (distanceValue * 1.5).toFixed(2));
-    distanceInput.setAttribute('placeholder', distanceValue.toFixed(2));
+  if (distanceValue && distance !== undefined) {
+    const distanceVal = typeof distance === 'number' ? distance : parseFloat(distance) || 0;
+    distanceValue.textContent = `${distanceVal.toFixed(2)} км`;
   }
+  
+  // Обновляем состояние кнопок управления дистанцией
+  updateDistanceButtonsState();
 }
 
 /**
@@ -510,14 +510,8 @@ function handleShowSavedRoutes() {
  */
 function handleClearArea() {
   if (confirm('Очистить всё и начать заново?')) {
-    // Очищаем поле дистанции
-    if (distanceInput) {
-      distanceInput.value = '';
-      distanceInput.placeholder = '0.0';
-    }
-    if (distanceHint) {
-      distanceHint.textContent = '';
-    }
+    // Очищаем историю удаленных точек
+    removedPointsHistory = [];
     
     // Импортируем функцию очистки
     import('./mapModule.js').then(module => {
@@ -620,175 +614,267 @@ export function isStartSet() {
 }
 
 /**
- * Обработчик ввода целевой дистанции (в реальном времени)
+ * Очистить поле дистанции
  */
-function handleDistanceInput(event) {
-  const targetDistance = parseFloat(event.target.value);
-  
-  if (distanceHint) {
-    if (isNaN(targetDistance) || targetDistance <= 0) {
-      distanceHint.textContent = '';
-      distanceHint.style.color = '#999';
-    } else {
-      // Показываем подсказку, что будет применено при потере фокуса
-      distanceHint.textContent = 'Нажмите Enter для применения';
-      distanceHint.style.color = '#4CAF50';
-    }
-  }
+export function clearDistanceField() {
+  removedPointsHistory = []; // Очищаем историю при очистке области
 }
 
 /**
- * Обработчик изменения целевой дистанции
+ * Обработчик кнопки уменьшения дистанции (удаление точки)
  */
-async function handleDistanceChange(event) {
-  const targetDistanceKm = parseFloat(event.target.value);
+async function handleDistanceDecrease() {
+  const { getRouteStats, getTrailGraph, getCurrentSequence, resetSequence, generateOptimalSequence } = await import('./routeSequence.js');
+  const { getStartPoint, pointMarkers, removePointMarker } = await import('./mapModule.js');
+  const { findNearestNodeIdx } = await import('./algorithms.js');
+  const { dijkstra } = await import('./algorithms.js');
+  const { haversine } = await import('./utils.js');
   
-  if (isNaN(targetDistanceKm) || targetDistanceKm <= 0) {
-    if (distanceHint) {
-      distanceHint.textContent = 'Введите корректное значение';
-      distanceHint.style.color = '#f44336';
-    }
+  if (pointMarkers.length <= 3) {
+    addApiLog('⚠️ Минимальное количество точек: 3');
     return;
   }
   
-  const targetDistanceM = targetDistanceKm * 1000;
-  
-  if (distanceHint) {
-    distanceHint.textContent = 'Применение...';
-    distanceHint.style.color = '#4CAF50';
+  const stats = getRouteStats();
+  if (!stats) {
+    addApiLog('❌ Не удалось получить статистику маршрута');
+    return;
   }
   
-  addApiLog(`🎯 Уменьшение дистанции до ${targetDistanceKm.toFixed(2)} км...`);
+  const startPoint = getStartPoint();
+  if (!startPoint) {
+    addApiLog('❌ Стартовая точка не найдена');
+    return;
+  }
   
-  try {
-    // Импортируем необходимые модули
-    const { getRouteStats, getTrailGraph } = await import('./routeSequence.js');
-    const { getStartPoint, pointMarkers } = await import('./mapModule.js');
-    const { reduceDistanceByRemovingPoints } = await import('./pointGeneration.js');
-    const { findNearestNodeIdx } = await import('./algorithms.js');
-    const { dijkstra } = await import('./algorithms.js');
+  const sequence = getCurrentSequence();
+  if (!sequence || sequence.length === 0) {
+    addApiLog('❌ Последовательность пуста');
+    return;
+  }
+  
+  const trailGraph = getTrailGraph();
+  const calculatePathDistance = (from, to) => {
+    if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+      return haversine(from.lat, from.lng, to.lat, to.lng);
+    }
+    const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
+    const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
+    if (fromNodeIdx === -1 || toNodeIdx === -1) {
+      return haversine(from.lat, from.lng, to.lat, to.lng);
+    }
+    const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
+    if (result.distance < Infinity) {
+      return result.distance;
+    }
+    return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
+  };
+  
+  // Вычисляем вклад каждой точки
+  let maxContribution = 0;
+  let pointToRemoveIdx = -1;
+  
+  for (let i = 0; i < sequence.length; i++) {
+    const pointIdx = sequence[i];
+    const pointCoords = pointMarkers[pointIdx].getLatLng();
+    const prevIdx = i > 0 ? sequence[i - 1] : -1;
+    const nextIdx = i < sequence.length - 1 ? sequence[i + 1] : -1;
     
-    // Получаем текущую дистанцию
-    const stats = getRouteStats();
-    if (!stats) {
-      throw new Error('Не удалось получить статистику маршрута');
+    let distToPrev, distToNext, directDist;
+    
+    if (prevIdx === -1) {
+      distToPrev = calculatePathDistance(startPoint, pointCoords);
+    } else {
+      const prevCoords = pointMarkers[prevIdx].getLatLng();
+      distToPrev = calculatePathDistance(prevCoords, pointCoords);
     }
     
-    const currentDistanceM = stats.totalDistance;
-    
-    if (targetDistanceM >= currentDistanceM) {
-      if (distanceHint) {
-        distanceHint.textContent = `Целевая дистанция должна быть меньше текущей (${(currentDistanceM / 1000).toFixed(2)} км)`;
-        distanceHint.style.color = '#f44336';
-      }
-      addApiLog(`⚠️ Целевая дистанция должна быть меньше текущей`);
-      return;
+    if (nextIdx === -1) {
+      distToNext = calculatePathDistance(pointCoords, startPoint);
+    } else {
+      const nextCoords = pointMarkers[nextIdx].getLatLng();
+      distToNext = calculatePathDistance(pointCoords, nextCoords);
     }
     
-    // Получаем стартовую точку
-    const startPoint = getStartPoint();
-    if (!startPoint) {
-      throw new Error('Стартовая точка не найдена');
+    if (prevIdx === -1 && nextIdx === -1) {
+      directDist = 0;
+    } else if (prevIdx === -1) {
+      const nextCoords = pointMarkers[nextIdx].getLatLng();
+      directDist = calculatePathDistance(startPoint, nextCoords);
+    } else if (nextIdx === -1) {
+      const prevCoords = pointMarkers[prevIdx].getLatLng();
+      directDist = calculatePathDistance(prevCoords, startPoint);
+    } else {
+      const prevCoords = pointMarkers[prevIdx].getLatLng();
+      const nextCoords = pointMarkers[nextIdx].getLatLng();
+      directDist = calculatePathDistance(prevCoords, nextCoords);
     }
     
-    if (pointMarkers.length === 0) {
-      throw new Error('Точки не сгенерированы');
+    const contribution = (distToPrev + distToNext) - directDist;
+    
+    if (contribution > maxContribution) {
+      maxContribution = contribution;
+      pointToRemoveIdx = pointIdx;
     }
-    
-    // Импортируем haversine для расчета расстояний
-    const { haversine } = await import('./utils.js');
-    
-    // Создаем функцию расчета расстояния между точками
-    const calculatePathDistance = (from, to) => {
-      const trailGraph = getTrailGraph();
-      
-      // Если графа нет, используем прямое расстояние
-      if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
-        return haversine(from.lat, from.lng, to.lat, to.lng);
-      }
-      
-      // Находим ближайшие узлы графа к обеим точкам
-      const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
-      const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
-      
-      if (fromNodeIdx === -1 || toNodeIdx === -1) {
-        // Если не нашли узлы, используем прямое расстояние
-        return haversine(from.lat, from.lng, to.lat, to.lng);
-      }
-      
-      // Используем алгоритм Дейкстры для поиска кратчайшего пути по графу
-      const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
-      
-      // Если путь найден, возвращаем расстояние по графу
-      if (result.distance < Infinity) {
-        return result.distance;
-      }
-      
-      // Если пути нет, используем прямое расстояние * штраф
-      return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
-    };
-    
-    console.log(`📏 Удаление точек: ${(currentDistanceM / 1000).toFixed(2)} км → ${targetDistanceKm.toFixed(2)} км`);
-    
-    // Удаляем точки с наибольшим вкладом
-    const removedCount = await reduceDistanceByRemovingPoints(targetDistanceM, startPoint, calculatePathDistance);
+  }
+  
+  if (pointToRemoveIdx === -1) {
+    addApiLog('⚠️ Не найдена точка для удаления');
+    return;
+  }
+  
+  // Сохраняем удаляемую точку в историю
+  const pointCoords = pointMarkers[pointToRemoveIdx].getLatLng();
+  removedPointsHistory.push({
+    index: pointToRemoveIdx,
+    coords: { lat: pointCoords.lat, lng: pointCoords.lng }
+  });
+  
+  // Удаляем точку
+  removePointMarker(pointToRemoveIdx);
+  addApiLog(`🗑️ Удалена точка ${pointToRemoveIdx + 1}`);
+  
+  // Пересчитываем последовательность
+  resetSequence();
+  generateOptimalSequence();
+  
+  // Обновляем отображение
+  const { updateSequenceDisplay } = await import('./sequenceUI.js');
+  updateSequenceDisplay();
+  
+  // Обновляем состояние кнопок
+  updateDistanceButtonsState();
+}
+
+/**
+ * Обработчик кнопки увеличения дистанции (добавление/восстановление точки)
+ */
+async function handleDistanceIncrease() {
+  const { pointMarkers, addPointMarker } = await import('./mapModule.js');
+  const { getSelectedBounds } = await import('./mapModule.js');
+  const { getTrailGraph } = await import('./routeSequence.js');
+  const { findNearestNodeIdx } = await import('./algorithms.js');
+  const { haversine } = await import('./utils.js');
+  
+  // Если есть удаленные точки, восстанавливаем последнюю
+  if (removedPointsHistory.length > 0) {
+    const lastRemoved = removedPointsHistory.pop();
+    const newNumber = pointMarkers.length + 1;
+    addPointMarker(lastRemoved.coords.lat, lastRemoved.coords.lng, newNumber);
+    addApiLog(`✅ Восстановлена точка ${newNumber}`);
     
     // Пересчитываем последовательность
-    const { generateOptimalSequence } = await import('./routeSequence.js');
+    const { resetSequence, generateOptimalSequence } = await import('./routeSequence.js');
+    resetSequence();
     generateOptimalSequence();
     
     // Обновляем отображение
     const { updateSequenceDisplay } = await import('./sequenceUI.js');
     updateSequenceDisplay();
     
-    // Получаем новую дистанцию
-    const newStats = getRouteStats();
-    if (newStats) {
-      const newDistanceKm = newStats.totalDistance / 1000;
-      addApiLog(`✅ Удалено ${removedCount} точек. Дистанция: ${newDistanceKm.toFixed(2)} км`);
-      
-      if (distanceHint) {
-        distanceHint.textContent = `Удалено ${removedCount} точек. Дистанция: ${newDistanceKm.toFixed(2)} км`;
-        distanceHint.style.color = '#4CAF50';
+    // Обновляем состояние кнопок
+    updateDistanceButtonsState();
+    return;
+  }
+  
+  // Если точек уже 10, пытаемся добавить новую как можно дальше от других
+  if (pointMarkers.length >= 10) {
+    addApiLog('⚠️ Максимальное количество точек: 10');
+    return;
+  }
+  
+  // Добавляем новую точку как можно дальше от других
+  await addPointFarthestFromOthers();
+  
+  // Обновляем состояние кнопок
+  updateDistanceButtonsState();
+}
+
+/**
+ * Добавить новую точку как можно дальше от других
+ */
+async function addPointFarthestFromOthers() {
+  const { pointMarkers, getSelectedBounds, addPointMarker, getStartPoint } = await import('./mapModule.js');
+  const { getTrailGraph } = await import('./routeSequence.js');
+  const { haversine } = await import('./utils.js');
+  
+  const selectedBounds = getSelectedBounds();
+  const startPoint = getStartPoint();
+  const trailGraph = getTrailGraph();
+  
+  if (!selectedBounds || !startPoint || !trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+    addApiLog('❌ Недостаточно данных для добавления точки');
+    return;
+  }
+  
+  // Собираем все существующие точки (включая старт)
+  const allPoints = [startPoint, ...pointMarkers.map(m => m.getLatLng())];
+  
+  // Ищем узел графа, который максимально далеко от всех существующих точек
+  let maxMinDistance = 0;
+  let bestNodeIdx = -1;
+  
+  for (let i = 0; i < trailGraph.nodes.length; i++) {
+    const node = trailGraph.nodes[i];
+    const nodeCoords = { lat: node.lat, lng: node.lon };
+    
+    // Проверяем, что узел в выбранной области
+    if (node.lat < selectedBounds.getSouth() || node.lat > selectedBounds.getNorth() ||
+        node.lon < selectedBounds.getWest() || node.lon > selectedBounds.getEast()) {
+      continue;
+    }
+    
+    // Находим минимальное расстояние от этого узла до всех существующих точек
+    let minDistance = Infinity;
+    for (const point of allPoints) {
+      const dist = haversine(node.lat, node.lon, point.lat, point.lng);
+      if (dist < minDistance) {
+        minDistance = dist;
       }
     }
     
-  } catch (error) {
-    console.error('❌ Ошибка уменьшения дистанции:', error);
-    addApiLog(`❌ Ошибка: ${error.message}`);
-    
-    if (distanceHint) {
-      distanceHint.textContent = `Ошибка: ${error.message}`;
-      distanceHint.style.color = '#f44336';
+    // Если этот узел дальше всех от существующих точек, сохраняем его
+    if (minDistance > maxMinDistance) {
+      maxMinDistance = minDistance;
+      bestNodeIdx = i;
     }
   }
+  
+  if (bestNodeIdx === -1) {
+    addApiLog('❌ Не найдено подходящее место для новой точки');
+    return;
+  }
+  
+  // Добавляем новую точку
+  const bestNode = trailGraph.nodes[bestNodeIdx];
+  const newNumber = pointMarkers.length + 1;
+  addPointMarker(bestNode.lat, bestNode.lon, newNumber);
+  addApiLog(`✅ Добавлена новая точка ${newNumber} (дальше от других: ${(maxMinDistance / 1000).toFixed(2)} км)`);
+  
+  // Пересчитываем последовательность
+  const { resetSequence, generateOptimalSequence } = await import('./routeSequence.js');
+  resetSequence();
+  generateOptimalSequence();
+  
+  // Обновляем отображение
+  const { updateSequenceDisplay } = await import('./sequenceUI.js');
+  updateSequenceDisplay();
 }
 
 /**
- * Очистить поле дистанции
+ * Обновить состояние кнопок управления дистанцией
  */
-export function clearDistanceField() {
-  if (distanceInput) {
-    distanceInput.value = '';
-    distanceInput.placeholder = '0.0';
+async function updateDistanceButtonsState() {
+  const { pointMarkers } = await import('./mapModule.js');
+  
+  // Кнопка - отключается, если точек <= 3
+  if (distanceDecreaseBtn) {
+    distanceDecreaseBtn.disabled = pointMarkers.length <= 3;
   }
-  if (distanceHint) {
-    distanceHint.textContent = '';
+  
+  // Кнопка + отключается, если точек >= 10 и нет удаленных точек для восстановления
+  if (distanceIncreaseBtn) {
+    distanceIncreaseBtn.disabled = pointMarkers.length >= 10 && removedPointsHistory.length === 0;
   }
-}
-
-/**
- * Обработчик кнопки уменьшения дистанции
- */
-function handleDistanceDecrease() {
-  if (!distanceInput) return;
-  
-  const currentValue = parseFloat(distanceInput.value) || 0;
-  const newValue = Math.max(0, currentValue - 0.5);
-  
-  distanceInput.value = newValue.toFixed(1);
-  
-  // Триггерим событие change для применения изменения
-  distanceInput.dispatchEvent(new Event('change'));
 }
 
