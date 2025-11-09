@@ -813,8 +813,8 @@ async function addPointFarthestFromOthers() {
     const nodeCoords = { lat: node.lat, lng: node.lon };
     
     // Проверяем, что узел в выбранной области
-    if (node.lat < selectedBounds.getSouth() || node.lat > selectedBounds.getNorth() ||
-        node.lon < selectedBounds.getWest() || node.lon > selectedBounds.getEast()) {
+    if (node.lat < selectedBounds.south || node.lat > selectedBounds.north ||
+        node.lon < selectedBounds.west || node.lon > selectedBounds.east) {
       continue;
     }
     
