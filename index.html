@@ -262,28 +262,26 @@
     .sequence-distance {
       font-size: 12px;
       color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     
-    .info-panel-distance {
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #e0e0e0;
-    }
-    
-    .distance-label {
-      display: block;
-      font-size: 12px;
+    .distance-label-text {
       color: #666;
-      margin-bottom: 4px;
     }
     
     .distance-input {
-      width: 100%;
-      padding: 6px 8px;
+      flex: 1;
+      min-width: 60px;
+      max-width: 100px;
+      padding: 4px 6px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 12px;
       box-sizing: border-box;
+      text-align: center;
     }
     
     .distance-input:focus {
@@ -291,8 +289,57 @@
       border-color: #4CAF50;
     }
     
+    .distance-input::-webkit-inner-spin-button {
+      opacity: 1;
+    }
+    
+    /* Скрываем все стрелки по умолчанию */
+    .distance-input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    
+    .distance-input[type="number"]::-webkit-outer-spin-button,
+    .distance-input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+    }
+    
+    /* Кастомная стрелка вниз */
+    .sequence-distance {
+      position: relative;
+    }
+    
+    .distance-decrease-btn {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 10px;
+      color: #999;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    
+    .distance-decrease-btn:hover {
+      color: #4CAF50;
+    }
+    
+    .distance-decrease-btn:active {
+      color: #45a049;
+    }
+    
+    .distance-unit {
+      color: #666;
+      font-size: 12px;
+    }
+    
     .distance-hint {
-      display: block;
+      width: 100%;
       font-size: 11px;
       color: #999;
       margin-top: 4px;
@@ -914,10 +961,11 @@
     <div class="info-panel-points" id="infoPanelPoints">Точек: 10</div>
     <div class="info-panel-sequence">
       <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
-      <div class="sequence-distance" id="sequenceDistance">Дистанция: 0 км</div>
-      <div class="info-panel-distance">
-        <label for="distanceInput" class="distance-label">Целевая дистанция (км):</label>
-        <input type="number" id="distanceInput" class="distance-input" min="0" step="0.1" placeholder="0.0">
+      <div class="sequence-distance" id="sequenceDistance">
+        <span class="distance-label-text">Дистанция:</span>
+        <input type="number" id="distanceInput" class="distance-input" min="0" step="0.5" placeholder="0.0">
+        <button type="button" class="distance-decrease-btn" id="distanceDecreaseBtn" title="Уменьшить на 0.5 км">▼</button>
+        <span class="distance-unit">км</span>
         <span id="distanceHint" class="distance-hint"></span>
       </div>
     </div>

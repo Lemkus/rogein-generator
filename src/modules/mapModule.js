@@ -611,6 +611,7 @@ export function clearAll() {
     ui.clearApiLogs();
     ui.hideInfoPanel();
     ui.hideClearButton();
+    ui.clearDistanceField();
   });
   
   console.log('✅ Все данные очищены');
