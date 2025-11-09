@@ -8,7 +8,8 @@ import { fetchAllMapData, clearMapDataCache } from './optimizedOverpassAPI.js';
 import { showClosedAreasOnMap, showWaterAreasOnMap, showBarriersOnMap, addPointMarker, addFailedAttemptMarker, clearPointMarkers, clearFailedAttemptMarkers, getStartPoint, clearGraphDebugLayers, updateStartPointPosition, pointMarkers, showGraphDebug } from './mapModule.js';
 import { buildPathGraph, findNearestNodeIdx, isReachable } from './algorithms.js';
 import { updateTargetPointsList } from './navigation.js';
-import { setTrailGraph } from './routeSequence.js';
+import { setTrailGraph, getTrailGraph } from './routeSequence.js';
+import { dijkstra } from './algorithms.js';
 
 // Переменные для отмены генерации
 let cancelGeneration = false;
@@ -680,4 +681,114 @@ export function downloadGPX() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Масштабирование точек ближе к старту по графу троп
+ * @param {number} scaleFactor - Коэффициент масштабирования (0.0 - 1.0)
+ * @param {Object} startPoint - Точка старта {lat, lng}
+ * @returns {Promise<Array>} - Массив новых координат точек [{lat, lng}, ...]
+ */
+export async function scalePointsOnGraph(scaleFactor, startPoint) {
+  console.log(`📏 Масштабирование точек по графу (коэффициент: ${scaleFactor.toFixed(3)})`);
+  
+  // Получаем граф троп
+  const trailGraph = getTrailGraph();
+  if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+    console.warn('⚠️ Граф недоступен для масштабирования');
+    throw new Error('Граф троп недоступен');
+  }
+
+  // Находим стартовый узел в графе
+  const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, trailGraph.nodes);
+  if (startNodeIdx === -1) {
+    console.warn('⚠️ Не найден стартовый узел в графе');
+    throw new Error('Стартовый узел не найден в графе');
+  }
+
+  const newPoints = [];
+  
+  // Для каждой точки
+  for (let i = 0; i < pointMarkers.length; i++) {
+    const marker = pointMarkers[i];
+    const pointCoords = marker.getLatLng();
+    
+    // Находим ближайший узел графа к точке
+    const pointNodeIdx = findNearestNodeIdx(pointCoords.lat, pointCoords.lng, trailGraph.nodes);
+    
+    if (pointNodeIdx === -1) {
+      // Если точка не на графе, оставляем как есть
+      console.warn(`⚠️ Точка ${i + 1} не найдена на графе, оставляем как есть`);
+      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
+      continue;
+    }
+
+    // Находим путь от старта до точки по графу
+    const pathResult = dijkstra(trailGraph, startNodeIdx, pointNodeIdx);
+    
+    if (pathResult.distance === Infinity || pathResult.path.length === 0) {
+      // Если пути нет, оставляем как есть
+      console.warn(`⚠️ Путь от старта до точки ${i + 1} не найден, оставляем как есть`);
+      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
+      continue;
+    }
+
+    // Вычисляем целевое расстояние
+    const currentDist = pathResult.distance;
+    const targetDist = currentDist * scaleFactor;
+
+    // Если целевое расстояние больше текущего, оставляем как есть
+    if (targetDist >= currentDist) {
+      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
+      continue;
+    }
+
+    // Находим узел на пути, который находится на целевом расстоянии
+    let accumulatedDist = 0;
+    let targetNodeIdx = startNodeIdx;
+    let targetPoint = null;
+    
+    for (let j = 0; j < pathResult.path.length - 1; j++) {
+      const currentNodeIdx = pathResult.path[j];
+      const nextNodeIdx = pathResult.path[j + 1];
+      
+      const segmentDist = haversine(
+        trailGraph.nodes[currentNodeIdx].lat,
+        trailGraph.nodes[currentNodeIdx].lon,
+        trailGraph.nodes[nextNodeIdx].lat,
+        trailGraph.nodes[nextNodeIdx].lon
+      );
+      
+      if (accumulatedDist + segmentDist >= targetDist) {
+        // Целевое расстояние находится на этом сегменте
+        // Вычисляем точку на сегменте
+        const remainingDist = targetDist - accumulatedDist;
+        const ratio = remainingDist / segmentDist;
+        
+        const targetLat = trailGraph.nodes[currentNodeIdx].lat + 
+          (trailGraph.nodes[nextNodeIdx].lat - trailGraph.nodes[currentNodeIdx].lat) * ratio;
+        const targetLon = trailGraph.nodes[currentNodeIdx].lon + 
+          (trailGraph.nodes[nextNodeIdx].lon - trailGraph.nodes[currentNodeIdx].lon) * ratio;
+        
+        targetPoint = {lat: targetLat, lng: targetLon};
+        break;
+      }
+      
+      accumulatedDist += segmentDist;
+      targetNodeIdx = nextNodeIdx;
+    }
+    
+    // Если не нашли точку на сегменте, используем последний узел
+    if (!targetPoint) {
+      targetPoint = {
+        lat: trailGraph.nodes[targetNodeIdx].lat,
+        lng: trailGraph.nodes[targetNodeIdx].lon
+      };
+    }
+    
+    newPoints.push(targetPoint);
+  }
+  
+  console.log(`✅ Масштабирование завершено: ${newPoints.length} точек`);
+  return newPoints;
 }

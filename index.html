@@ -264,6 +264,41 @@
       color: #666;
     }
     
+    .info-panel-distance {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .distance-label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    
+    .distance-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    
+    .distance-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    
+    .distance-hint {
+      display: block;
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+      min-height: 14px;
+    }
+    
     .info-panel-nav-btn {
       background: #4CAF50;
       color: white;
@@ -880,6 +915,11 @@
     <div class="info-panel-sequence">
       <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
       <div class="sequence-distance" id="sequenceDistance">Дистанция: 0 км</div>
+      <div class="info-panel-distance">
+        <label for="distanceInput" class="distance-label">Целевая дистанция (км):</label>
+        <input type="number" id="distanceInput" class="distance-input" min="0" step="0.1" placeholder="0.0">
+        <span id="distanceHint" class="distance-hint"></span>
+      </div>
     </div>
     <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
     <div class="info-panel-actions">
