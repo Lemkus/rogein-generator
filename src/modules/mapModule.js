@@ -388,6 +388,41 @@ export function updatePointMarkers(newPoints) {
   console.log('✅ Позиции маркеров обновлены');
 }
 
+// Удаление маркера точки по индексу
+export function removePointMarker(index) {
+  if (index < 0 || index >= pointMarkers.length) {
+    console.error(`❌ Некорректный индекс маркера: ${index}`);
+    return false;
+  }
+  
+  const marker = pointMarkers[index];
+  if (marker) {
+    map.removeLayer(marker);
+    pointMarkers.splice(index, 1);
+    
+    // Обновляем номера маркеров
+    updateMarkerNumbers();
+    
+    console.log(`✅ Маркер ${index + 1} удален. Осталось ${pointMarkers.length} точек`);
+    return true;
+  }
+  
+  return false;
+}
+
+// Обновление номеров маркеров
+function updateMarkerNumbers() {
+  pointMarkers.forEach((marker, index) => {
+    const number = index + 1;
+    marker.setIcon(L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background: green; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;">${number}</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    }));
+  });
+}
+
 // Добавление маркера точки
 export function addPointMarker(lat, lon, number) {
   const marker = L.marker([lat, lon], {

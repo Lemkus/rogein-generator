@@ -684,111 +684,132 @@ export function downloadGPX() {
 }
 
 /**
- * Масштабирование точек ближе к старту по графу троп
- * @param {number} scaleFactor - Коэффициент масштабирования (0.0 - 1.0)
+ * Уменьшение дистанции маршрута путем удаления точек с наибольшим вкладом
+ * @param {number} targetDistanceM - Целевая дистанция в метрах
  * @param {Object} startPoint - Точка старта {lat, lng}
- * @returns {Promise<Array>} - Массив новых координат точек [{lat, lng}, ...]
+ * @param {Function} calculatePathDistance - Функция расчета расстояния между точками
+ * @returns {Promise<number>} - Количество удаленных точек
  */
-export async function scalePointsOnGraph(scaleFactor, startPoint) {
-  console.log(`📏 Масштабирование точек по графу (коэффициент: ${scaleFactor.toFixed(3)})`);
+export async function reduceDistanceByRemovingPoints(targetDistanceM, startPoint, calculatePathDistance) {
+  console.log(`📏 Уменьшение дистанции до ${(targetDistanceM / 1000).toFixed(2)} км путем удаления точек...`);
   
-  // Получаем граф троп
-  const trailGraph = getTrailGraph();
-  if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
-    console.warn('⚠️ Граф недоступен для масштабирования');
-    throw new Error('Граф троп недоступен');
+  if (!calculatePathDistance) {
+    throw new Error('Функция calculatePathDistance не предоставлена');
   }
-
-  // Находим стартовый узел в графе
-  const startNodeIdx = findNearestNodeIdx(startPoint.lat, startPoint.lng, trailGraph.nodes);
-  if (startNodeIdx === -1) {
-    console.warn('⚠️ Не найден стартовый узел в графе');
-    throw new Error('Стартовый узел не найден в графе');
-  }
-
-  const newPoints = [];
   
-  // Для каждой точки
-  for (let i = 0; i < pointMarkers.length; i++) {
-    const marker = pointMarkers[i];
-    const pointCoords = marker.getLatLng();
+  const { getRouteStats } = await import('./routeSequence.js');
+  const { getCurrentSequence } = await import('./routeSequence.js');
+  const { removePointMarker } = await import('./mapModule.js');
+  
+  let removedCount = 0;
+  const minPoints = 3; // Минимальное количество точек для сохранения
+  
+  // Итеративно удаляем точки с наибольшим вкладом
+  while (pointMarkers.length > minPoints) {
+    // Получаем текущую последовательность и дистанцию
+    const stats = getRouteStats();
+    if (!stats) {
+      console.warn('⚠️ Не удалось получить статистику маршрута');
+      break;
+    }
     
-    // Находим ближайший узел графа к точке
-    const pointNodeIdx = findNearestNodeIdx(pointCoords.lat, pointCoords.lng, trailGraph.nodes);
+    const currentDistanceM = stats.totalDistance;
     
-    if (pointNodeIdx === -1) {
-      // Если точка не на графе, оставляем как есть
-      console.warn(`⚠️ Точка ${i + 1} не найдена на графе, оставляем как есть`);
-      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
+    // Если достигли целевой дистанции, останавливаемся
+    if (currentDistanceM <= targetDistanceM) {
+      console.log(`✅ Целевая дистанция достигнута: ${(currentDistanceM / 1000).toFixed(2)} км`);
+      break;
+    }
+    
+    // Получаем текущую последовательность
+    const sequence = getCurrentSequence();
+    if (!sequence || sequence.length === 0) {
+      console.warn('⚠️ Последовательность пуста, пересчитываем...');
+      const { generateOptimalSequence } = await import('./routeSequence.js');
+      generateOptimalSequence();
       continue;
     }
-
-    // Находим путь от старта до точки по графу
-    const pathResult = dijkstra(trailGraph, startNodeIdx, pointNodeIdx);
     
-    if (pathResult.distance === Infinity || pathResult.path.length === 0) {
-      // Если пути нет, оставляем как есть
-      console.warn(`⚠️ Путь от старта до точки ${i + 1} не найден, оставляем как есть`);
-      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
-      continue;
-    }
-
-    // Вычисляем целевое расстояние
-    const currentDist = pathResult.distance;
-    const targetDist = currentDist * scaleFactor;
-
-    // Если целевое расстояние больше текущего, оставляем как есть
-    if (targetDist >= currentDist) {
-      newPoints.push({lat: pointCoords.lat, lng: pointCoords.lng});
-      continue;
-    }
-
-    // Находим узел на пути, который находится на целевом расстоянии
-    let accumulatedDist = 0;
-    let targetNodeIdx = startNodeIdx;
-    let targetPoint = null;
+    // Вычисляем вклад каждой точки в дистанцию
+    let maxContribution = 0;
+    let pointToRemoveIdx = -1;
+    let pointToRemoveSequenceIdx = -1;
     
-    for (let j = 0; j < pathResult.path.length - 1; j++) {
-      const currentNodeIdx = pathResult.path[j];
-      const nextNodeIdx = pathResult.path[j + 1];
+    for (let i = 0; i < sequence.length; i++) {
+      const pointIdx = sequence[i];
+      const pointCoords = pointMarkers[pointIdx].getLatLng();
       
-      const segmentDist = haversine(
-        trailGraph.nodes[currentNodeIdx].lat,
-        trailGraph.nodes[currentNodeIdx].lon,
-        trailGraph.nodes[nextNodeIdx].lat,
-        trailGraph.nodes[nextNodeIdx].lon
-      );
+      // Находим предыдущую и следующую точки в последовательности
+      const prevIdx = i > 0 ? sequence[i - 1] : -1; // -1 = старт
+      const nextIdx = i < sequence.length - 1 ? sequence[i + 1] : -1; // -1 = старт
       
-      if (accumulatedDist + segmentDist >= targetDist) {
-        // Целевое расстояние находится на этом сегменте
-        // Вычисляем точку на сегменте
-        const remainingDist = targetDist - accumulatedDist;
-        const ratio = remainingDist / segmentDist;
-        
-        const targetLat = trailGraph.nodes[currentNodeIdx].lat + 
-          (trailGraph.nodes[nextNodeIdx].lat - trailGraph.nodes[currentNodeIdx].lat) * ratio;
-        const targetLon = trailGraph.nodes[currentNodeIdx].lon + 
-          (trailGraph.nodes[nextNodeIdx].lon - trailGraph.nodes[currentNodeIdx].lon) * ratio;
-        
-        targetPoint = {lat: targetLat, lng: targetLon};
-        break;
+      // Вычисляем расстояния
+      let distToPrev, distToNext, directDist;
+      
+      if (prevIdx === -1) {
+        distToPrev = calculatePathDistance(startPoint, pointCoords);
+      } else {
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        distToPrev = calculatePathDistance(prevCoords, pointCoords);
       }
       
-      accumulatedDist += segmentDist;
-      targetNodeIdx = nextNodeIdx;
+      if (nextIdx === -1) {
+        distToNext = calculatePathDistance(pointCoords, startPoint);
+      } else {
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        distToNext = calculatePathDistance(pointCoords, nextCoords);
+      }
+      
+      // Вычисляем прямой путь (минуя эту точку)
+      if (prevIdx === -1 && nextIdx === -1) {
+        // Это единственная точка, вклад = расстояние туда и обратно
+        directDist = 0;
+      } else if (prevIdx === -1) {
+        // Первая точка, прямой путь от старта до следующей
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        directDist = calculatePathDistance(startPoint, nextCoords);
+      } else if (nextIdx === -1) {
+        // Последняя точка, прямой путь от предыдущей до старта
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        directDist = calculatePathDistance(prevCoords, startPoint);
+      } else {
+        // Промежуточная точка, прямой путь от предыдущей до следующей
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        directDist = calculatePathDistance(prevCoords, nextCoords);
+      }
+      
+      // Вклад = текущее расстояние минус прямой путь
+      const contribution = (distToPrev + distToNext) - directDist;
+      
+      if (contribution > maxContribution) {
+        maxContribution = contribution;
+        pointToRemoveIdx = pointIdx;
+        pointToRemoveSequenceIdx = i;
+      }
     }
     
-    // Если не нашли точку на сегменте, используем последний узел
-    if (!targetPoint) {
-      targetPoint = {
-        lat: trailGraph.nodes[targetNodeIdx].lat,
-        lng: trailGraph.nodes[targetNodeIdx].lon
-      };
+    // Если не нашли точку для удаления, останавливаемся
+    if (pointToRemoveIdx === -1) {
+      console.warn('⚠️ Не найдена точка для удаления');
+      break;
     }
     
-    newPoints.push(targetPoint);
+    // Удаляем точку с максимальным вкладом
+    console.log(`🗑️ Удаляем точку ${pointToRemoveIdx + 1} (вклад: ${(maxContribution / 1000).toFixed(2)} км)`);
+    
+    // Удаляем маркер (это также обновит индексы в pointMarkers)
+    removePointMarker(pointToRemoveIdx);
+    removedCount++;
+    
+    // Сбрасываем последовательность перед пересчетом
+    const { resetSequence, generateOptimalSequence } = await import('./routeSequence.js');
+    resetSequence();
+    
+    // Пересчитываем последовательность
+    generateOptimalSequence();
   }
   
-  console.log(`✅ Масштабирование завершено: ${newPoints.length} точек`);
-  return newPoints;
+  console.log(`✅ Удалено ${removedCount} точек. Осталось ${pointMarkers.length} точек`);
+  return removedCount;
 }

@@ -649,9 +649,11 @@ async function handleDistanceChange(event) {
   
   try {
     // Импортируем необходимые модули
-    const { getRouteStats } = await import('./routeSequence.js');
+    const { getRouteStats, getTrailGraph } = await import('./routeSequence.js');
     const { getStartPoint, pointMarkers } = await import('./mapModule.js');
-    const { scalePointsOnGraph } = await import('./pointGeneration.js');
+    const { reduceDistanceByRemovingPoints } = await import('./pointGeneration.js');
+    const { findNearestNodeIdx } = await import('./algorithms.js');
+    const { dijkstra } = await import('./algorithms.js');
     
     // Получаем текущую дистанцию
     const stats = getRouteStats();
@@ -680,21 +682,43 @@ async function handleDistanceChange(event) {
       throw new Error('Точки не сгенерированы');
     }
     
-    // Вычисляем коэффициент масштабирования
-    const scaleFactor = targetDistanceM / currentDistanceM;
+    // Импортируем haversine для расчета расстояний
+    const { haversine } = await import('./utils.js');
     
-    console.log(`📏 Масштабирование: ${(currentDistanceM / 1000).toFixed(2)} км → ${targetDistanceKm.toFixed(2)} км (коэффициент: ${scaleFactor.toFixed(3)})`);
+    // Создаем функцию расчета расстояния между точками
+    const calculatePathDistance = (from, to) => {
+      const trailGraph = getTrailGraph();
+      
+      // Если графа нет, используем прямое расстояние
+      if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+        return haversine(from.lat, from.lng, to.lat, to.lng);
+      }
+      
+      // Находим ближайшие узлы графа к обеим точкам
+      const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
+      const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
+      
+      if (fromNodeIdx === -1 || toNodeIdx === -1) {
+        // Если не нашли узлы, используем прямое расстояние
+        return haversine(from.lat, from.lng, to.lat, to.lng);
+      }
+      
+      // Используем алгоритм Дейкстры для поиска кратчайшего пути по графу
+      const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
+      
+      // Если путь найден, возвращаем расстояние по графу
+      if (result.distance < Infinity) {
+        return result.distance;
+      }
+      
+      // Если пути нет, используем прямое расстояние * штраф
+      return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
+    };
     
-    // Масштабируем точки по графу
-    const newPoints = await scalePointsOnGraph(scaleFactor, startPoint);
+    console.log(`📏 Удаление точек: ${(currentDistanceM / 1000).toFixed(2)} км → ${targetDistanceKm.toFixed(2)} км`);
     
-    if (!newPoints || newPoints.length !== pointMarkers.length) {
-      throw new Error('Ошибка масштабирования точек');
-    }
-    
-    // Обновляем позиции маркеров
-    const { updatePointMarkers } = await import('./mapModule.js');
-    updatePointMarkers(newPoints);
+    // Удаляем точки с наибольшим вкладом
+    const removedCount = await reduceDistanceByRemovingPoints(targetDistanceM, startPoint, calculatePathDistance);
     
     // Пересчитываем последовательность
     const { generateOptimalSequence } = await import('./routeSequence.js');
@@ -708,10 +732,10 @@ async function handleDistanceChange(event) {
     const newStats = getRouteStats();
     if (newStats) {
       const newDistanceKm = newStats.totalDistance / 1000;
-      addApiLog(`✅ Дистанция уменьшена до ${newDistanceKm.toFixed(2)} км`);
+      addApiLog(`✅ Удалено ${removedCount} точек. Дистанция: ${newDistanceKm.toFixed(2)} км`);
       
       if (distanceHint) {
-        distanceHint.textContent = `Применено: ${newDistanceKm.toFixed(2)} км`;
+        distanceHint.textContent = `Удалено ${removedCount} точек. Дистанция: ${newDistanceKm.toFixed(2)} км`;
         distanceHint.style.color = '#4CAF50';
       }
     }
