@@ -790,7 +790,7 @@ async function handleDistanceIncrease() {
 async function addPointFarthestFromOthers() {
   const { pointMarkers, getSelectedBounds, addPointMarker, getStartPoint } = await import('./mapModule.js');
   const { getTrailGraph } = await import('./routeSequence.js');
-  const { haversine } = await import('./utils.js');
+  const { haversine, pointInPolygon } = await import('./utils.js');
   
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
