@@ -790,7 +790,7 @@ async function handleDistanceIncrease() {
 async function addPointFarthestFromOthers() {
   const { pointMarkers, getSelectedBounds, addPointMarker, getStartPoint } = await import('./mapModule.js');
   const { getTrailGraph } = await import('./routeSequence.js');
-  const { haversine, pointInPolygon } = await import('./utils.js');
+  const { haversine } = await import('./utils.js');
   
   const selectedBounds = getSelectedBounds();
   const startPoint = getStartPoint();
@@ -820,12 +820,19 @@ async function addPointFarthestFromOthers() {
     
     // Дополнительная проверка для полигона
     if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
-      const polygonLatLngs = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
-      
-      // Конвертируем LatLng объекты в массивы [lat, lng]
-      const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
-      
-      if (!pointInPolygon(node.lat, node.lon, polygonCoords)) {
+      try {
+        // Используем ту же логику, что и в pointGeneration.js
+        const polygonLatLngs = selectedBounds.polygon.getLatLngs()[0]; // Получаем координаты полигона
+        
+        // Конвертируем LatLng объекты в массивы [lat, lng]
+        const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
+        
+        if (!pointInPolygon(node.lat, node.lon, polygonCoords)) {
+          continue;
+        }
+      } catch (error) {
+        console.error('Ошибка при проверке точки в полигоне:', error, selectedBounds.polygon);
+        // В случае ошибки пропускаем этот узел
         continue;
       }
     }
@@ -853,6 +860,23 @@ async function addPointFarthestFromOthers() {
   
   // Добавляем новую точку
   const bestNode = trailGraph.nodes[bestNodeIdx];
+  
+  // Финальная проверка: убеждаемся, что точка внутри полигона (если это полигон)
+  if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
+    try {
+      const polygonLatLngs = selectedBounds.polygon.getLatLngs()[0];
+      const polygonCoords = polygonLatLngs.map(latlng => [latlng.lat, latlng.lng]);
+      if (!pointInPolygon(bestNode.lat, bestNode.lon, polygonCoords)) {
+        addApiLog('❌ Выбранная точка оказалась вне полигона, попробуйте еще раз');
+        return;
+      }
+    } catch (error) {
+      console.error('Ошибка при финальной проверке точки в полигоне:', error);
+      addApiLog('❌ Ошибка при проверке точки в полигоне');
+      return;
+    }
+  }
+  
   const newNumber = pointMarkers.length + 1;
   addPointMarker(bestNode.lat, bestNode.lon, newNumber);
   addApiLog(`✅ Добавлена новая точка ${newNumber} (дальше от других: ${(maxMinDistance / 1000).toFixed(2)} км)`);
