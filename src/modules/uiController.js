@@ -22,6 +22,9 @@ let isRestoredFromShare = false; // Флаг: восстановлен ли ма
 // История удаленных точек для восстановления
 let removedPointsHistory = []; // Массив объектов {index, coords: {lat, lng}}
 
+// Индексы точек, добавленных через кнопку "+" (в порядке добавления)
+let addedPointsIndices = []; // Массив индексов точек, добавленных через "+"
+
 /**
  * Инициализация UI контроллера
  */
@@ -510,8 +513,9 @@ function handleShowSavedRoutes() {
  */
 function handleClearArea() {
   if (confirm('Очистить всё и начать заново?')) {
-    // Очищаем историю удаленных точек
+    // Очищаем историю удаленных точек и список добавленных точек
     removedPointsHistory = [];
+    addedPointsIndices = [];
     
     // Импортируем функцию очистки
     import('./mapModule.js').then(module => {
@@ -617,7 +621,8 @@ export function isStartSet() {
  * Очистить поле дистанции
  */
 export function clearDistanceField() {
-  removedPointsHistory = []; // Очищаем историю при очистке области
+    removedPointsHistory = []; // Очищаем историю при очистке области
+    addedPointsIndices = []; // Очищаем список добавленных точек
 }
 
 /**
@@ -635,86 +640,106 @@ async function handleDistanceDecrease() {
     return;
   }
   
-  const stats = getRouteStats();
-  if (!stats) {
-    addApiLog('❌ Не удалось получить статистику маршрута');
-    return;
-  }
-  
-  const startPoint = getStartPoint();
-  if (!startPoint) {
-    addApiLog('❌ Стартовая точка не найдена');
-    return;
-  }
-  
-  const sequence = getCurrentSequence();
-  if (!sequence || sequence.length === 0) {
-    addApiLog('❌ Последовательность пуста');
-    return;
-  }
-  
-  const trailGraph = getTrailGraph();
-  const calculatePathDistance = (from, to) => {
-    if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
-      return haversine(from.lat, from.lng, to.lat, to.lng);
-    }
-    const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
-    const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
-    if (fromNodeIdx === -1 || toNodeIdx === -1) {
-      return haversine(from.lat, from.lng, to.lat, to.lng);
-    }
-    const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
-    if (result.distance < Infinity) {
-      return result.distance;
-    }
-    return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
-  };
-  
-  // Вычисляем вклад каждой точки
-  let maxContribution = 0;
   let pointToRemoveIdx = -1;
   
-  for (let i = 0; i < sequence.length; i++) {
-    const pointIdx = sequence[i];
-    const pointCoords = pointMarkers[pointIdx].getLatLng();
-    const prevIdx = i > 0 ? sequence[i - 1] : -1;
-    const nextIdx = i < sequence.length - 1 ? sequence[i + 1] : -1;
+  // Если есть точки, добавленные через "+", удаляем последнюю из них
+  if (addedPointsIndices.length > 0) {
+    // Берем последний индекс из списка добавленных точек
+    const lastAddedIdx = addedPointsIndices[addedPointsIndices.length - 1];
     
-    let distToPrev, distToNext, directDist;
-    
-    if (prevIdx === -1) {
-      distToPrev = calculatePathDistance(startPoint, pointCoords);
+    // Проверяем, что индекс валиден
+    if (lastAddedIdx >= 0 && lastAddedIdx < pointMarkers.length) {
+      pointToRemoveIdx = lastAddedIdx;
+      // Удаляем индекс из списка добавленных точек
+      addedPointsIndices.pop();
     } else {
-      const prevCoords = pointMarkers[prevIdx].getLatLng();
-      distToPrev = calculatePathDistance(prevCoords, pointCoords);
+      // Если индекс невалиден, очищаем список и используем алгоритм
+      addedPointsIndices = [];
+    }
+  }
+  
+  // Если не нашли точку для удаления (нет добавленных через "+"), используем алгоритм наибольшего вклада
+  if (pointToRemoveIdx === -1) {
+    const stats = getRouteStats();
+    if (!stats) {
+      addApiLog('❌ Не удалось получить статистику маршрута');
+    return;
+  }
+  
+    const startPoint = getStartPoint();
+    if (!startPoint) {
+      addApiLog('❌ Стартовая точка не найдена');
+      return;
     }
     
-    if (nextIdx === -1) {
-      distToNext = calculatePathDistance(pointCoords, startPoint);
-    } else {
-      const nextCoords = pointMarkers[nextIdx].getLatLng();
-      distToNext = calculatePathDistance(pointCoords, nextCoords);
+    const sequence = getCurrentSequence();
+    if (!sequence || sequence.length === 0) {
+      addApiLog('❌ Последовательность пуста');
+      return;
     }
     
-    if (prevIdx === -1 && nextIdx === -1) {
-      directDist = 0;
-    } else if (prevIdx === -1) {
-      const nextCoords = pointMarkers[nextIdx].getLatLng();
-      directDist = calculatePathDistance(startPoint, nextCoords);
-    } else if (nextIdx === -1) {
-      const prevCoords = pointMarkers[prevIdx].getLatLng();
-      directDist = calculatePathDistance(prevCoords, startPoint);
+    const trailGraph = getTrailGraph();
+    const calculatePathDistance = (from, to) => {
+      if (!trailGraph || !trailGraph.nodes || trailGraph.nodes.length === 0) {
+        return haversine(from.lat, from.lng, to.lat, to.lng);
+      }
+      const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
+      const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
+      if (fromNodeIdx === -1 || toNodeIdx === -1) {
+        return haversine(from.lat, from.lng, to.lat, to.lng);
+      }
+      const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
+      if (result.distance < Infinity) {
+        return result.distance;
+      }
+      return haversine(from.lat, from.lng, to.lat, to.lng) * 10;
+    };
+    
+    // Вычисляем вклад каждой точки
+    let maxContribution = 0;
+    
+    for (let i = 0; i < sequence.length; i++) {
+      const pointIdx = sequence[i];
+      const pointCoords = pointMarkers[pointIdx].getLatLng();
+      const prevIdx = i > 0 ? sequence[i - 1] : -1;
+      const nextIdx = i < sequence.length - 1 ? sequence[i + 1] : -1;
+      
+      let distToPrev, distToNext, directDist;
+      
+      if (prevIdx === -1) {
+        distToPrev = calculatePathDistance(startPoint, pointCoords);
     } else {
-      const prevCoords = pointMarkers[prevIdx].getLatLng();
-      const nextCoords = pointMarkers[nextIdx].getLatLng();
-      directDist = calculatePathDistance(prevCoords, nextCoords);
-    }
-    
-    const contribution = (distToPrev + distToNext) - directDist;
-    
-    if (contribution > maxContribution) {
-      maxContribution = contribution;
-      pointToRemoveIdx = pointIdx;
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        distToPrev = calculatePathDistance(prevCoords, pointCoords);
+      }
+      
+      if (nextIdx === -1) {
+        distToNext = calculatePathDistance(pointCoords, startPoint);
+      } else {
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        distToNext = calculatePathDistance(pointCoords, nextCoords);
+      }
+      
+      if (prevIdx === -1 && nextIdx === -1) {
+        directDist = 0;
+      } else if (prevIdx === -1) {
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        directDist = calculatePathDistance(startPoint, nextCoords);
+      } else if (nextIdx === -1) {
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        directDist = calculatePathDistance(prevCoords, startPoint);
+      } else {
+        const prevCoords = pointMarkers[prevIdx].getLatLng();
+        const nextCoords = pointMarkers[nextIdx].getLatLng();
+        directDist = calculatePathDistance(prevCoords, nextCoords);
+      }
+      
+      const contribution = (distToPrev + distToNext) - directDist;
+      
+      if (contribution > maxContribution) {
+        maxContribution = contribution;
+        pointToRemoveIdx = pointIdx;
+      }
     }
   }
   
@@ -733,6 +758,14 @@ async function handleDistanceDecrease() {
   // Удаляем точку
   removePointMarker(pointToRemoveIdx);
   addApiLog(`🗑️ Удалена точка ${pointToRemoveIdx + 1}`);
+  
+  // Обновляем индексы в addedPointsIndices: уменьшаем на 1 все индексы, которые больше удаленного
+  addedPointsIndices = addedPointsIndices.map(idx => {
+    if (idx > pointToRemoveIdx) {
+      return idx - 1;
+    }
+    return idx;
+  }).filter(idx => idx >= 0 && idx < pointMarkers.length); // Удаляем невалидные индексы
   
   // Пересчитываем последовательность
   resetSequence();
@@ -825,8 +858,8 @@ async function addPointFarthestFromOthers() {
     // Проверяем, что узел в выбранной области (bounding box)
     if (node.lat < selectedBounds.south || node.lat > selectedBounds.north ||
         node.lon < selectedBounds.west || node.lon > selectedBounds.east) {
-      continue;
-    }
+                continue;
+              }
     
     // Дополнительная проверка для полигона
     if (selectedBounds.type === 'polygon' && selectedBounds.polygon) {
@@ -843,10 +876,10 @@ async function addPointFarthestFromOthers() {
       } catch (error) {
         console.error('Ошибка при проверке точки в полигоне:', error, selectedBounds.polygon);
         // В случае ошибки пропускаем этот узел
-        continue;
-      }
-    }
-    
+                continue;
+              }
+            }
+            
     // Проверяем, что узел не в запретной зоне (используем ту же логику, что и в pointGeneration.js)
     if (forbiddenPolygons && forbiddenPolygons.length > 0) {
       let inForbiddenZone = false;
@@ -899,8 +932,8 @@ async function addPointFarthestFromOthers() {
       if (!pointInPolygon(bestNode.lat, bestNode.lon, polygonCoords)) {
         addApiLog('❌ Выбранная точка оказалась вне полигона, попробуйте еще раз');
         return;
-      }
-    } catch (error) {
+    }
+  } catch (error) {
       console.error('Ошибка при финальной проверке точки в полигоне:', error);
       addApiLog('❌ Ошибка при проверке точки в полигоне');
       return;
@@ -909,6 +942,11 @@ async function addPointFarthestFromOthers() {
   
   const newNumber = pointMarkers.length + 1;
   addPointMarker(bestNode.lat, bestNode.lon, newNumber);
+  
+  // Сохраняем индекс добавленной точки (индекс в массиве pointMarkers после добавления)
+  const newPointIndex = pointMarkers.length - 1;
+  addedPointsIndices.push(newPointIndex);
+  
   addApiLog(`✅ Добавлена новая точка ${newNumber} (дальше от других: ${(maxMinDistance / 1000).toFixed(2)} км)`);
   
   // Пересчитываем последовательность
