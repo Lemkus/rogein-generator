@@ -12,6 +12,7 @@ let shareBtn, zoomInBtn, zoomOutBtn, gpsBtn;
 let saveGpxMenuItem, loadGpxMenuItem, savedRoutesMenuItem, gpxFileInput;
 let infoPanelPoints, sequenceLink, sequenceDistance, startNavBtn, refreshBtn, deleteBtn;
 let distanceValue, distanceDecreaseBtn, distanceIncreaseBtn;
+let infoPanelGenerating, infoPanelError, infoPanelReady, infoPanelStatus, infoPanelErrorMessage;
 
 // Состояние UI
 let currentStep = 'select_area'; // select_area, place_start, points_generated, navigating
@@ -67,6 +68,13 @@ export function initUI() {
   distanceValue = document.getElementById('distanceValue');
   distanceDecreaseBtn = document.getElementById('distanceDecreaseBtn');
   distanceIncreaseBtn = document.getElementById('distanceIncreaseBtn');
+  
+  // Элементы состояний infoPanel
+  infoPanelGenerating = document.getElementById('infoPanelGenerating');
+  infoPanelError = document.getElementById('infoPanelError');
+  infoPanelReady = document.getElementById('infoPanelReady');
+  infoPanelStatus = document.getElementById('infoPanelStatus');
+  infoPanelErrorMessage = document.getElementById('infoPanelErrorMessage');
   
   // Отладка DOM элементов
   console.log('🔍 Проверка DOM элементов:');
@@ -396,6 +404,73 @@ export function showInfoPanel() {
     }
   } else {
     console.error('  ❌ infoPanel не найден!');
+  }
+}
+
+/**
+ * Показать состояние "формирование точек"
+ */
+export function showInfoPanelGenerating(message = 'Загрузка данных...') {
+  if (infoPanel) {
+    infoPanel.classList.add('show');
+    
+    // Скрываем все состояния
+    if (infoPanelError) infoPanelError.style.display = 'none';
+    if (infoPanelReady) infoPanelReady.style.display = 'none';
+    
+    // Показываем состояние формирования
+    if (infoPanelGenerating) {
+      infoPanelGenerating.style.display = 'block';
+    }
+    if (infoPanelStatus) {
+      infoPanelStatus.textContent = message;
+    }
+  }
+}
+
+/**
+ * Показать состояние "ошибка"
+ */
+export function showInfoPanelError(message = 'Не удалось загрузить данные. Попробуйте еще раз.') {
+  if (infoPanel) {
+    infoPanel.classList.add('show');
+    
+    // Скрываем все состояния
+    if (infoPanelGenerating) infoPanelGenerating.style.display = 'none';
+    if (infoPanelReady) infoPanelReady.style.display = 'none';
+    
+    // Показываем состояние ошибки
+    if (infoPanelError) {
+      infoPanelError.style.display = 'block';
+    }
+    if (infoPanelErrorMessage) {
+      infoPanelErrorMessage.textContent = message;
+    }
+  }
+}
+
+/**
+ * Показать состояние "готово"
+ */
+export function showInfoPanelReady() {
+  if (infoPanel) {
+    infoPanel.classList.add('show');
+    
+    // Скрываем все состояния
+    if (infoPanelGenerating) infoPanelGenerating.style.display = 'none';
+    if (infoPanelError) infoPanelError.style.display = 'none';
+    
+    // Показываем состояние готово
+    if (infoPanelReady) {
+      infoPanelReady.style.display = 'block';
+    }
+    
+    // КРИТИЧНО: Убираем disabled с кнопки навигации
+    const navBtn = document.getElementById('startNavBtn');
+    if (navBtn) {
+      navBtn.disabled = false;
+      navBtn.removeAttribute('disabled');
+    }
   }
 }
 
