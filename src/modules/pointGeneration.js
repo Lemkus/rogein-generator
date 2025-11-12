@@ -173,7 +173,19 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
   cancelCallback(true); // Показываем кнопку отмены
   cancelGeneration = false; // Сбрасываем флаг отмены
 
-  statusCallback('Загрузка данных OSM...');
+  // Показываем infoPanel ПЕРЕД генерацией
+  const { showInfoPanelGenerating, showInfoPanelError, showInfoPanelReady } = await import('./uiController.js');
+  let lastStatusMessage = 'Загрузка данных OSM...';
+  showInfoPanelGenerating(lastStatusMessage);
+  
+  // Обертка для statusCallback, которая обновляет infoPanel
+  const wrappedStatusCallback = (message) => {
+    lastStatusMessage = message;
+    showInfoPanelGenerating(message);
+    statusCallback(message);
+  };
+  
+  wrappedStatusCallback('Загрузка данных OSM...');
 
   const sw = { lat: selectedBounds.south, lng: selectedBounds.west };
   const ne = { lat: selectedBounds.north, lng: selectedBounds.east };
@@ -200,7 +212,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     // Загружаем все данные одним запросом
     timer.start('API запрос (fetchAllMapData)');
     const bbox = `${selectedBounds.south},${selectedBounds.west},${selectedBounds.north},${selectedBounds.east}`;
-    const mapData = await fetchAllMapData(bbox, statusCallback);
+    const mapData = await fetchAllMapData(bbox, wrappedStatusCallback);
     timer.end('API запрос (fetchAllMapData)');
     
     const closedAreasData = mapData.closed_areas || [];
@@ -210,7 +222,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
 
     if (cancelGeneration) return;
 
-    statusCallback(`✅ Данные загружены: ${pathsData.length} троп, ${closedAreasData.length} закрытых зон, ${waterAreasData.length} водоёмов, ${barriersData.length} барьеров`);
+    wrappedStatusCallback(`✅ Данные загружены: ${pathsData.length} троп, ${closedAreasData.length} закрытых зон, ${waterAreasData.length} водоёмов, ${barriersData.length} барьеров`);
 
     // DEBUG: Не рисуем закрытые зоны, водоёмы и барьеры на карте для производительности
     // showClosedAreasOnMap(closedAreasData);
@@ -220,7 +232,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     if (cancelGeneration) return;
 
     // Создаем полигоны запретных зон ПЕРЕД построением графа (кешируем для производительности)
-    statusCallback('Подготовка запретных зон...');
+    wrappedStatusCallback('Подготовка запретных зон...');
     const areaHash = selectedBounds.type === 'polygon' 
       ? `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_polygon`
       : `${selectedBounds.south}_${selectedBounds.west}_${selectedBounds.north}_${selectedBounds.east}_rect`;
@@ -230,7 +242,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     if (cachedDataHash === dataHash && cachedForbiddenPolygons) {
       // Используем кешированные полигоны
       forbiddenPolygons = cachedForbiddenPolygons;
-      statusCallback(`🚫 Использую кешированные запретные зоны: ${forbiddenPolygons.length}`);
+      wrappedStatusCallback(`🚫 Использую кешированные запретные зоны: ${forbiddenPolygons.length}`);
     } else {
       // Создаем новые полигоны
       timer.start('Создание запретных зон');
@@ -249,18 +261,20 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
       cachedDataHash = dataHash;
       
       timer.end('Создание запретных зон');
-      statusCallback(`🚫 Создано запретных зон: ${forbiddenPolygons.length}`);
+      wrappedStatusCallback(`🚫 Создано запретных зон: ${forbiddenPolygons.length}`);
     }
 
     if (cancelGeneration) return;
 
     // ОДНО построение графа СРАЗУ с запретными зонами (оптимизация: убрано двойное построение)
-    statusCallback('Построение графа троп с запретными зонами...');
+    wrappedStatusCallback('Построение графа троп с запретными зонами...');
     timer.start('Построение графа троп (оптимизированное)');
     const graph = buildPathGraph(pathsData, forbiddenPolygons, barriersData);
     timer.end('Построение графа троп (оптимизированное)');
     
     if (!graph || graph.nodes.length === 0) {
+      const { showInfoPanelError } = await import('./uiController.js');
+      showInfoPanelError('Не найдено подходящих троп в выбранной области. Попробуйте выбрать другую область.');
       statusCallback('❌ Не найдено подходящих троп в выбранной области!');
       buttonCallback(false);
       cancelCallback(false);
@@ -273,6 +287,8 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     timer.end('Поиск ближайшего узла к старту');
     
     if (startNodeIdx === -1) {
+      const { showInfoPanelError } = await import('./uiController.js');
+      showInfoPanelError('Не удалось найти ближайшую тропу к стартовой точке. Попробуйте переместить точку старта.');
       statusCallback('❌ Не удалось найти ближайшую тропу к стартовой точке!');
       buttonCallback(false);
       cancelCallback(false);
@@ -283,7 +299,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     setTrailGraph(graph);
     
     // Генерируем точки
-    statusCallback('Генерация точек...');
+    wrappedStatusCallback('Генерация точек...');
     timer.start('Генерация точек (общее время)');
     const points = await generatePointsOnPaths(
       pathsData, 
@@ -295,7 +311,7 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
       forbiddenPolygons, 
       graph, 
       startNodeIdx, 
-      statusCallback
+      wrappedStatusCallback
     );
 
     if (cancelGeneration) return;
@@ -306,6 +322,9 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
     if (points.length > 0) {
       statusCallback(`✅ Сгенерировано ${points.length} точек из ${count} запрошенных`);
       updateTargetPointsList(); // Обновляем список точек для навигации
+      
+      // Показываем состояние "готово" в infoPanel
+      showInfoPanelReady();
       
       // Уведомляем UI контроллер о завершении генерации
       import('./uiController.js').then(ui => {
@@ -322,11 +341,14 @@ export async function generatePoints(selectedBounds, startPoint, count, difficul
         console.error('Ошибка генерации последовательности:', err);
       });
     } else {
+      showInfoPanelError('Не удалось сгенерировать ни одной точки. Попробуйте другую область или уменьшите количество точек.');
       statusCallback('❌ Не удалось сгенерировать ни одной точки. Попробуйте другую область или уменьшите количество точек.');
     }
 
   } catch (error) {
     console.error('Ошибка генерации точек:', error);
+    const { showInfoPanelError } = await import('./uiController.js');
+    showInfoPanelError('Не удалось загрузить данные. Попробуйте еще раз.');
     statusCallback(`❌ Ошибка: ${error.message}`);
   } finally {
     timer.end('ГЕНЕРАЦИЯ ТОЧЕК (ОБЩЕЕ)');

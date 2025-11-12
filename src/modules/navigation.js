@@ -482,6 +482,9 @@ async function startNavigation() {
   currentTargetIndex = firstPointIdx;
   isNavigating = true;
   
+  // Добавляем класс к body для скрытия footer
+  document.body.classList.add('navigating');
+  
   // Входим в полноэкранный режим навигации
   enterFullscreenNavigation();
   lastDistance = null;
@@ -610,6 +613,9 @@ async function stopNavigation() {
   
   isNavigating = false;
   isAutoSequenceMode = false;
+  
+  // Удаляем класс из body для показа footer
+  document.body.classList.remove('navigating');
   
   // Останавливаем управление медиа
   stopMediaNavigation();
