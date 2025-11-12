@@ -487,6 +487,11 @@ export function hideInfoPanel() {
  * Обновить информацию в панели
  */
 export function updateInfoPanel(pointsCount, sequenceText, distance) {
+  // Убеждаемся что панель видна
+  if (infoPanel) {
+    infoPanel.classList.add('show');
+  }
+  
   if (infoPanelPoints) {
     infoPanelPoints.textContent = `Точек: ${pointsCount}`;
   }

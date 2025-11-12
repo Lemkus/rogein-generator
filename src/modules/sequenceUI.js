@@ -203,6 +203,9 @@ export function updateSequenceDisplay() {
   
   // Обновляем новый info-panel через uiController
   import('./uiController.js').then(ui => {
+    // Убеждаемся что панель в состоянии "готово"
+    ui.showInfoPanelReady();
+    // Обновляем содержимое
     ui.updateInfoPanel(
       sequence.length, 
       `СТАРТ → ${sequenceText} → СТАРТ`, 
