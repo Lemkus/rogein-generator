@@ -453,8 +453,16 @@ export function showInfoPanelError(message = 'Не удалось загрузи
  * Показать состояние "готово"
  */
 export function showInfoPanelReady() {
+  console.log('🎯 showInfoPanelReady вызвана');
+  console.log('  infoPanel:', infoPanel);
   if (infoPanel) {
     infoPanel.classList.add('show');
+    console.log('  ✅ Класс show добавлен');
+    console.log('  Текущие классы:', infoPanel.className);
+    console.log('  Computed display:', window.getComputedStyle(infoPanel).display);
+    console.log('  Computed visibility:', window.getComputedStyle(infoPanel).visibility);
+    console.log('  Computed bottom:', window.getComputedStyle(infoPanel).bottom);
+    console.log('  Computed z-index:', window.getComputedStyle(infoPanel).zIndex);
     
     // Скрываем все состояния
     if (infoPanelGenerating) infoPanelGenerating.style.display = 'none';
@@ -463,6 +471,7 @@ export function showInfoPanelReady() {
     // Показываем состояние готово
     if (infoPanelReady) {
       infoPanelReady.style.display = 'block';
+      console.log('  ✅ infoPanelReady показан');
     }
     
     // КРИТИЧНО: Убираем disabled с кнопки навигации
@@ -471,6 +480,8 @@ export function showInfoPanelReady() {
       navBtn.disabled = false;
       navBtn.removeAttribute('disabled');
     }
+  } else {
+    console.error('  ❌ infoPanel не найден!');
   }
 }
 
