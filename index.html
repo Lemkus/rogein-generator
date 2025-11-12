@@ -123,6 +123,13 @@
       gap: 10px;
     }
     
+    /* На мобилках поднимаем кнопки выше чтобы не мешали info-panel */
+    @media (max-width: 768px) {
+      .left-bottom-controls {
+        bottom: 200px; /* Выше info-panel */
+      }
+    }
+    
     /* ========== КНОПКИ РИСОВАНИЯ ОБЛАСТИ ========== */
     #drawAreaBtn, #polygonBtn {
       position: relative;
@@ -263,19 +270,26 @@
       }
       
       .info-panel {
-        left: 10px;
-        right: 10px;
-        top: auto;
-        bottom: 70px; /* Поднимаем выше, оставляем место для footer */
-        max-width: none;
-        max-height: calc(100vh - 80px); /* Ограничиваем высоту с учетом footer */
+        left: 10px !important;
+        right: 10px !important;
+        top: auto !important;
+        bottom: 70px !important; /* Поднимаем выше, оставляем место для footer */
+        max-width: none !important;
+        max-height: calc(100vh - 80px) !important; /* Ограничиваем высоту с учетом footer */
         overflow-y: auto;
         z-index: 1001 !important; /* Выше footer */
+        position: fixed !important;
       }
       
       /* Убеждаемся что info-panel виден когда показывается */
       .info-panel.show {
         display: block !important;
+        visibility: visible !important;
+      }
+      
+      /* Скрываем info-panel только если он не имеет класса show */
+      .info-panel:not(.show) {
+        display: none !important;
       }
       
       /* Скрываем footer когда показывается info-panel на мобилках */
@@ -1345,7 +1359,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.12';
+    const APP_VERSION = '1.12.13';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1613,7 +1627,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.12
+      Made with 💚 for outdoor enthusiasts | v1.12.13
     </div>
   </footer>
 </body>
