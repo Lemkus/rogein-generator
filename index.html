@@ -238,6 +238,9 @@
       footer {
         padding: 6px 8px;
         font-size: 10px;
+        bottom: 0 !important; /* Прижимаем к самому низу */
+        left: 0 !important;
+        right: 0 !important;
       }
       
       .copyright {
@@ -263,9 +266,9 @@
         left: 10px;
         right: 10px;
         top: auto;
-        bottom: 60px; /* Оставляем место для footer */
+        bottom: 80px; /* Поднимаем выше, оставляем больше места для footer */
         max-width: none;
-        max-height: calc(100vh - 70px); /* Ограничиваем высоту */
+        max-height: calc(100vh - 90px); /* Ограничиваем высоту с учетом footer */
         overflow-y: auto;
       }
       
@@ -1336,7 +1339,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.9';
+    const APP_VERSION = '1.12.10';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1604,7 +1607,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.9
+      Made with 💚 for outdoor enthusiasts | v1.12.10
     </div>
   </footer>
 </body>
