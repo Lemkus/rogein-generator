@@ -240,44 +240,22 @@
       display: block;
     }
     
-    /* На мобилках info-panel внизу экрана вместо footer */
+    /* На мобилках скрываем footer и прижимаем info-panel к низу */
     @media (max-width: 768px) {
+      /* Скрываем footer на мобилках */
       footer {
-        padding: 6px 8px;
-        font-size: 10px;
-        bottom: 0 !important; /* Прижимаем к самому низу */
-        left: 0 !important;
-        right: 0 !important;
-      }
-      
-      .copyright {
-        font-size: 10px;
-        display: block;
-        margin-bottom: 3px;
-      }
-      
-      .legal-links {
-        font-size: 10px;
-        display: flex;
-        margin: 0;
-        gap: 10px;
-        justify-content: center;
-      }
-      
-      footer > div:last-child {
-        font-size: 9px;
-        margin-top: 3px;
+        display: none !important;
       }
       
       .info-panel {
         left: 10px !important;
         right: 10px !important;
         top: auto !important;
-        bottom: 70px !important; /* Поднимаем выше, оставляем место для footer */
+        bottom: 10px !important; /* Прижимаем к самому низу */
         max-width: none !important;
-        max-height: calc(100vh - 80px) !important; /* Ограничиваем высоту с учетом footer */
+        max-height: calc(100vh - 20px) !important; /* Ограничиваем высоту с небольшим отступом */
         overflow-y: auto;
-        z-index: 1001 !important; /* Выше footer */
+        z-index: 1001 !important;
         position: fixed !important;
       }
       
@@ -290,21 +268,6 @@
       /* Скрываем info-panel только если он не имеет класса show */
       .info-panel:not(.show) {
         display: none !important;
-      }
-      
-      /* Скрываем footer когда показывается info-panel на мобилках */
-      .info-panel.show ~ footer {
-        display: none;
-      }
-      
-      /* Когда info-panel скрыт, показываем footer */
-      .info-panel:not(.show) ~ footer {
-        display: block !important;
-      }
-      
-      /* Альтернативный способ для браузеров без поддержки :has() */
-      body:has(.info-panel.show) footer {
-        display: none;
       }
     }
     
@@ -1359,7 +1322,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.14';
+    const APP_VERSION = '1.12.15';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1627,7 +1590,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.14
+      Made with 💚 for outdoor enthusiasts | v1.12.15
     </div>
   </footer>
 </body>
