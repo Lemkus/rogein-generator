@@ -61,12 +61,12 @@ def update_version_in_html():
         # Обновляем версию в CSS ссылках
         content = re.sub(
             r"(leaflet\.css\?v=)[\d.]+",
-            f"\\1{new_version}",
+            lambda m: m.group(1) + new_version,
             content
         )
         content = re.sub(
             r"(leaflet\.draw\.css\?v=)[\d.]+",
-            f"\\1{new_version}",
+            lambda m: m.group(1) + new_version,
             content
         )
         
