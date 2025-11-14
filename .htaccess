@@ -10,11 +10,13 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Запрет кеширования для HTML
+# Агрессивный запрет кеширования для HTML
 <FilesMatch "\.(html|htm)$">
-  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
   Header set Pragma "no-cache"
-  Header set Expires 0
+  Header set Expires "0"
+  Header set ETag ""
+  Header unset Last-Modified
 </FilesMatch>
 
 # Запрет кеширования для Service Worker
@@ -24,9 +26,20 @@ RewriteRule ^(.*)$ $1 [R=200,L]
   Header set Expires 0
 </FilesMatch>
 
-# Кеширование для статических ресурсов с версионированием
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico)$">
-  Header set Cache-Control "public, max-age=31536000, immutable"
+# Кеширование для статических ресурсов только если есть версия в URL
+# Если нет версии - не кешируем
+<FilesMatch "\.(js|css)$">
+  # Если в URL есть параметр v= - кешируем долго
+  RewriteCond %{QUERY_STRING} v=
+  RewriteRule .* - [E=CACHE:long]
+  # Если нет версии - не кешируем
+  Header set Cache-Control "no-cache, no-store, must-revalidate" env=!CACHE
+  Header set Cache-Control "public, max-age=31536000, immutable" env=CACHE
+</FilesMatch>
+
+# Кеширование для изображений
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico)$">
+  Header set Cache-Control "public, max-age=86400"
 </FilesMatch>
 
 # Проксирование API запросов на Passenger WSGI
