@@ -337,6 +337,113 @@
       }
     }
     
+    /* Оптимизация для горизонтальной ориентации на мобилках */
+    @media (max-width: 768px) and (orientation: landscape) {
+      /* Уменьшаем размеры кнопок */
+      .icon-btn {
+        width: 36px !important;
+        height: 36px !important;
+        padding: 6px !important;
+      }
+      
+      .top-left-info .icon-btn {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 8px !important;
+      }
+      
+      /* Уменьшаем отступы верхней панели */
+      .top-toolbar {
+        top: 5px !important;
+        right: 5px !important;
+        gap: 6px !important;
+      }
+      
+      .top-left-info {
+        top: 5px !important;
+        left: 5px !important;
+      }
+      
+      /* Уменьшаем левые панели управления */
+      .left-controls {
+        left: 5px !important;
+        top: 15% !important;
+        gap: 6px !important;
+      }
+      
+      .left-bottom-controls {
+        left: 5px !important;
+        bottom: 150px !important;
+        gap: 6px !important;
+      }
+      
+      /* Компактный info-panel в landscape */
+      .info-panel {
+        left: 5px !important;
+        right: 5px !important;
+        bottom: 0 !important;
+        max-height: 50vh !important; /* Ограничиваем высоту в landscape */
+        padding: 8px !important;
+        font-size: 12px !important;
+      }
+      
+      .info-panel-header {
+        font-size: 11px !important;
+        margin-bottom: 4px !important;
+      }
+      
+      .info-panel-points {
+        font-size: 12px !important;
+        margin-bottom: 4px !important;
+      }
+      
+      .info-panel-nav-btn {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+        margin-top: 6px !important;
+      }
+      
+      .info-panel-actions {
+        gap: 6px !important;
+        margin-top: 6px !important;
+      }
+      
+      .info-panel-action-btn {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 6px !important;
+      }
+      
+      .sequence-link {
+        font-size: 12px !important;
+      }
+      
+      .sequence-distance {
+        font-size: 11px !important;
+        gap: 4px !important;
+      }
+      
+      .distance-control-btn {
+        font-size: 14px !important;
+        padding: 1px 6px !important;
+        min-width: 20px !important;
+      }
+      
+      /* Уменьшаем подсказки */
+      .hint-sticker {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+        max-width: 200px !important;
+      }
+      
+      /* Уменьшаем кнопку очистки */
+      .clear-area-btn {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 16px !important;
+      }
+    }
+    
     /* Скрываем info-panel в режиме навигации */
     .navigation-fullscreen.active ~ .info-panel,
     body.navigating .info-panel {
@@ -1391,7 +1498,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.21';
+    const APP_VERSION = '1.12.22';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1715,7 +1822,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.21
+      Made with 💚 for outdoor enthusiasts | v1.12.22
     </div>
   </footer>
 </body>
