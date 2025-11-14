@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.62';
+    window.APP_VERSION = '1.12.63';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.62" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.62" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.63" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.63" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -295,7 +295,7 @@
     
     /* На мобилках скрываем footer и прижимаем info-panel к низу */
     @media (max-width: 768px) {
-      /* Скрываем footer на мобилках - используем максимальную специфичность */
+      /* Скрываем footer на мобилках - сдвигаем за пределы экрана */
       body footer,
       html body footer,
       footer,
@@ -303,9 +303,12 @@
       #map ~ footer,
       body > footer,
       html footer {
-        display: none !important;
+        position: fixed !important;
+        top: 100vh !important; /* Сдвигаем за пределы видимой области */
+        bottom: auto !important;
+        display: block !important;
         visibility: hidden !important;
-        opacity: 0 !important;
+        pointer-events: none !important;
         height: 0 !important;
         min-height: 0 !important;
         max-height: 0 !important;
@@ -313,14 +316,11 @@
         margin: 0 !important;
         border: none !important;
         overflow: hidden !important;
-        position: absolute !important;
-        top: -9999px !important;
-        left: -9999px !important;
         width: 0 !important;
         max-width: 0 !important;
-        pointer-events: none !important;
         background: transparent !important;
         box-shadow: none !important;
+        opacity: 0 !important;
         line-height: 0 !important;
         font-size: 0 !important;
       }
@@ -333,6 +333,21 @@
         height: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
+      }
+      
+      /* Убеждаемся что карта занимает весь экран */
+      #map {
+        bottom: 0 !important;
+      }
+      
+      /* Убеждаемся что Leaflet контейнеры занимают весь экран */
+      #map .leaflet-container,
+      #map .leaflet-pane,
+      #map .leaflet-map-pane,
+      #map .leaflet-viewport {
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
       }
       
       .info-panel {
@@ -970,28 +985,6 @@
       line-height: 1.4;
     }
     
-    /* На мобилках footer полностью скрыт и не занимает место */
-    @media (max-width: 768px) {
-      footer {
-        position: fixed !important;
-        top: 100vh !important; /* Сдвигаем за пределы видимой области */
-        bottom: auto !important;
-        display: block !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        max-width: 0 !important;
-        line-height: 0 !important;
-        font-size: 0 !important;
-      }
-    }
-    
     /* Скрываем footer в режиме навигации */
     body.navigating footer {
       display: none !important;
@@ -1606,7 +1599,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.62';
+    const APP_VERSION = window.APP_VERSION || '1.12.63';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     // Обновляем версию в footer
