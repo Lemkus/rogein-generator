@@ -9,18 +9,37 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TrailSpot">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <meta http-equiv="Last-Modified" content="0">
+  <meta http-equiv="ETag" content="">
   <link rel="apple-touch-icon" href="/assets/icons/MainLogo.png">
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.28';
+    window.APP_VERSION = '1.12.29';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
+    
+    // Принудительное обновление кеша - проверяем версию в localStorage
+    (function() {
+      const storedVersion = localStorage.getItem('app_version');
+      const currentVersion = window.APP_VERSION;
+      
+      if (storedVersion && storedVersion !== currentVersion) {
+        // Версия изменилась - очищаем весь кеш и перезагружаем
+        localStorage.clear();
+        sessionStorage.clear();
+        // Принудительная перезагрузка без кеша
+        window.location.reload(true);
+      } else {
+        // Сохраняем текущую версию
+        localStorage.setItem('app_version', currentVersion);
+      }
+    })();
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.28" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.28" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.29" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.29" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -1523,7 +1542,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.28';
+    const APP_VERSION = window.APP_VERSION || '1.12.29';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     import(`/src/app.js${CACHE_BUST}`).then(module => {

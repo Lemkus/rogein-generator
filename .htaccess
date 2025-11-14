@@ -10,13 +10,16 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Агрессивный запрет кеширования для HTML
+# Максимально агрессивный запрет кеширования для HTML
 <FilesMatch "\.(html|htm)$">
-  Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+  Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0, private"
   Header set Pragma "no-cache"
   Header set Expires "0"
   Header set ETag ""
   Header unset Last-Modified
+  Header set Vary "*"
+  # Добавляем уникальный заголовок для каждого запроса
+  Header set X-Cache-Bust "%{TIME}"
 </FilesMatch>
 
 # Запрет кеширования для Service Worker
