@@ -311,6 +311,58 @@
       .info-panel:not(.show) {
         display: none !important;
       }
+      
+      /* Кнопка сворачивания на мобилках */
+      .info-panel-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 40px;
+        background: #f5f5f5;
+        border: none;
+        border-radius: 12px 12px 0 0;
+        cursor: pointer;
+        margin: -12px -12px 8px -12px;
+        padding: 0;
+        font-size: 20px;
+        color: #666;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      .info-panel-toggle:hover {
+        background: #e0e0e0;
+      }
+      
+      .info-panel-toggle:active {
+        background: #d0d0d0;
+      }
+      
+      /* Свернутое состояние */
+      .info-panel.collapsed {
+        max-height: 60px !important;
+        overflow: hidden !important;
+      }
+      
+      .info-panel.collapsed .info-panel-content {
+        display: none;
+      }
+      
+      .info-panel.collapsed .info-panel-toggle::after {
+        content: '▲';
+      }
+      
+      .info-panel:not(.collapsed) .info-panel-toggle::after {
+        content: '▼';
+      }
+    }
+    
+    /* На десктопе кнопка скрыта */
+    @media (min-width: 769px) {
+      .info-panel-toggle {
+        display: none !important;
+      }
     }
     
     /* Скрываем info-panel в режиме навигации */
@@ -1057,39 +1109,45 @@
   
   <!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ ТОЧЕК) -->
   <div class="info-panel" id="infoPanel">
-    <!-- Состояние: формирование точек -->
-    <div class="info-panel-generating" id="infoPanelGenerating" style="display: none;">
-      <div class="info-panel-header">Формирование точек маршрута</div>
-      <div class="info-panel-status" id="infoPanelStatus">Загрузка данных...</div>
-    </div>
+    <!-- Кнопка сворачивания (только на мобилках) -->
+    <button class="info-panel-toggle" id="infoPanelToggle" aria-label="Свернуть/развернуть"></button>
     
-    <!-- Состояние: ошибка -->
-    <div class="info-panel-error" id="infoPanelError" style="display: none;">
-      <div class="info-panel-header" style="color: #d32f2f;">Ошибка</div>
-      <div class="info-panel-status" id="infoPanelErrorMessage">Не удалось загрузить данные. Попробуйте еще раз.</div>
-    </div>
-    
-    <!-- Состояние: готово -->
-    <div class="info-panel-ready" id="infoPanelReady" style="display: none;">
-      <div class="info-panel-header">Маршрут готов</div>
-      <div class="info-panel-points" id="infoPanelPoints">Точек: 10</div>
-      <div class="info-panel-sequence">
-        <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
-        <div class="sequence-distance" id="sequenceDistance">
-          <span class="distance-label-text">Дистанция:</span>
-          <span class="distance-value" id="distanceValue">0 км</span>
-          <button type="button" class="distance-control-btn" id="distanceDecreaseBtn" title="Удалить точку">−</button>
-          <button type="button" class="distance-control-btn" id="distanceIncreaseBtn" title="Добавить точку">+</button>
-        </div>
+    <!-- Контент панели -->
+    <div class="info-panel-content">
+      <!-- Состояние: формирование точек -->
+      <div class="info-panel-generating" id="infoPanelGenerating" style="display: none;">
+        <div class="info-panel-header">Формирование точек маршрута</div>
+        <div class="info-panel-status" id="infoPanelStatus">Загрузка данных...</div>
       </div>
-      <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
-      <div class="info-panel-actions">
-        <button class="info-panel-action-btn" id="refreshBtn" title="Обновить">
-          <img src="/assets/icons/Refresh.png" alt="Refresh">
-        </button>
-        <button class="info-panel-action-btn" id="deleteBtn" title="Удалить">
-          <img src="/assets/icons/Delete.png" alt="Delete">
-        </button>
+      
+      <!-- Состояние: ошибка -->
+      <div class="info-panel-error" id="infoPanelError" style="display: none;">
+        <div class="info-panel-header" style="color: #d32f2f;">Ошибка</div>
+        <div class="info-panel-status" id="infoPanelErrorMessage">Не удалось загрузить данные. Попробуйте еще раз.</div>
+      </div>
+      
+      <!-- Состояние: готово -->
+      <div class="info-panel-ready" id="infoPanelReady" style="display: none;">
+        <div class="info-panel-header">Маршрут готов</div>
+        <div class="info-panel-points" id="infoPanelPoints">Точек: 10</div>
+        <div class="info-panel-sequence">
+          <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
+          <div class="sequence-distance" id="sequenceDistance">
+            <span class="distance-label-text">Дистанция:</span>
+            <span class="distance-value" id="distanceValue">0 км</span>
+            <button type="button" class="distance-control-btn" id="distanceDecreaseBtn" title="Удалить точку">−</button>
+            <button type="button" class="distance-control-btn" id="distanceIncreaseBtn" title="Добавить точку">+</button>
+          </div>
+        </div>
+        <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
+        <div class="info-panel-actions">
+          <button class="info-panel-action-btn" id="refreshBtn" title="Обновить">
+            <img src="/assets/icons/Refresh.png" alt="Refresh">
+          </button>
+          <button class="info-panel-action-btn" id="deleteBtn" title="Удалить">
+            <img src="/assets/icons/Delete.png" alt="Delete">
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -1364,7 +1422,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.19';
+    const APP_VERSION = '1.12.20';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1632,7 +1690,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.19
+      Made with 💚 for outdoor enthusiasts | v1.12.20
     </div>
   </footer>
 </body>
