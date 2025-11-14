@@ -973,25 +973,22 @@
     /* На мобилках footer полностью скрыт и не занимает место */
     @media (max-width: 768px) {
       footer {
-        display: none !important;
+        position: fixed !important;
+        top: 100vh !important; /* Сдвигаем за пределы видимой области */
+        bottom: auto !important;
+        display: block !important;
         visibility: hidden !important;
-        opacity: 0 !important;
+        pointer-events: none !important;
         height: 0 !important;
-        min-height: 0 !important;
-        max-height: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
-        border: none !important;
-        overflow: hidden !important;
-        position: absolute !important;
-        top: -9999px !important;
-        left: -9999px !important;
-        width: 0 !important;
-        max-width: 0 !important;
-        pointer-events: none !important;
         background: transparent !important;
         box-shadow: none !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        max-width: 0 !important;
         line-height: 0 !important;
+        font-size: 0 !important;
       }
     }
     
