@@ -68,25 +68,75 @@ export function initApp() {
 
 // Обработчик изменения ориентации экрана
 function setupOrientationHandler() {
+  // Функция принудительной установки размеров для landscape
+  function forceLandscapeSizes() {
+    if (window.innerWidth <= 768 && window.matchMedia('(orientation: landscape)').matches) {
+      const html = document.documentElement;
+      const body = document.body;
+      const mapEl = document.getElementById('map');
+      const mapContainer = mapEl?.querySelector('.leaflet-container');
+      
+      // Принудительно устанавливаем размеры
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      
+      if (html) {
+        html.style.width = `${vw}px`;
+        html.style.height = `${vh}px`;
+        html.style.maxWidth = `${vw}px`;
+        html.style.maxHeight = `${vh}px`;
+      }
+      
+      if (body) {
+        body.style.width = `${vw}px`;
+        body.style.height = `${vh}px`;
+        body.style.maxWidth = `${vw}px`;
+        body.style.maxHeight = `${vh}px`;
+      }
+      
+      if (mapEl) {
+        mapEl.style.width = `${vw}px`;
+        mapEl.style.height = `${vh}px`;
+        mapEl.style.maxWidth = `${vw}px`;
+        mapEl.style.maxHeight = `${vh}px`;
+        mapEl.style.minWidth = `${vw}px`;
+        mapEl.style.minHeight = `${vh}px`;
+      }
+      
+      if (mapContainer) {
+        mapContainer.style.width = `${vw}px`;
+        mapContainer.style.height = `${vh}px`;
+        mapContainer.style.maxWidth = `${vw}px`;
+        mapContainer.style.maxHeight = `${vh}px`;
+        mapContainer.style.minWidth = `${vw}px`;
+        mapContainer.style.minHeight = `${vh}px`;
+      }
+      
+      // Пересчитываем размеры карты
+      if (map && map.invalidateSize) {
+        setTimeout(() => {
+          map.invalidateSize();
+          console.log('🔄 Размеры карты принудительно обновлены для landscape');
+        }, 50);
+      }
+    }
+  }
+  
+  // Вызываем сразу при загрузке
+  setTimeout(forceLandscapeSizes, 100);
+  
   // Обработчик изменения ориентации
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
-      if (map && map.invalidateSize) {
-        map.invalidateSize();
-        console.log('🔄 Размеры карты обновлены после изменения ориентации');
-      }
-    }, 100);
+      forceLandscapeSizes();
+    }, 200);
   });
   
-  // Обработчик изменения размера окна (на случай если ориентация меняется через resize)
+  // Обработчик изменения размера окна
   window.addEventListener('resize', () => {
-    // Проверяем что это действительно landscape на мобилке
     if (window.innerWidth <= 768 && window.matchMedia('(orientation: landscape)').matches) {
       setTimeout(() => {
-        if (map && map.invalidateSize) {
-          map.invalidateSize();
-          console.log('🔄 Размеры карты обновлены после изменения размера');
-        }
+        forceLandscapeSizes();
       }, 100);
     }
   });
