@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.64';
+    window.APP_VERSION = '1.12.66';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.64" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.64" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.66" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.66" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -296,6 +296,28 @@
     
     /* На мобилках скрываем footer и прижимаем info-panel к низу */
     @media (max-width: 768px) {
+      /* Скрываем все Leaflet контролы внизу на мобилках */
+      .leaflet-control-attribution,
+      .leaflet-control-scale,
+      .leaflet-bottom,
+      .leaflet-control-container .leaflet-bottom {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+        pointer-events: none !important;
+      }
+      
+      /* Убираем все отступы у элементов Leaflet внизу */
+      .leaflet-bottom {
+        bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
       /* Скрываем footer на мобилках - сдвигаем за пределы экрана */
       body footer,
       html body footer,
@@ -339,6 +361,8 @@
       /* Убеждаемся что карта занимает весь экран */
       #map {
         bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
       }
       
       /* Убеждаемся что Leaflet контейнеры занимают весь экран */
@@ -349,6 +373,14 @@
         height: 100% !important;
         min-height: 100% !important;
         max-height: 100% !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Убираем все возможные отступы у body и html */
+      html, body {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
       }
       
       .info-panel {
@@ -1600,7 +1632,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.64';
+    const APP_VERSION = window.APP_VERSION || '1.12.66';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     // Обновляем версию в footer
