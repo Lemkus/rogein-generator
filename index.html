@@ -1475,6 +1475,18 @@
     // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
     window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
     
+    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ ===
+    const infoPanelToggle = document.getElementById('infoPanelToggle');
+    const infoPanel = document.getElementById('infoPanel');
+    
+    if (infoPanelToggle && infoPanel) {
+      infoPanelToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        infoPanel.classList.toggle('collapsed');
+      });
+    }
+    
     // === СЛАЙДЕР ПРОМО ===
     const sliderTrack = document.getElementById('sliderTrack');
     const sliderPrev = document.getElementById('sliderPrev');
