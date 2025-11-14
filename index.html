@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.55';
+    window.APP_VERSION = '1.12.56';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.55" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.55" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.56" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.56" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -1551,8 +1551,14 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.55';
+    const APP_VERSION = window.APP_VERSION || '1.12.56';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
+    
+    // Обновляем версию в footer
+    const versionDisplay = document.getElementById('appVersionDisplay');
+    if (versionDisplay) {
+      versionDisplay.textContent = APP_VERSION;
+    }
     
     // Регистрация Service Worker с принудительным обновлением
     if ('serviceWorker' in navigator) {
@@ -1919,8 +1925,8 @@
         Telegram
       </a>
     </div>
-    <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.51
+    <div style="margin-top: 4px; font-size: 10px; color: #999;" id="versionFooter">
+      Made with 💚 for outdoor enthusiasts | v<span id="appVersionDisplay"></span>
     </div>
   </footer>
 </body>
