@@ -339,7 +339,6 @@
     
     /* Оптимизация для горизонтальной ориентации на мобилках */
     @media (max-width: 768px) and (orientation: landscape) {
-      
       /* Уменьшаем размеры кнопок */
       .icon-btn {
         width: 36px !important;
@@ -386,7 +385,7 @@
         left: 5px !important;
         right: 5px !important;
         bottom: 0 !important;
-        max-height: 50vh !important; /* Ограничиваем высоту в landscape */
+        max-height: 50vh !important;
         padding: 8px !important;
         font-size: 12px !important;
       }
@@ -440,7 +439,7 @@
         max-width: 200px !important;
       }
       
-      /* Уменьшаем кнопку очистки */
+      /* Уменьшаем кнопки очистки */
       .clear-area-btn {
         width: 26px !important;
         height: 26px !important;
@@ -1502,7 +1501,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.33';
+    const APP_VERSION = '1.12.34';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1826,7 +1825,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.30
+      Made with 💚 for outdoor enthusiasts | v1.12.21
     </div>
   </footer>
 </body>
