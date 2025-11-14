@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.70';
+    window.APP_VERSION = '1.12.71';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.70" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.70" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.71" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.71" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -320,7 +320,7 @@
         margin-bottom: 0 !important;
       }
       
-      /* Скрываем footer на мобилках - сдвигаем за пределы экрана */
+      /* Полностью убираем footer из потока документа на мобилках */
       body footer,
       html body footer,
       footer,
@@ -328,36 +328,7 @@
       #map ~ footer,
       body > footer,
       html footer {
-        position: fixed !important;
-        top: 100vh !important; /* Сдвигаем за пределы видимой области */
-        bottom: auto !important;
-        display: block !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        height: 0 !important;
-        min-height: 0 !important;
-        max-height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border: none !important;
-        overflow: hidden !important;
-        width: 0 !important;
-        max-width: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        opacity: 0 !important;
-        line-height: 0 !important;
-        font-size: 0 !important;
-      }
-      
-      /* Убираем все дочерние элементы footer */
-      footer * {
         display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
       }
       
       /* Убеждаемся что карта занимает весь экран до самого низа */
@@ -1645,7 +1616,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.70';
+    const APP_VERSION = window.APP_VERSION || '1.12.71';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     // Обновляем версию в footer
