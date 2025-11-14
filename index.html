@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.69';
+    window.APP_VERSION = '1.12.70';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.69" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.69" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.70" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.70" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -296,24 +296,26 @@
     
     /* На мобилках скрываем footer и прижимаем info-panel к низу */
     @media (max-width: 768px) {
-      /* Скрываем все Leaflet контролы внизу на мобилках */
-      .leaflet-control-attribution,
-      .leaflet-control-scale,
-      .leaflet-bottom,
-      .leaflet-control-container .leaflet-bottom {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
+      /* Делаем attribution прозрачным и компактным, но оставляем видимым */
+      .leaflet-control-attribution {
         background: transparent !important;
-        pointer-events: none !important;
+        background-color: transparent !important;
+        padding: 2px 4px !important;
+        margin: 0 !important;
+        font-size: 9px !important;
+        line-height: 1.1 !important;
+        bottom: 0 !important;
       }
       
       /* Убираем все отступы у элементов Leaflet внизу */
       .leaflet-bottom {
         bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Убираем отступы у всех Leaflet контролов внизу */
+      .leaflet-control-container .leaflet-bottom {
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
       }
@@ -358,14 +360,17 @@
         margin: 0 !important;
       }
       
-      /* Убеждаемся что карта занимает весь экран */
+      /* Убеждаемся что карта занимает весь экран до самого низа */
       #map {
         bottom: 0 !important;
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        max-height: 100vh !important;
       }
       
-      /* Убеждаемся что Leaflet контейнеры занимают весь экран */
+      /* Убеждаемся что Leaflet контейнеры занимают весь экран до самого низа */
       #map .leaflet-container,
       #map .leaflet-pane,
       #map .leaflet-map-pane,
@@ -373,6 +378,14 @@
         height: 100% !important;
         min-height: 100% !important;
         max-height: 100% !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        bottom: 0 !important;
+      }
+      
+      /* Убеждаемся что карта растягивается под attribution control */
+      #map .leaflet-control-container {
+        bottom: 0 !important;
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
       }
@@ -1632,7 +1645,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.69';
+    const APP_VERSION = window.APP_VERSION || '1.12.70';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     // Обновляем версию в footer
