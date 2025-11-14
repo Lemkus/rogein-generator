@@ -312,56 +312,28 @@
         display: none !important;
       }
       
-      /* Кнопка сворачивания на мобилках */
-      .info-panel-toggle {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 40px;
-        background: #f5f5f5;
-        border: none;
-        border-radius: 12px 12px 0 0;
-        cursor: pointer;
-        margin: -12px -12px 8px -12px;
-        padding: 0;
-        font-size: 20px;
-        color: #666;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      
-      .info-panel-toggle:hover {
-        background: #e0e0e0;
-      }
-      
-      .info-panel-toggle:active {
-        background: #d0d0d0;
+      /* Индикатор свайпа (тонкая полоска сверху) */
+      .info-panel::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: #ccc;
+        border-radius: 2px;
+        z-index: 1;
       }
       
       /* Свернутое состояние */
       .info-panel.collapsed {
-        max-height: 60px !important;
+        max-height: 50px !important;
         overflow: hidden !important;
       }
       
       .info-panel.collapsed .info-panel-content {
         display: none;
-      }
-      
-      .info-panel.collapsed .info-panel-toggle::after {
-        content: '▲';
-      }
-      
-      .info-panel:not(.collapsed) .info-panel-toggle::after {
-        content: '▼';
-      }
-    }
-    
-    /* На десктопе кнопка скрыта */
-    @media (min-width: 769px) {
-      .info-panel-toggle {
-        display: none !important;
       }
     }
     
@@ -1109,9 +1081,6 @@
   
   <!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ ТОЧЕК) -->
   <div class="info-panel" id="infoPanel">
-    <!-- Кнопка сворачивания (только на мобилках) -->
-    <button class="info-panel-toggle" id="infoPanelToggle" aria-label="Свернуть/развернуть"></button>
-    
     <!-- Контент панели -->
     <div class="info-panel-content">
       <!-- Состояние: формирование точек -->
@@ -1422,7 +1391,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.20';
+    const APP_VERSION = '1.12.21';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1475,16 +1444,60 @@
     // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
     window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
     
-    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ ===
-    const infoPanelToggle = document.getElementById('infoPanelToggle');
+    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ (СВАЙП) ===
     const infoPanel = document.getElementById('infoPanel');
-    
-    if (infoPanelToggle && infoPanel) {
-      infoPanelToggle.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        infoPanel.classList.toggle('collapsed');
+    if (infoPanel) {
+      let touchStartY = 0;
+      let touchStartTime = 0;
+      let isCollapsed = false;
+      
+      // Обработка начала касания
+      infoPanel.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+      }, { passive: true });
+      
+      // Обработка движения
+      infoPanel.addEventListener('touchmove', (e) => {
+        // Не блокируем скролл, если панель развернута
+        if (!isCollapsed) {
+          return;
+        }
+      }, { passive: true });
+      
+      // Обработка окончания касания
+      infoPanel.addEventListener('touchend', (e) => {
+        if (!touchStartY) return;
+        
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndTime = Date.now();
+        const deltaY = touchEndY - touchStartY;
+        const deltaTime = touchEndTime - touchStartTime;
+        const minSwipeDistance = 30; // Минимальное расстояние для свайпа
+        const maxSwipeTime = 300; // Максимальное время для свайпа (мс)
+        
+        // Проверяем что это быстрый свайп
+        if (Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
+          // Свайп вниз - сворачиваем
+          if (deltaY > 0 && !isCollapsed) {
+            infoPanel.classList.add('collapsed');
+            isCollapsed = true;
+          }
+          // Свайп вверх - разворачиваем
+          else if (deltaY < 0 && isCollapsed) {
+            infoPanel.classList.remove('collapsed');
+            isCollapsed = false;
+          }
+        }
+        
+        touchStartY = 0;
+      }, { passive: true });
+      
+      // Отслеживаем изменения класса для синхронизации
+      const observer = new MutationObserver(() => {
+        isCollapsed = infoPanel.classList.contains('collapsed');
       });
+      observer.observe(infoPanel, { attributes: true, attributeFilter: ['class'] });
     }
     
     // === СЛАЙДЕР ПРОМО ===
@@ -1702,7 +1715,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.20
+      Made with 💚 for outdoor enthusiasts | v1.12.21
     </div>
   </footer>
 </body>
