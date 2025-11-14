@@ -24,6 +24,15 @@ export let failedAttemptMarkers = [];
 export let graphDebugLayers = [];
 export let excludedPathSegments = [];
 
+// Переменные для отслеживания drag/tap при рисовании полигона
+let polygonDragTracking = {
+  isTracking: false,
+  startPoint: null,
+  hasMoved: false,
+  dragThreshold: 15, // Порог в пикселях для определения drag
+  originalHandler: null
+};
+
 // Инициализация карты
 export function initMap() {
   // Проверяем доступность Leaflet
@@ -108,6 +117,9 @@ export function initMap() {
     map.on('zoom', updateClearButtonPosition);
     map.on('viewreset', updateClearButtonPosition);
     
+    // Обработчики для различения drag/tap при рисовании полигона
+    setupPolygonDragTracking();
+    
     console.log('Карта инициализирована успешно');
     return true;
   } catch (error) {
@@ -126,6 +138,100 @@ function updateClearButtonPosition() {
       ui.positionClearButton(selectedBounds.getBounds(), map);
     }
   });
+}
+
+// Настройка отслеживания drag/tap для полигона
+function setupPolygonDragTracking() {
+  if (!map) return;
+  
+  // Обработчик начала касания/клика
+  function onTouchStart(e) {
+    if (!polygonDragTracking.isTracking) return;
+    
+    const touch = e.touches ? e.touches[0] : e;
+    polygonDragTracking.startPoint = {
+      x: touch.clientX || touch.pageX,
+      y: touch.clientY || touch.pageY
+    };
+    polygonDragTracking.hasMoved = false;
+  }
+  
+  // Обработчик движения
+  function onTouchMove(e) {
+    if (!polygonDragTracking.isTracking || !polygonDragTracking.startPoint) return;
+    
+    const touch = e.touches ? e.touches[0] : e;
+    const currentPoint = {
+      x: touch.clientX || touch.pageX,
+      y: touch.clientY || touch.pageY
+    };
+    
+    // Вычисляем расстояние движения
+    const dx = currentPoint.x - polygonDragTracking.startPoint.x;
+    const dy = currentPoint.y - polygonDragTracking.startPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Если движение превышает порог - это drag
+    if (distance > polygonDragTracking.dragThreshold) {
+      polygonDragTracking.hasMoved = true;
+    }
+  }
+  
+  // Обработчик окончания касания/клика
+  function onTouchEnd(e) {
+    if (!polygonDragTracking.isTracking) return;
+    
+    // Устанавливаем глобальный флаг для переопределенных методов handler'а
+    if (polygonDragTracking.hasMoved) {
+      window._polygonHasMoved = true;
+      // Небольшая задержка для сброса флага после обработки события
+      setTimeout(() => {
+        window._polygonHasMoved = false;
+      }, 50);
+    } else {
+      window._polygonHasMoved = false;
+    }
+    
+    // Сбрасываем состояние
+    polygonDragTracking.startPoint = null;
+    polygonDragTracking.hasMoved = false;
+  }
+  
+  // Добавляем обработчики на контейнер карты
+  const mapContainer = map.getContainer();
+  
+  // Для touch событий
+  mapContainer.addEventListener('touchstart', onTouchStart, { passive: true });
+  mapContainer.addEventListener('touchmove', onTouchMove, { passive: true });
+  mapContainer.addEventListener('touchend', onTouchEnd, { passive: true });
+  
+  // Для mouse событий (на случай десктопа)
+  mapContainer.addEventListener('mousedown', onTouchStart, { passive: true });
+  mapContainer.addEventListener('mousemove', onTouchMove, { passive: true });
+  mapContainer.addEventListener('mouseup', onTouchEnd, { passive: true });
+}
+
+// Получение handler'а полигона
+function getPolygonHandler() {
+  if (!drawControl || !drawControl._toolbars || !drawControl._toolbars.draw) {
+    return null;
+  }
+  const polygonButton = drawControl._toolbars.draw._modes.polygon;
+  return polygonButton && polygonButton.handler ? polygonButton.handler : null;
+}
+
+// Активация режима отслеживания для полигона
+export function enablePolygonDragTracking() {
+  polygonDragTracking.isTracking = true;
+  console.log('📱 Отслеживание drag/tap для полигона активировано');
+}
+
+// Деактивация режима отслеживания для полигона
+export function disablePolygonDragTracking() {
+  polygonDragTracking.isTracking = false;
+  polygonDragTracking.startPoint = null;
+  polygonDragTracking.hasMoved = false;
+  console.log('📱 Отслеживание drag/tap для полигона деактивировано');
 }
 
 // Обработчик создания объектов на карте
@@ -171,6 +277,9 @@ function handleDrawCreated(event) {
       }, 100);
     });
   } else if (layer instanceof L.Polygon) {
+    // Деактивируем отслеживание drag/tap после завершения рисования полигона
+    disablePolygonDragTracking();
+    
     // Очищаем предыдущий полигон
     drawnItems.getLayers().forEach(l => {
       if (l instanceof L.Polygon) {
@@ -561,6 +670,9 @@ export function triggerPointGeneration() {
 // Функция очистки всего
 export function clearAll() {
   console.log('🗑️ Очистка всех данных...');
+  
+  // Деактивируем отслеживание drag/tap
+  disablePolygonDragTracking();
   
   // Очищаем прямоугольник
   drawnItems.clearLayers();
