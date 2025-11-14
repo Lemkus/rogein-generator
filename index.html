@@ -18,11 +18,11 @@
   <script>
     // Версия приложения для cache-busting всех ресурсов
     // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
-    window.APP_VERSION = '1.12.60';
+    window.APP_VERSION = '1.12.61';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.60" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.60" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.61" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.61" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -45,7 +45,7 @@
       margin: 0 !important;
       padding: 0 !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: transparent !important; /* Прозрачный фон, чтобы не было черной полосы */
+      background: transparent !important;
       overflow: hidden !important;
       position: fixed !important;
       top: 0 !important;
@@ -58,6 +58,13 @@
       min-height: 100vh !important;
       max-width: 100vw !important;
       max-height: 100vh !important;
+    }
+    
+    /* Убираем все возможные отступы и зазоры */
+    body::after,
+    body::before {
+      display: none !important;
+      content: none !important;
     }
     
     /* ========== ИСПРАВЛЕНИЕ ОШИБОК LEAFLET DRAW ========== */
@@ -294,7 +301,8 @@
       footer,
       body.navigating footer,
       #map ~ footer,
-      body > footer {
+      body > footer,
+      html footer {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -313,6 +321,18 @@
         pointer-events: none !important;
         background: transparent !important;
         box-shadow: none !important;
+        line-height: 0 !important;
+        font-size: 0 !important;
+      }
+      
+      /* Убираем все дочерние элементы footer */
+      footer * {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       
       .info-panel {
@@ -950,10 +970,28 @@
       line-height: 1.4;
     }
     
-    /* На мобилках footer полностью скрыт */
+    /* На мобилках footer полностью скрыт и не занимает место */
     @media (max-width: 768px) {
       footer {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        width: 0 !important;
+        max-width: 0 !important;
+        pointer-events: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        line-height: 0 !important;
       }
     }
     
@@ -1571,7 +1609,7 @@
   
   <script type="module">
     // Используем глобальную версию из head
-    const APP_VERSION = window.APP_VERSION || '1.12.60';
+    const APP_VERSION = window.APP_VERSION || '1.12.61';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
     // Обновляем версию в footer
