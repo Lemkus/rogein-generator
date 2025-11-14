@@ -98,6 +98,70 @@ export function initUI() {
 }
 
 /**
+ * Переопределение методов handler'а полигона для различения drag/tap
+ */
+function overridePolygonHandler(handler) {
+  if (!handler) return;
+  
+  // Сохраняем оригинальные методы
+  const originalAddVertex = handler.addVertex;
+  const originalOnMouseDown = handler._onMouseDown;
+  const originalOnMouseUp = handler._onMouseUp;
+  const originalOnTouch = handler._onTouch;
+  
+  // Импортируем mapModule для доступа к состоянию отслеживания
+  import('./mapModule.js').then(module => {
+    // Переопределяем addVertex - проверяем, было ли движение
+    handler.addVertex = function(latlng) {
+      // Проверяем флаг движения через глобальное состояние
+      if (window._polygonDragDetected) {
+        window._polygonDragDetected = false;
+        console.log('🚫 Drag обнаружен, точка не добавлена');
+        return;
+      }
+      // Вызываем оригинальный метод
+      return originalAddVertex.call(this, latlng);
+    };
+    
+    // Переопределяем _onMouseDown для отслеживания начала
+    handler._onMouseDown = function(e) {
+      window._polygonDragDetected = false;
+      if (originalOnMouseDown) {
+        return originalOnMouseDown.call(this, e);
+      }
+    };
+    
+    // Переопределяем _onMouseUp - проверяем движение
+    handler._onMouseUp = function(e) {
+      // Проверяем, было ли движение (через глобальное состояние)
+      if (window._polygonHasMoved) {
+        window._polygonHasMoved = false;
+        window._polygonDragDetected = true;
+        console.log('🚫 Обнаружено движение карты, точка не будет добавлена');
+        return;
+      }
+      if (originalOnMouseUp) {
+        return originalOnMouseUp.call(this, e);
+      }
+    };
+    
+    // Переопределяем _onTouch для мобильных устройств
+    handler._onTouch = function(e) {
+      // Проверяем, было ли движение
+      if (window._polygonHasMoved) {
+        window._polygonHasMoved = false;
+        window._polygonDragDetected = true;
+        console.log('🚫 Обнаружено движение карты (touch), точка не будет добавлена');
+        return;
+      }
+      if (originalOnTouch) {
+        return originalOnTouch.call(this, e);
+      }
+    };
+  });
+}
+
+/**
  * Настройка обработчиков событий
  */
 function setupEventHandlers() {
@@ -118,6 +182,9 @@ function setupEventHandlers() {
     
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
+      // Деактивируем отслеживание drag/tap для полигона
+      module.disablePolygonDragTracking();
+      
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
         const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
         if (rectangleButton && rectangleButton.handler) {
@@ -141,6 +208,10 @@ function setupEventHandlers() {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
         const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
         if (polygonButton && polygonButton.handler) {
+          // Активируем отслеживание drag/tap перед включением handler'а
+          module.enablePolygonDragTracking();
+          // Переопределяем методы handler'а для перехвата событий
+          overridePolygonHandler(polygonButton.handler);
           polygonButton.handler.enable();
           addApiLog('🎯 Режим выбора области активирован. Нарисуйте многоугольник на карте.');
         }
@@ -296,6 +367,10 @@ export function setStep(step) {
       polygonBtn.classList.remove('active');
       hideInfoPanel();
       hideClearButton();
+      // Деактивируем отслеживание drag/tap
+      import('./mapModule.js').then(module => {
+        module.disablePolygonDragTracking();
+      });
       break;
       
     case 'area_selected':
@@ -315,6 +390,10 @@ export function setStep(step) {
       drawAreaBtn.classList.remove('active');
       polygonBtn.classList.remove('active');
       showInfoPanel();
+      // Деактивируем отслеживание drag/tap
+      import('./mapModule.js').then(module => {
+        module.disablePolygonDragTracking();
+      });
       break;
       
     case 'navigating':
