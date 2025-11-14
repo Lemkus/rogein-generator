@@ -8,6 +8,8 @@ import os
 import subprocess
 import json
 import sys
+import re
+from datetime import datetime
 
 def load_config():
     """Загружает конфигурацию из файла"""
@@ -17,6 +19,65 @@ def load_config():
     except Exception as e:
         print(f"Ошибка загрузки конфигурации: {e}")
         return None
+
+def update_version_in_html():
+    """Автоматически обновляет версию в index.html"""
+    html_file = 'index.html'
+    if not os.path.exists(html_file):
+        print(f"Файл {html_file} не найден")
+        return False
+    
+    try:
+        with open(html_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Извлекаем текущую версию
+        version_match = re.search(r"window\.APP_VERSION\s*=\s*['\"]([\d.]+)['\"]", content)
+        if not version_match:
+            print("Не найдена версия в index.html")
+            return False
+        
+        current_version = version_match.group(1)
+        # Увеличиваем минорную версию
+        parts = current_version.split('.')
+        if len(parts) >= 3:
+            parts[2] = str(int(parts[2]) + 1)
+            new_version = '.'.join(parts)
+        else:
+            # Если формат неожиданный, добавляем timestamp
+            new_version = f"{current_version}.{int(datetime.now().timestamp()) % 10000}"
+        
+        # Заменяем версию во всех местах
+        content = re.sub(
+            r"window\.APP_VERSION\s*=\s*['\"][\d.]+['\"]",
+            f"window.APP_VERSION = '{new_version}'",
+            content
+        )
+        content = re.sub(
+            r"const APP_VERSION\s*=\s*window\.APP_VERSION\s*\|\|\s*['\"][\d.]+['\"]",
+            f"const APP_VERSION = window.APP_VERSION || '{new_version}'",
+            content
+        )
+        # Обновляем версию в CSS ссылках
+        content = re.sub(
+            r"(leaflet\.css\?v=)[\d.]+",
+            f"\\1{new_version}",
+            content
+        )
+        content = re.sub(
+            r"(leaflet\.draw\.css\?v=)[\d.]+",
+            f"\\1{new_version}",
+            content
+        )
+        
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"Версия обновлена: {current_version} -> {new_version}")
+        return True
+    except Exception as e:
+        print(f"Ошибка обновления версии: {e}")
+        return False
 
 def run_command(command, description):
     """Выполняет команду и выводит результат"""
@@ -39,6 +100,11 @@ def run_command(command, description):
 def deploy_to_regru():
     """Основная функция деплоя"""
     print("Начинаем деплой на REG.RU...")
+    
+    # Автоматически обновляем версию перед деплоем
+    print("\nОбновляем версию приложения...")
+    if not update_version_in_html():
+        print("Предупреждение: не удалось обновить версию, продолжаем деплой...")
     
     # Загружаем конфигурацию
     config = load_config()
