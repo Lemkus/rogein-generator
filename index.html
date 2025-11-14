@@ -22,21 +22,31 @@
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
     
     // Принудительное обновление кеша - проверяем версию в localStorage
-    (function() {
+    // Упрощенная версия без агрессивной перезагрузки
+    try {
       const storedVersion = localStorage.getItem('app_version');
       const currentVersion = window.APP_VERSION;
       
       if (storedVersion && storedVersion !== currentVersion) {
-        // Версия изменилась - очищаем весь кеш и перезагружаем
-        localStorage.clear();
-        sessionStorage.clear();
-        // Принудительная перезагрузка без кеша
-        window.location.reload(true);
-      } else {
-        // Сохраняем текущую версию
+        // Версия изменилась - сохраняем новую версию
+        localStorage.setItem('app_version', currentVersion);
+        // Очищаем только данные приложения, не весь localStorage
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('route_') || key.startsWith('sequence_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+      } else if (!storedVersion) {
+        // Первый запуск - сохраняем версию
         localStorage.setItem('app_version', currentVersion);
       }
-    })();
+    } catch (e) {
+      // Игнорируем ошибки localStorage (например, в приватном режиме)
+      console.warn('Не удалось проверить версию:', e);
+    }
   </script>
   <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.30" />
   <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.30" />
