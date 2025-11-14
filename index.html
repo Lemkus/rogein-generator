@@ -292,7 +292,9 @@
       body footer,
       html body footer,
       footer,
-      body.navigating footer {
+      body.navigating footer,
+      #map ~ footer,
+      body > footer {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -309,6 +311,8 @@
         width: 0 !important;
         max-width: 0 !important;
         pointer-events: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
       
       .info-panel {
@@ -928,7 +932,7 @@
     }
     .anchor-link { color: #4CAF50; text-decoration: none; }
     
-    /* Footer styles */
+    /* Footer styles - скрыт на мобилках */
     footer {
       position: fixed;
       bottom: 0;
@@ -942,8 +946,15 @@
       font-size: 12px;
       color: #666;
       z-index: 500;
-      display: block !important; /* Явно показываем footer по умолчанию */
+      display: block; /* Показываем только на десктопе */
       line-height: 1.4;
+    }
+    
+    /* На мобилках footer полностью скрыт */
+    @media (max-width: 768px) {
+      footer {
+        display: none !important;
+      }
     }
     
     /* Скрываем footer в режиме навигации */
