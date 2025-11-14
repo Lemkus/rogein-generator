@@ -1554,6 +1554,50 @@
     const APP_VERSION = window.APP_VERSION || '1.12.54';
     const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
     
+    // Регистрация Service Worker с принудительным обновлением
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js?v=' + APP_VERSION, { 
+        updateViaCache: 'none' // Не кешировать сам SW
+      }).then(registration => {
+        console.log('Service Worker зарегистрирован:', registration.scope);
+        
+        // Проверяем обновления каждые 60 секунд
+        setInterval(() => {
+          registration.update();
+        }, 60000);
+        
+        // Принудительное обновление при загрузке страницы
+        registration.update();
+        
+        // Слушаем обновления SW
+        registration.addEventListener('updatefound', () => {
+          console.log('Обнаружена новая версия Service Worker');
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Новый SW готов - принудительно активируем
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                // Перезагружаем страницу
+                window.location.reload();
+              }
+            });
+          }
+        });
+        
+        // Слушаем сообщения от SW
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data && event.data.type === 'SW_UPDATED') {
+            console.log('Service Worker обновлен до версии:', event.data.version);
+            // Можно показать уведомление пользователю или перезагрузить
+            window.location.reload();
+          }
+        });
+      }).catch(error => {
+        console.error('Ошибка регистрации Service Worker:', error);
+      });
+    }
+    
     import(`/src/app.js${CACHE_BUST}`).then(module => {
       if (typeof module.initApp === 'function') {
         module.initApp();
