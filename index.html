@@ -346,6 +346,11 @@
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
       }
       
       body {
@@ -368,6 +373,8 @@
         height: 100vh !important;
         max-width: 100vw !important;
         max-height: 100vh !important;
+        min-width: 100vw !important;
+        min-height: 100vh !important;
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
@@ -377,9 +384,17 @@
         position: fixed !important;
       }
       
-      #map .leaflet-container {
+      #map .leaflet-container,
+      #map .leaflet-pane,
+      #map .leaflet-map-pane,
+      #map .leaflet-tile-pane,
+      #map .leaflet-overlay-pane {
         width: 100vw !important;
         height: 100vh !important;
+        min-width: 100vw !important;
+        min-height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
       }
@@ -1546,7 +1561,7 @@
   
   <script type="module">
     // Версия для принудительного обновления кэша - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-    const APP_VERSION = '1.12.28';
+    const APP_VERSION = '1.12.29';
     
     import(`/src/app.js?v=${APP_VERSION}&t=${Date.now()}`).then(module => {
       if (typeof module.initApp === 'function') {
@@ -1870,7 +1885,7 @@
       </a>
     </div>
     <div style="margin-top: 4px; font-size: 10px; color: #999;">
-      Made with 💚 for outdoor enthusiasts | v1.12.28
+      Made with 💚 for outdoor enthusiasts | v1.12.29
     </div>
   </footer>
 </body>
