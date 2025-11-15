@@ -73,6 +73,17 @@
       background-image: none !important;
     }
     
+    /* Сдвигаем элементы управления полигона влево, чтобы не перекрывали меню */
+    .leaflet-right .leaflet-draw-actions {
+      right: 150px !important; /* Сдвигаем влево от правого края, чтобы не перекрывать меню */
+      left: auto !important;
+    }
+    
+    .leaflet-touch .leaflet-right .leaflet-draw-actions {
+      right: 150px !important;
+      left: auto !important;
+    }
+    
     /* ========== КАРТА (ПОЛНОЭКРАННАЯ) ========== */
     #map { 
       position: fixed !important;
@@ -1608,6 +1619,21 @@
   <!-- Tone.js удален - используем простой Web Audio API -->
   
   <script>
+    // Локализация Leaflet Draw на русский язык
+    if (typeof L !== 'undefined' && L.drawLocal) {
+      L.drawLocal.draw.toolbar.actions.title = "Отменить рисование";
+      L.drawLocal.draw.toolbar.actions.text = "Отмена";
+      L.drawLocal.draw.toolbar.finish.title = "Завершить рисование";
+      L.drawLocal.draw.toolbar.finish.text = "Завершить";
+      L.drawLocal.draw.toolbar.undo.title = "Удалить последнюю точку";
+      L.drawLocal.draw.toolbar.undo.text = "Удалить точку";
+      
+      // Локализация подсказок для полигона
+      L.drawLocal.draw.handlers.polygon.tooltip.start = "Кликните, чтобы начать рисование фигуры";
+      L.drawLocal.draw.handlers.polygon.tooltip.cont = "Кликните, чтобы продолжить рисование фигуры";
+      L.drawLocal.draw.handlers.polygon.tooltip.end = "Кликните на первую точку, чтобы закрыть эту фигуру";
+    }
+    
     // Запрос разрешений для уведомлений (без Service Worker)
     if ('Notification' in window) {
       Notification.requestPermission();
