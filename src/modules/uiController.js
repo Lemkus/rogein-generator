@@ -176,6 +176,9 @@ function setupEventHandlers() {
   drawAreaBtn.addEventListener('click', () => {
     console.log('🎯 Активация режима выбора области (прямоугольник)');
     
+    // Скрываем подсказку при начале рисования
+    hideHint();
+    
     // Активируем кнопку прямоугольника и деактивируем полигон
     drawAreaBtn.classList.add('active');
     polygonBtn.classList.remove('active');
@@ -186,8 +189,18 @@ function setupEventHandlers() {
       module.disablePolygonDragTracking();
       
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
+        // Отключаем все активные handlers перед включением нового
+        const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
+        if (polygonButton && polygonButton.handler && polygonButton.handler._enabled) {
+          polygonButton.handler.disable();
+        }
+        
         const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
         if (rectangleButton && rectangleButton.handler) {
+          // Отключаем handler если он уже активен
+          if (rectangleButton.handler._enabled) {
+            rectangleButton.handler.disable();
+          }
           rectangleButton.handler.enable();
           addApiLog('🎯 Режим выбора области активирован. Нарисуйте прямоугольник на карте.');
         }
@@ -199,6 +212,9 @@ function setupEventHandlers() {
   polygonBtn.addEventListener('click', () => {
     console.log('🎯 Активация режима выбора области (полигон)');
     
+    // Скрываем подсказку при начале рисования
+    hideHint();
+    
     // Активируем кнопку полигона и деактивируем прямоугольник
     polygonBtn.classList.add('active');
     drawAreaBtn.classList.remove('active');
@@ -206,8 +222,18 @@ function setupEventHandlers() {
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
+        // Отключаем все активные handlers перед включением нового
+        const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
+        if (rectangleButton && rectangleButton.handler && rectangleButton.handler._enabled) {
+          rectangleButton.handler.disable();
+        }
+        
         const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
         if (polygonButton && polygonButton.handler) {
+          // Отключаем handler если он уже активен
+          if (polygonButton.handler._enabled) {
+            polygonButton.handler.disable();
+          }
           // Активируем отслеживание drag/tap перед включением handler'а
           module.enablePolygonDragTracking();
           // Переопределяем методы handler'а для перехвата событий

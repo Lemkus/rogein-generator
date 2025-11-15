@@ -73,15 +73,17 @@
       background-image: none !important;
     }
     
-    /* Сдвигаем элементы управления полигона влево, чтобы не перекрывали меню */
+    /* Позиционируем элементы управления полигона под командами управления справа */
     .leaflet-right .leaflet-draw-actions {
-      right: 150px !important; /* Сдвигаем влево от правого края, чтобы не перекрывать меню */
+      right: 10px !important; /* Выравниваем с правым краем top-toolbar */
       left: auto !important;
+      top: 64px !important; /* Под top-toolbar (10px top + 44px высота кнопки + 10px отступ) */
     }
     
     .leaflet-touch .leaflet-right .leaflet-draw-actions {
-      right: 150px !important;
+      right: 10px !important;
       left: auto !important;
+      top: 64px !important;
     }
     
     /* ========== КАРТА (ПОЛНОЭКРАННАЯ) ========== */
