@@ -224,8 +224,8 @@ function setupEventHandlers() {
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
         // Отключаем все активные handlers перед включением нового
         const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
-        if (rectangleButton && rectangleButton.handler && rectangleButton.handler._enabled) {
-          rectangleButton.handler.disable();
+        if (rectangleButton && rectangleButton.handler) {
+          rectangleButton.handler.disable(); // Всегда отключаем, даже если _enabled false
         }
         
         const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
