@@ -6,20 +6,18 @@ PassengerAppRoot /var/www/u3288673/data/www/trailspot.app
 # Обработка CORS заголовков
 Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"    
 
 # Обработка preflight запросов
 RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Агрессивный запрет кеширования для HTML
+# Запрет кеширования для HTML
 <FilesMatch "\.(html|htm)$">
-  Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
   Header set Pragma "no-cache"
-  Header set Expires "0"
-  Header unset ETag
-  Header unset Last-Modified
+  Header set Expires 0
 </FilesMatch>
 
 # Запрет кеширования для Service Worker
@@ -29,21 +27,9 @@ RewriteRule ^(.*)$ $1 [R=200,L]
   Header set Expires 0
 </FilesMatch>
 
-# Кеширование для статических ресурсов только если есть версия в URL
-# Если нет версии - не кешируем
-<FilesMatch "\.(js|css)$">
-  # Если в URL есть параметр v= - кешируем долго
-  RewriteCond %{QUERY_STRING} v=
-  RewriteRule .* - [E=CACHE:long]
-  # Если нет версии - не кешируем
-  Header set Cache-Control "no-cache, no-store, must-revalidate" env=!CACHE
-  Header set Cache-Control "public, max-age=31536000, immutable" env=CACHE
+# Кеширование для статических ресурсов с версионированием
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 
-# Кеширование для изображений
-<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico)$">
-  Header set Cache-Control "public, max-age=86400"
-</FilesMatch>
-
-# Все запросы обрабатываются через Passenger WSGI напрямую
-# Не нужно проксировать на порт 5000
+# Все запросы обрабатываются через Passenger WSGI
