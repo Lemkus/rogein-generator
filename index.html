@@ -86,6 +86,21 @@
       top: 64px !important;
     }
     
+    /* Позиционируем подсказки Leaflet Draw под командами управления справа */
+    .leaflet-draw-tooltip {
+      position: fixed !important;
+      right: 10px !important;
+      left: auto !important;
+      top: 110px !important; /* Под элементами управления (64px top + 46px высота) */
+      margin-left: 0 !important;
+      margin-top: 0 !important;
+      z-index: 1001 !important;
+    }
+    
+    .leaflet-draw-tooltip:before {
+      display: none !important; /* Скрываем стрелку, так как подсказка не привязана к курсору */
+    }
+    
     /* ========== КАРТА (ПОЛНОЭКРАННАЯ) ========== */
     #map { 
       position: fixed !important;
