@@ -1,7 +1,6 @@
 # Passenger конфигурация для Flask приложения
 Options -MultiViews
 PassengerEnabled On
-PassengerStartupFile passenger_wsgi.py
 
 # Обработка CORS заголовков
 Header always set Access-Control-Allow-Origin "*"
