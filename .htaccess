@@ -1,9 +1,7 @@
 # Passenger конфигурация для Flask приложения
 Options -MultiViews
 PassengerEnabled On
-PassengerAppType wsgi
 PassengerStartupFile passenger_wsgi.py
-PassengerPython /var/www/u3288673/data/www/trailspot.app/venv/bin/python3.8
 
 # Обработка CORS заголовков
 Header always set Access-Control-Allow-Origin "*"
