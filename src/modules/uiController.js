@@ -209,13 +209,7 @@ function setupEventHandlers() {
   });
   
   // Кнопка выбора области (полигон)
-  polygonBtn.addEventListener('click', (e) => {
-    // На мобильных устройствах останавливаем распространение события
-    if (e.touches || ('ontouchstart' in window)) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    
+  polygonBtn.addEventListener('click', () => {
     console.log('🎯 Активация режима выбора области (полигон)');
     
     // Скрываем подсказку при начале рисования
@@ -231,29 +225,23 @@ function setupEventHandlers() {
         // Отключаем все активные handlers перед включением нового
         const rectangleButton = module.drawControl._toolbars.draw._modes.rectangle;
         if (rectangleButton && rectangleButton.handler) {
-          // Всегда отключаем, даже если handler в процессе рисования
+          // Всегда отключаем, даже если handler в промежуточном состоянии
           rectangleButton.handler.disable();
         }
         
-        // На мобильных устройствах добавляем небольшую задержку для полной очистки состояния
-        const isMobile = 'ontouchstart' in window;
-        const delay = isMobile ? 50 : 0;
-        
-        setTimeout(() => {
-          const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
-          if (polygonButton && polygonButton.handler) {
-            // Отключаем handler если он уже активен
-            if (polygonButton.handler._enabled) {
-              polygonButton.handler.disable();
-            }
-            // Активируем отслеживание drag/tap перед включением handler'а
-            module.enablePolygonDragTracking();
-            // Переопределяем методы handler'а для перехвата событий
-            overridePolygonHandler(polygonButton.handler);
-            polygonButton.handler.enable();
-            addApiLog('🎯 Режим выбора области активирован. Нарисуйте многоугольник на карте.');
+        const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
+        if (polygonButton && polygonButton.handler) {
+          // Отключаем handler если он уже активен
+          if (polygonButton.handler._enabled) {
+            polygonButton.handler.disable();
           }
-        }, delay);
+          // Активируем отслеживание drag/tap перед включением handler'а
+          module.enablePolygonDragTracking();
+          // Переопределяем методы handler'а для перехвата событий
+          overridePolygonHandler(polygonButton.handler);
+          polygonButton.handler.enable();
+          addApiLog('🎯 Режим выбора области активирован. Нарисуйте многоугольник на карте.');
+        }
       }
     });
   });
