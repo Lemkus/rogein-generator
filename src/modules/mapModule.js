@@ -11,6 +11,21 @@ export let drawnItems;
 export let drawControl;
 export let selectedBounds = null;
 export let startPoint = null;
+
+// Глобальная функция для синхронного отключения handler'а прямоугольника
+export function disableRectangleHandlerSync() {
+  if (drawControl && drawControl._toolbars && drawControl._toolbars.draw) {
+    const rectangleButton = drawControl._toolbars.draw._modes.rectangle;
+    if (rectangleButton && rectangleButton.handler && rectangleButton.handler._enabled) {
+      try {
+        rectangleButton.handler.disable();
+        console.log('🔴 Handler прямоугольника отключен синхронно');
+      } catch (e) {
+        console.error('Ошибка при отключении handler прямоугольника:', e);
+      }
+    }
+  }
+}
 export let startMarker = null;
 export let pointMarkers = [];
 export let closedAreas = [];

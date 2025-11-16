@@ -208,8 +208,8 @@ function setupEventHandlers() {
     });
   });
   
-  // Кнопка выбора области (полигон)
-  polygonBtn.addEventListener('click', () => {
+  // Функция переключения на полигон (вынесена для использования в click и touchstart)
+  function switchToPolygon() {
     console.log('🎯 Активация режима выбора области (полигон)');
     
     // Скрываем подсказку при начале рисования
@@ -244,7 +244,22 @@ function setupEventHandlers() {
         }
       }
     });
-  });
+  }
+  
+  // Кнопка выбора области (полигон) - используем и click и touchstart для мобильных
+  polygonBtn.addEventListener('click', switchToPolygon);
+  polygonBtn.addEventListener('touchstart', async (e) => {
+    e.stopPropagation(); // Останавливаем распространение, чтобы handler прямоугольника не перехватил
+    e.preventDefault(); // Предотвращаем стандартное поведение
+    
+    // Синхронно отключаем handler прямоугольника ДО асинхронного кода
+    const mapModule = await import('./mapModule.js');
+    if (mapModule.disableRectangleHandlerSync) {
+      mapModule.disableRectangleHandlerSync();
+    }
+    
+    switchToPolygon();
+  }, { passive: false });
   
   // Кнопка очистки области
   clearAreaBtn.addEventListener('click', () => {
