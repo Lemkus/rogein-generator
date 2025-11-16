@@ -1,7 +1,6 @@
 # Passenger конфигурация для Flask приложения
 Options -MultiViews
 PassengerEnabled On
-PassengerAppRoot /var/www/u3288673/data/www/trailspot.app
 PassengerAppType wsgi
 PassengerStartupFile passenger_wsgi.py
 
