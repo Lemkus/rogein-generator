@@ -130,8 +130,13 @@ function overridePolygonHandler(handler) {
       }
       
       // Если движения не было, вызываем оригинальный метод
-      if (originalEndPoint) {
+      // Проверяем, что handler полностью инициализирован (_markers должен быть массивом)
+      if (originalEndPoint && Array.isArray(this._markers)) {
         return originalEndPoint.call(this, clientX, clientY, event);
+      } else {
+        // Если _markers не инициализирован, просто возвращаемся без ошибки
+        console.warn('⚠️ Handler полигона не полностью инициализирован (_markers не массив), пропускаем _endPoint');
+        return;
       }
     };
     
