@@ -171,16 +171,61 @@ function overridePolygonHandler(handler) {
     };
     
     // Переопределяем _onTouch для мобильных устройств
+    // Ключевое отличие от маркера: маркер использует событие 'click', которое Leaflet
+    // автоматически фильтрует после drag. Полигон использует 'touchstart', который
+    // срабатывает всегда. Поэтому нужно проверять движение карты вручную.
     handler._onTouch = function(e) {
-      // Проверяем, было ли движение
-      if (window._polygonHasMoved) {
+      // Проверяем флаг движения карты ПЕРЕД вызовом оригинального метода
+      // Флаг устанавливается в mapModule при обнаружении движения карты
+      if (window._polygonHasMoved || window._polygonDragDetected) {
         window._polygonHasMoved = false;
-        window._polygonDragDetected = true;
-        console.log('🚫 Обнаружено движение карты (touch), точка не будет добавлена');
-        return;
+        window._polygonDragDetected = false;
+        console.log('🚫 Обнаружено движение карты в _onTouch, точка не будет добавлена');
+        return; // Не вызываем оригинальный метод, если карта двигалась
       }
+      
+      // Сохраняем начальную позицию центра карты перед обработкой
+      const mapCenterBefore = this._map.getCenter();
+      const markersCountBefore = this._markers ? this._markers.length : 0;
+      
+      // Вызываем оригинальный метод
       if (originalOnTouch) {
-        return originalOnTouch.call(this, e);
+        originalOnTouch.call(this, e);
+      }
+      
+      // Проверяем, двигалась ли карта сразу после touchstart
+      // (если пользователь начал двигать карту сразу, центр изменится)
+      const mapCenterAfter = this._map.getCenter();
+      const centerDx = mapCenterAfter.lat - mapCenterBefore.lat;
+      const centerDy = mapCenterAfter.lng - mapCenterBefore.lng;
+      const centerDistance = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
+      
+      // Если карта двигалась - это был drag, нужно отменить добавление точки
+      if (centerDistance > 0.000001) {
+        console.log('🚫 Обнаружено движение карты сразу после touch, отменяем добавление точки');
+        // Удаляем последнюю добавленную точку, если она была добавлена
+        const markersCountAfter = this._markers ? this._markers.length : 0;
+        if (markersCountAfter > markersCountBefore) {
+          // Точка была добавлена, удаляем её
+          this.deleteLastVertex();
+        }
+      } else {
+        // Если карта не двигалась сразу, используем задержку для проверки
+        // движения во время touchmove (карта может начать двигаться позже)
+        setTimeout(() => {
+          const mapCenterLater = this._map.getCenter();
+          const centerDx2 = mapCenterLater.lat - mapCenterBefore.lat;
+          const centerDy2 = mapCenterLater.lng - mapCenterBefore.lng;
+          const centerDistance2 = Math.sqrt(centerDx2 * centerDx2 + centerDy2 * centerDy2);
+          
+          if (centerDistance2 > 0.000001) {
+            console.log('🚫 Обнаружено движение карты во время touch, отменяем добавление точки');
+            const markersCountAfter = this._markers ? this._markers.length : 0;
+            if (markersCountAfter > markersCountBefore) {
+              this.deleteLastVertex();
+            }
+          }
+        }, 100); // Задержка для проверки движения карты во время touchmove
       }
     };
   });
