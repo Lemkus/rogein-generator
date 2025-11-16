@@ -54,8 +54,7 @@ let polygonDragTracking = {
     onTouchEnd: null,
     onMapDragStart: null,
     onMapDrag: null,
-    onMapDragEnd: null,
-    interceptTouchStart: null // Перехватчик touchstart для блокировки события
+    onMapDragEnd: null
   },
   isSetup: false // Флаг, что обработчики уже установлены
 };
@@ -222,8 +221,6 @@ function setupPolygonDragTracking() {
         // Устанавливаем флаг синхронно, чтобы он был доступен сразу
         window._polygonHasMoved = true;
         window._polygonDragDetected = true;
-        // Останавливаем дальнейшую обработку события
-        e.stopPropagation();
         return;
       }
     }
@@ -234,8 +231,6 @@ function setupPolygonDragTracking() {
       // Устанавливаем флаг синхронно
       window._polygonHasMoved = true;
       window._polygonDragDetected = true;
-      // Останавливаем дальнейшую обработку события
-      e.stopPropagation();
     }
   };
   
@@ -290,32 +285,15 @@ function setupPolygonDragTracking() {
   // Добавляем обработчики на контейнер карты
   const mapContainer = map.getContainer();
   
-  // Для touch событий - используем capture phase для перехвата ДО handler'а полигона
-  mapContainer.addEventListener('touchstart', polygonDragTracking.handlers.onTouchStart, { passive: true, capture: true });
-  mapContainer.addEventListener('touchmove', polygonDragTracking.handlers.onTouchMove, { passive: true, capture: true });
-  mapContainer.addEventListener('touchend', polygonDragTracking.handlers.onTouchEnd, { passive: true, capture: true });
+  // Для touch событий - обычные обработчики (без capture phase)
+  mapContainer.addEventListener('touchstart', polygonDragTracking.handlers.onTouchStart, { passive: true });
+  mapContainer.addEventListener('touchmove', polygonDragTracking.handlers.onTouchMove, { passive: true });
+  mapContainer.addEventListener('touchend', polygonDragTracking.handlers.onTouchEnd, { passive: true });
   
   // Для mouse событий (на случай десктопа)
-  mapContainer.addEventListener('mousedown', polygonDragTracking.handlers.onTouchStart, { passive: true, capture: true });
-  mapContainer.addEventListener('mousemove', polygonDragTracking.handlers.onTouchMove, { passive: true, capture: true });
-  mapContainer.addEventListener('mouseup', polygonDragTracking.handlers.onTouchEnd, { passive: true, capture: true });
-  
-  // Перехватываем touchstart на карте и предотвращаем его распространение к handler'у полигона,
-  // если карта двигалась или двигается
-  polygonDragTracking.handlers.interceptTouchStart = function(e) {
-    if (!polygonDragTracking.isTracking) return;
-    
-    // Если карта двигалась или двигается - останавливаем распространение события
-    if (window._polygonHasMoved || window._polygonDragDetected || polygonDragTracking.mapDragging) {
-      console.log('🚫 Перехвачено touchstart - карта двигалась, событие остановлено');
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      return false;
-    }
-  };
-  
-  // Добавляем перехватчик с высоким приоритетом (capture phase, до handler'а полигона)
-  mapContainer.addEventListener('touchstart', polygonDragTracking.handlers.interceptTouchStart, { capture: true, passive: false });
+  mapContainer.addEventListener('mousedown', polygonDragTracking.handlers.onTouchStart, { passive: true });
+  mapContainer.addEventListener('mousemove', polygonDragTracking.handlers.onTouchMove, { passive: true });
+  mapContainer.addEventListener('mouseup', polygonDragTracking.handlers.onTouchEnd, { passive: true });
   
   // Обработчики событий движения карты от Leaflet
   map.on('dragstart', polygonDragTracking.handlers.onMapDragStart);
