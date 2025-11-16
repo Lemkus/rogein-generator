@@ -184,6 +184,9 @@ function setupPolygonDragTracking() {
     };
     polygonDragTracking.hasMoved = false;
     polygonDragTracking.mapDragging = false;
+    // Сбрасываем глобальные флаги для нового касания
+    window._polygonHasMoved = false;
+    window._polygonDragDetected = false;
     // Сохраняем начальную позицию центра карты
     polygonDragTracking.mapCenter = map.getCenter();
   };
@@ -211,9 +214,13 @@ function setupPolygonDragTracking() {
       const centerDistance = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
       
       // Если карта двигается (даже немного) - это точно drag
-      if (centerDistance > 0.00001) { // Порог для координат карты
+      // Уменьшаем порог для более точного определения
+      if (centerDistance > 0.000001) { // Порог для координат карты (уменьшен)
         polygonDragTracking.mapDragging = true;
         polygonDragTracking.hasMoved = true;
+        // Устанавливаем флаг синхронно, чтобы он был доступен сразу
+        window._polygonHasMoved = true;
+        window._polygonDragDetected = true;
         return;
       }
     }
@@ -221,6 +228,9 @@ function setupPolygonDragTracking() {
     // Если движение пальца превышает порог - это drag
     if (distance > polygonDragTracking.dragThreshold) {
       polygonDragTracking.hasMoved = true;
+      // Устанавливаем флаг синхронно
+      window._polygonHasMoved = true;
+      window._polygonDragDetected = true;
     }
   };
   
@@ -252,6 +262,9 @@ function setupPolygonDragTracking() {
     if (polygonDragTracking.isTracking) {
       polygonDragTracking.mapDragging = true;
       polygonDragTracking.hasMoved = true;
+      // Устанавливаем флаг синхронно
+      window._polygonHasMoved = true;
+      window._polygonDragDetected = true;
     }
   };
   
@@ -259,6 +272,9 @@ function setupPolygonDragTracking() {
     if (polygonDragTracking.isTracking) {
       polygonDragTracking.mapDragging = true;
       polygonDragTracking.hasMoved = true;
+      // Устанавливаем флаг синхронно
+      window._polygonHasMoved = true;
+      window._polygonDragDetected = true;
     }
   };
   

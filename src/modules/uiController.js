@@ -105,18 +105,42 @@ function overridePolygonHandler(handler) {
   
   // Сохраняем оригинальные методы
   const originalAddVertex = handler.addVertex;
+  const originalEndPoint = handler._endPoint;
   const originalOnMouseDown = handler._onMouseDown;
   const originalOnMouseUp = handler._onMouseUp;
   const originalOnTouch = handler._onTouch;
   
   // Импортируем mapModule для доступа к состоянию отслеживания
   import('./mapModule.js').then(module => {
-    // Переопределяем addVertex - проверяем, было ли движение
+    // Переопределяем _endPoint - это ключевой метод, который вызывает addVertex
+    handler._endPoint = function(clientX, clientY, event) {
+      // Синхронно проверяем флаг движения ПЕРЕД вызовом оригинального метода
+      if (window._polygonHasMoved || window._polygonDragDetected) {
+        window._polygonHasMoved = false;
+        window._polygonDragDetected = false;
+        console.log('🚫 Drag обнаружен в _endPoint, точка не будет добавлена');
+        // Вызываем только _enableNewMarkers, но не addVertex
+        if (this._enableNewMarkers) {
+          this._enableNewMarkers();
+        }
+        if (this._mouseDownOrigin) {
+          this._mouseDownOrigin = null;
+        }
+        return;
+      }
+      
+      // Если движения не было, вызываем оригинальный метод
+      if (originalEndPoint) {
+        return originalEndPoint.call(this, clientX, clientY, event);
+      }
+    };
+    
+    // Переопределяем addVertex - дополнительная проверка на всякий случай
     handler.addVertex = function(latlng) {
       // Проверяем флаг движения через глобальное состояние
       if (window._polygonDragDetected) {
         window._polygonDragDetected = false;
-        console.log('🚫 Drag обнаружен, точка не добавлена');
+        console.log('🚫 Drag обнаружен в addVertex, точка не добавлена');
         return;
       }
       // Вызываем оригинальный метод
@@ -126,6 +150,7 @@ function overridePolygonHandler(handler) {
     // Переопределяем _onMouseDown для отслеживания начала
     handler._onMouseDown = function(e) {
       window._polygonDragDetected = false;
+      window._polygonHasMoved = false;
       if (originalOnMouseDown) {
         return originalOnMouseDown.call(this, e);
       }
