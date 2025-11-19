@@ -635,6 +635,26 @@ export function showInfoPanelReady() {
       navBtn.disabled = false;
       navBtn.removeAttribute('disabled');
     }
+    
+    // На мобильных устройствах: принудительно устанавливаем позицию после небольшой задержки
+    // Это решает проблему, когда панель уходит за пределы экрана из-за особенностей viewport
+    if (window.innerWidth <= 768) {
+      setTimeout(() => {
+        if (infoPanel) {
+          // Принудительно устанавливаем позицию
+          infoPanel.style.bottom = '0';
+          infoPanel.style.transform = 'translateY(0)';
+          // Проверяем, что панель видна
+          const rect = infoPanel.getBoundingClientRect();
+          const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+          if (rect.top < 0 || rect.bottom > viewportHeight) {
+            // Если панель выходит за пределы, корректируем позицию
+            infoPanel.style.maxHeight = `${Math.min(viewportHeight - 20, 80 * viewportHeight / 100)}px`;
+            infoPanel.style.bottom = '0';
+          }
+        }
+      }, 150);
+    }
   } else {
     console.error('  ❌ infoPanel не найден!');
   }

@@ -404,13 +404,14 @@
         left: 10px !important;
         right: 10px !important;
         top: auto !important;
-        bottom: 0 !important; /* Прижимаем к самому низу без отступов */
+        bottom: max(0px, env(safe-area-inset-bottom, 0px)) !important; /* Прижимаем к низу с учетом safe-area для iOS */
         max-width: none !important;
-        max-height: 100vh !important; /* Используем всю высоту экрана */
+        max-height: 80vh !important; /* Ограничиваем высоту, чтобы не выходило за экран */
         overflow-y: auto;
         z-index: 1001 !important;
         position: fixed !important;
         border-radius: 12px 12px 0 0 !important; /* Скругление только сверху */
+        transform: translateY(0) !important; /* Принудительное позиционирование */
       }
       
       /* Убеждаемся что info-panel виден когда показывается */
