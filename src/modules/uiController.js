@@ -102,104 +102,6 @@ export function initUI() {
 }
 
 /**
- * Переопределение методов handler'а полигона для различения drag/tap
- */
-function overridePolygonHandler(handler) {
-  if (!handler) return;
-  
-  // Сохраняем оригинальные методы
-  const originalAddVertex = handler.addVertex;
-  const originalEndPoint = handler._endPoint;
-  const originalOnMouseDown = handler._onMouseDown;
-  const originalOnMouseUp = handler._onMouseUp;
-  const originalOnTouch = handler._onTouch;
-  
-  // Импортируем mapModule для доступа к состоянию отслеживания
-  import('./mapModule.js').then(module => {
-    // Переопределяем _endPoint - это ключевой метод, который вызывает addVertex
-    handler._endPoint = function(clientX, clientY, event) {
-      // Синхронно проверяем флаг движения ПЕРЕД вызовом оригинального метода
-      if (window._polygonHasMoved || window._polygonDragDetected) {
-        window._polygonHasMoved = false;
-        window._polygonDragDetected = false;
-        console.log('🚫 Drag обнаружен в _endPoint, точка не будет добавлена');
-        // Вызываем только _enableNewMarkers, но не addVertex
-        if (this._enableNewMarkers) {
-          this._enableNewMarkers();
-        }
-        if (this._mouseDownOrigin) {
-          this._mouseDownOrigin = null;
-        }
-        return;
-      }
-      
-      // Если движения не было, вызываем оригинальный метод
-      // Проверяем, что handler полностью инициализирован (_markers должен быть массивом)
-      if (originalEndPoint && Array.isArray(this._markers)) {
-        return originalEndPoint.call(this, clientX, clientY, event);
-      } else {
-        // Если _markers не инициализирован, просто возвращаемся без ошибки
-        console.warn('⚠️ Handler полигона не полностью инициализирован (_markers не массив), пропускаем _endPoint');
-        return;
-      }
-    };
-    
-    // Переопределяем addVertex - дополнительная проверка на всякий случай
-    handler.addVertex = function(latlng) {
-      // Проверяем флаг движения через глобальное состояние
-      if (window._polygonDragDetected) {
-        window._polygonDragDetected = false;
-        console.log('🚫 Drag обнаружен в addVertex, точка не добавлена');
-        return;
-      }
-      // Вызываем оригинальный метод
-      return originalAddVertex.call(this, latlng);
-    };
-    
-    // Переопределяем _onMouseDown для отслеживания начала
-    handler._onMouseDown = function(e) {
-      window._polygonDragDetected = false;
-      window._polygonHasMoved = false;
-      if (originalOnMouseDown) {
-        return originalOnMouseDown.call(this, e);
-      }
-    };
-    
-    // Переопределяем _onMouseUp - проверяем движение
-    handler._onMouseUp = function(e) {
-      // Проверяем, было ли движение (через глобальное состояние)
-      if (window._polygonHasMoved) {
-        window._polygonHasMoved = false;
-        window._polygonDragDetected = true;
-        console.log('🚫 Обнаружено движение карты, точка не будет добавлена');
-        return;
-      }
-      if (originalOnMouseUp) {
-        return originalOnMouseUp.call(this, e);
-      }
-    };
-    
-    // Переопределяем _onTouch для мобильных устройств
-    // Простая проверка: если карта двигалась, не вызываем оригинальный метод
-    handler._onTouch = function(e) {
-      // Проверяем флаг движения карты ПЕРЕД вызовом оригинального метода
-      // Флаг устанавливается в mapModule при обнаружении движения карты
-      if (window._polygonHasMoved || window._polygonDragDetected) {
-        window._polygonHasMoved = false;
-        window._polygonDragDetected = false;
-        console.log('🚫 Обнаружено движение карты в _onTouch, точка не будет добавлена');
-        return; // Не вызываем оригинальный метод, если карта двигалась
-      }
-      
-      // Если движения не было, вызываем оригинальный метод
-      if (originalOnTouch) {
-        return originalOnTouch.call(this, e);
-      }
-    };
-  });
-}
-
-/**
  * Настройка обработчиков событий
  */
 function setupEventHandlers() {
@@ -223,9 +125,6 @@ function setupEventHandlers() {
     
     // Импортируем mapModule для доступа к drawControl
     import('./mapModule.js').then(module => {
-      // Деактивируем отслеживание drag/tap для полигона
-      module.disablePolygonDragTracking();
-      
       if (module.drawControl && module.drawControl._toolbars && module.drawControl._toolbars.draw) {
         // Отключаем все активные handlers перед включением нового
         const polygonButton = module.drawControl._toolbars.draw._modes.polygon;
@@ -273,10 +172,6 @@ function setupEventHandlers() {
           if (polygonButton.handler._enabled) {
             polygonButton.handler.disable();
           }
-          // Активируем отслеживание drag/tap перед включением handler'а
-          module.enablePolygonDragTracking();
-          // Переопределяем методы handler'а для перехвата событий
-          overridePolygonHandler(polygonButton.handler);
           polygonButton.handler.enable();
           addApiLog('🎯 Режим выбора области активирован. Нарисуйте многоугольник на карте.');
         }
@@ -456,10 +351,6 @@ export function setStep(step) {
       polygonBtn.classList.remove('active');
       hideInfoPanel();
       hideClearButton();
-      // Деактивируем отслеживание drag/tap
-      import('./mapModule.js').then(module => {
-        module.disablePolygonDragTracking();
-      });
       break;
       
     case 'area_selected':
@@ -479,10 +370,6 @@ export function setStep(step) {
       drawAreaBtn.classList.remove('active');
       polygonBtn.classList.remove('active');
       showInfoPanel();
-      // Деактивируем отслеживание drag/tap
-      import('./mapModule.js').then(module => {
-        module.disablePolygonDragTracking();
-      });
       break;
       
     case 'navigating':
