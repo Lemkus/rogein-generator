@@ -314,14 +314,14 @@ function applyMuteState() {
     closeBtn.disabled = isMuted;
   }
   
-  // Кнопка размьюта всегда активна, но меняет текст
+  // Кнопка размьюта всегда активна, но меняет иконку и подсказку
   if (unmuteBtn) {
     if (isMuted) {
-      unmuteBtn.textContent = '🔓 Разблокировать';
+      unmuteBtn.textContent = '🔓';
       unmuteBtn.title = 'Разблокировать кнопки';
       unmuteBtn.disabled = false;
     } else {
-      unmuteBtn.textContent = '🔒 Заблокировать';
+      unmuteBtn.textContent = '🔒';
       unmuteBtn.title = 'Заблокировать кнопки';
       unmuteBtn.disabled = false;
     }
