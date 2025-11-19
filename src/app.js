@@ -582,7 +582,7 @@ async function restoreRouteFromShareData(data) {
     const { clearPointMarkers, updateStartPointPosition } = await import('./modules/mapModule.js');
     const { updateSequence, getRouteStats } = await import('./modules/routeSequence.js');
     const { updateSequenceDisplay } = await import('./modules/sequenceUI.js');
-    const { showInfoPanel, updateInfoPanel } = await import('./modules/uiController.js');
+    const { showInfoPanel, updateInfoPanel, showInfoPanelReady } = await import('./modules/uiController.js');
     
     addApiLog('Восстановление маршрута из ссылки...');
     
@@ -663,8 +663,8 @@ async function restoreRouteFromShareData(data) {
         distanceKm
       );
       
-      // Показываем панель с кнопкой "Начать навигацию"
-      showInfoPanel();
+      // Показываем панель в состоянии "готово" с кнопкой "Начать навигацию"
+      showInfoPanelReady();
       
       // Обновляем список точек для навигации
       updateTargetPointsList();
