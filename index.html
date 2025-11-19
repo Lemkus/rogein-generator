@@ -1230,6 +1230,23 @@
       background: #f0f0f0;
     }
     
+    .nav-control-row button:disabled,
+    .nav-control-row select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #e0e0e0;
+      color: #999;
+    }
+    
+    .nav-control-row button:disabled:active {
+      background: #e0e0e0;
+    }
+    
+    .nav-control-row:has(#navUnmuteBtn) button {
+      flex: 1;
+      width: 100%;
+    }
+    
     .nav-distance-display {
       text-align: center;
       font-size: 14px;
@@ -1398,6 +1415,10 @@
       <div class="nav-control-row">
         <button id="navStopBtn" title="Пауза">⏹️ Пауза</button>
         <button id="navToggleAudioBtn" title="Включить/отключить звук">🔇</button>
+      </div>
+      
+      <div class="nav-control-row">
+        <button id="navUnmuteBtn" title="Разблокировать кнопки">🔓 Разблокировать</button>
       </div>
       
       <button id="navCloseBtn" class="nav-close-btn" title="Закрыть навигацию">✕</button>

@@ -16,10 +16,12 @@ let stopBtn = null;
 let toggleAudioBtn = null;
 let exitBtn = null;
 let closeBtn = null;
+let unmuteBtn = null;
 
 // Состояние
 let isFullscreenActive = false;
 let originalMapContainer = null;
+let isMuted = true; // По умолчанию мьют включен
 
 /**
  * Инициализация полноэкранного режима навигации
@@ -34,6 +36,7 @@ export function initFullscreenNavigation() {
   toggleAudioBtn = document.getElementById('navToggleAudioBtn');
   exitBtn = document.getElementById('navExitBtn');
   closeBtn = document.getElementById('navCloseBtn');
+  unmuteBtn = document.getElementById('navUnmuteBtn');
   
   if (!fullscreenContainer || !fullscreenMap) {
     console.error('❌ Не найдены элементы полноэкранного режима');
@@ -46,6 +49,9 @@ export function initFullscreenNavigation() {
   exitBtn.addEventListener('click', exitFullscreenNavigation);
   if (closeBtn) {
     closeBtn.addEventListener('click', handleStopNavigation);
+  }
+  if (unmuteBtn) {
+    unmuteBtn.addEventListener('click', handleUnmute);
   }
   targetSelect.addEventListener('change', handleTargetChange);
   
@@ -91,6 +97,10 @@ export function enterFullscreenNavigation() {
   
   // Обновляем элементы управления
   updateFullscreenControls();
+  
+  // По умолчанию включаем мьют (блокируем все кнопки)
+  isMuted = true;
+  applyMuteState();
   
   // Скрываем основной интерфейс
   hideMainInterface();
@@ -270,6 +280,51 @@ function handleTargetChange() {
   if (mainSelect) {
     mainSelect.value = targetSelect.value;
     mainSelect.dispatchEvent(new Event('change'));
+  }
+}
+
+/**
+ * Обработчик размьюта/мьюта (разблокировки/блокировки кнопок)
+ */
+function handleUnmute() {
+  isMuted = !isMuted;
+  applyMuteState();
+  console.log(isMuted ? '🔒 Кнопки заблокированы' : '🔓 Кнопки разблокированы');
+}
+
+/**
+ * Применение состояния мьюта к элементам управления
+ */
+function applyMuteState() {
+  if (!isFullscreenActive) {
+    return;
+  }
+  
+  // Блокируем/разблокируем элементы управления
+  if (stopBtn) {
+    stopBtn.disabled = isMuted;
+  }
+  if (toggleAudioBtn) {
+    toggleAudioBtn.disabled = isMuted;
+  }
+  if (targetSelect) {
+    targetSelect.disabled = isMuted;
+  }
+  if (closeBtn) {
+    closeBtn.disabled = isMuted;
+  }
+  
+  // Кнопка размьюта всегда активна, но меняет текст
+  if (unmuteBtn) {
+    if (isMuted) {
+      unmuteBtn.textContent = '🔓 Разблокировать';
+      unmuteBtn.title = 'Разблокировать кнопки';
+      unmuteBtn.disabled = false;
+    } else {
+      unmuteBtn.textContent = '🔒 Заблокировать';
+      unmuteBtn.title = 'Заблокировать кнопки';
+      unmuteBtn.disabled = false;
+    }
   }
 }
 

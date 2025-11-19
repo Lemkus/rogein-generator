@@ -78,6 +78,17 @@ export function initNavigation() {
     });
   }
   
+  // Обработчик закрытия страницы - подтверждение при активной навигации
+  window.addEventListener('beforeunload', (e) => {
+    if (isNavigating) {
+      // Стандартный способ показать диалог подтверждения
+      e.preventDefault();
+      // Для Chrome требуется установить returnValue
+      e.returnValue = 'Вы уверены, что хотите завершить навигацию?';
+      return e.returnValue;
+    }
+  });
+  
   console.log('✅ Навигация инициализирована');
 }
 
