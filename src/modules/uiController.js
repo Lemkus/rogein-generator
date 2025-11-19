@@ -91,6 +91,10 @@ export function initUI() {
   // Настраиваем обработчики
   setupEventHandlers();
   
+  // Загружаем настройки из localStorage
+  loadSettingsFromStorage();
+  applyAudioSettings();
+  
   // Устанавливаем начальное состояние
   setStep('select_area');
   
@@ -396,11 +400,20 @@ function setupEventHandlers() {
   });
   
   // Настройки
-  settingsBtn.addEventListener('click', () => settingsModal.classList.add('show'));
+  settingsBtn.addEventListener('click', () => {
+    loadSettingsFromStorage();
+    settingsModal.classList.add('show');
+  });
   settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) settingsModal.classList.remove('show');
   });
+  
+  // Обработчик настройки "Бегаю с музыкой"
+  const runningWithMusicCheckbox = document.getElementById('runningWithMusic');
+  if (runningWithMusicCheckbox) {
+    runningWithMusicCheckbox.addEventListener('change', handleRunningWithMusicChange);
+  }
   
   // Пункты меню
   saveGpxMenuItem.addEventListener('click', handleSaveGPX);
@@ -1275,6 +1288,61 @@ async function updateDistanceButtonsState() {
   if (distanceIncreaseBtn) {
     // Кнопка всегда активна, если есть удаленные точки или граф доступен
     distanceIncreaseBtn.disabled = false;
+  }
+}
+
+/**
+ * Загрузка настроек из localStorage
+ */
+function loadSettingsFromStorage() {
+  const runningWithMusicCheckbox = document.getElementById('runningWithMusic');
+  if (runningWithMusicCheckbox) {
+    const saved = localStorage.getItem('runningWithMusic');
+    runningWithMusicCheckbox.checked = saved === 'true';
+  } else {
+    console.warn('⚠️ Элемент runningWithMusic не найден в DOM');
+  }
+}
+
+/**
+ * Обработчик изменения настройки "Бегаю с музыкой"
+ */
+function handleRunningWithMusicChange(event) {
+  const isEnabled = event.target.checked;
+  localStorage.setItem('runningWithMusic', isEnabled.toString());
+  applyAudioSettings();
+  console.log(`🎵 Режим "Бегаю с музыкой": ${isEnabled ? 'включен' : 'выключен'}`);
+}
+
+/**
+ * Применение настроек аудио к аудиомодулю
+ */
+async function applyAudioSettings() {
+  try {
+    const { updateNavigationSettings } = await import('./audioModuleAdvanced.js');
+    const runningWithMusicCheckbox = document.getElementById('runningWithMusic');
+    const isEnabled = runningWithMusicCheckbox ? runningWithMusicCheckbox.checked : false;
+    
+    // Применяем настройки в зависимости от режима
+    if (isEnabled) {
+      // Режим "с музыкой": более высокие частоты, большая громкость, резкие звуки
+      updateNavigationSettings({
+        musicMode: true,
+        frequencyMultiplier: 1.8,  // Повышаем частоту в 1.8 раза
+        volumeMultiplier: 2.0,     // Увеличиваем громкость в 2 раза
+        useSharpSounds: true       // Используем резкие звуки (square/sawtooth)
+      });
+    } else {
+      // Обычный режим
+      updateNavigationSettings({
+        musicMode: false,
+        frequencyMultiplier: 1.0,
+        volumeMultiplier: 1.0,
+        useSharpSounds: false
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Не удалось применить настройки аудио:', error);
   }
 }
 
