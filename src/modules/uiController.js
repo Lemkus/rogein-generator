@@ -636,24 +636,59 @@ export function showInfoPanelReady() {
       navBtn.removeAttribute('disabled');
     }
     
-    // На мобильных устройствах: принудительно устанавливаем позицию после небольшой задержки
+    // На мобильных устройствах: принудительно устанавливаем позицию с учетом реального viewport
     // Это решает проблему, когда панель уходит за пределы экрана из-за особенностей viewport
     if (window.innerWidth <= 768) {
-      setTimeout(() => {
-        if (infoPanel) {
-          // Принудительно устанавливаем позицию
-          infoPanel.style.bottom = '0';
-          infoPanel.style.transform = 'translateY(0)';
-          // Проверяем, что панель видна
+      // Используем несколько попыток с разными задержками для надежности
+      const fixPosition = () => {
+        if (!infoPanel) return;
+        
+        // Получаем реальную видимую высоту экрана
+        const visualViewport = window.visualViewport || window;
+        const viewportHeight = visualViewport.height || window.innerHeight || document.documentElement.clientHeight;
+        
+        // Принудительно устанавливаем позицию относительно видимой области
+        infoPanel.style.position = 'fixed';
+        infoPanel.style.bottom = '0';
+        infoPanel.style.left = '10px';
+        infoPanel.style.right = '10px';
+        infoPanel.style.top = 'auto';
+        infoPanel.style.transform = 'translateY(0)';
+        
+        // Ограничиваем высоту панели, чтобы она точно помещалась на экране
+        const maxHeight = Math.min(viewportHeight * 0.8, 400);
+        infoPanel.style.maxHeight = `${maxHeight}px`;
+        
+        // Проверяем позицию после небольшой задержки
+        setTimeout(() => {
+          if (!infoPanel) return;
           const rect = infoPanel.getBoundingClientRect();
-          const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-          if (rect.top < 0 || rect.bottom > viewportHeight) {
-            // Если панель выходит за пределы, корректируем позицию
-            infoPanel.style.maxHeight = `${Math.min(viewportHeight - 20, 80 * viewportHeight / 100)}px`;
-            infoPanel.style.bottom = '0';
+          const visibleBottom = visualViewport.height || window.innerHeight;
+          
+          // Если панель все еще выходит за пределы, корректируем
+          if (rect.bottom > visibleBottom || rect.top < 0) {
+            const offset = Math.max(0, rect.bottom - visibleBottom);
+            if (offset > 0) {
+              infoPanel.style.bottom = `${offset}px`;
+            }
+            // Дополнительно ограничиваем высоту
+            const newMaxHeight = Math.min(visibleBottom - rect.top - 10, maxHeight);
+            infoPanel.style.maxHeight = `${newMaxHeight}px`;
           }
-        }
-      }, 150);
+        }, 50);
+      };
+      
+      // Вызываем сразу и с задержками для надежности
+      fixPosition();
+      setTimeout(fixPosition, 100);
+      setTimeout(fixPosition, 300);
+      setTimeout(fixPosition, 500);
+      
+      // Также слушаем изменения viewport (например, когда скрывается адресная строка)
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', fixPosition);
+        window.visualViewport.addEventListener('scroll', fixPosition);
+      }
     }
   } else {
     console.error('  ❌ infoPanel не найден!');
