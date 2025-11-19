@@ -322,6 +322,11 @@
       display: block;
     }
     
+    /* Кнопка сворачивания скрыта на десктопе */
+    .info-panel-toggle-btn {
+      display: none;
+    }
+    
     /* На мобилках скрываем footer и прижимаем info-panel к низу */
     @media (max-width: 768px) {
       /* Делаем attribution прозрачным и компактным, но оставляем видимым */
@@ -419,18 +424,37 @@
         display: none !important;
       }
       
-      /* Индикатор свайпа (тонкая полоска сверху) */
-      .info-panel::before {
-        content: '';
+      /* Кнопка сворачивания/разворачивания */
+      .info-panel-toggle-btn {
         position: absolute;
         top: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40px;
-        height: 4px;
-        background: #ccc;
-        border-radius: 2px;
-        z-index: 1;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
+      }
+      
+      .info-panel-toggle-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .info-panel-toggle-btn svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 0.2s ease;
+      }
+      
+      .info-panel.collapsed .info-panel-toggle-btn svg {
+        transform: rotate(180deg);
       }
       
       /* Свернутое состояние */
@@ -1346,6 +1370,12 @@
   
   <!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ ТОЧЕК) -->
   <div class="info-panel" id="infoPanel">
+    <!-- Кнопка сворачивания/разворачивания -->
+    <button class="info-panel-toggle-btn" id="infoPanelToggleBtn" title="Свернуть/Развернуть" aria-label="Свернуть/Развернуть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
     <!-- Контент панели -->
     <div class="info-panel-content">
       <!-- Состояние: формирование точек -->
@@ -1780,60 +1810,21 @@
     // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
     window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
     
-    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ (СВАЙП) ===
+    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ (КНОПКА СО СТРЕЛКОЙ) ===
     const infoPanel = document.getElementById('infoPanel');
-    if (infoPanel) {
-      let touchStartY = 0;
-      let touchStartTime = 0;
-      let isCollapsed = false;
-      
-      // Обработка начала касания
-      infoPanel.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-        touchStartTime = Date.now();
-      }, { passive: true });
-      
-      // Обработка движения
-      infoPanel.addEventListener('touchmove', (e) => {
-        // Не блокируем скролл, если панель развернута
-        if (!isCollapsed) {
-          return;
-        }
-      }, { passive: true });
-      
-      // Обработка окончания касания
-      infoPanel.addEventListener('touchend', (e) => {
-        if (!touchStartY) return;
-        
-        const touchEndY = e.changedTouches[0].clientY;
-        const touchEndTime = Date.now();
-        const deltaY = touchEndY - touchStartY;
-        const deltaTime = touchEndTime - touchStartTime;
-        const minSwipeDistance = 30; // Минимальное расстояние для свайпа
-        const maxSwipeTime = 300; // Максимальное время для свайпа (мс)
-        
-        // Проверяем что это быстрый свайп
-        if (Math.abs(deltaY) > minSwipeDistance && deltaTime < maxSwipeTime) {
-          // Свайп вниз - сворачиваем
-          if (deltaY > 0 && !isCollapsed) {
-            infoPanel.classList.add('collapsed');
-            isCollapsed = true;
-          }
-          // Свайп вверх - разворачиваем
-          else if (deltaY < 0 && isCollapsed) {
-            infoPanel.classList.remove('collapsed');
-            isCollapsed = false;
-          }
-        }
-        
-        touchStartY = 0;
-      }, { passive: true });
-      
-      // Отслеживаем изменения класса для синхронизации
-      const observer = new MutationObserver(() => {
-        isCollapsed = infoPanel.classList.contains('collapsed');
+    const infoPanelToggleBtn = document.getElementById('infoPanelToggleBtn');
+    
+    if (infoPanel && infoPanelToggleBtn) {
+      // Обработчик клика на кнопку сворачивания/разворачивания
+      infoPanelToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Предотвращаем всплытие события
+        infoPanel.classList.toggle('collapsed');
       });
-      observer.observe(infoPanel, { attributes: true, attributeFilter: ['class'] });
+      
+      // Предотвращаем закрытие панели при клике на кнопку
+      infoPanelToggleBtn.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      });
     }
     
     // === СЛАЙДЕР ПРОМО ===
