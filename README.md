@@ -1,4 +1,4 @@
-# 🌲 TrailSpot
+# TrailSpot
 
 **Find your spots on the trail!**
 
@@ -10,19 +10,19 @@ TrailSpot is a Progressive Web App (PWA) that helps outdoor enthusiasts discover
 
 ---
 
-## ✨ Features
+## Features
 
-- 🗺️ **Trail Discovery** — Load hiking trails from OpenStreetMap using Overpass API
-- 🎯 **Smart Point Generation** — Automatically generate optimal navigation points while avoiding barriers
-- 🔊 **Hot-Cold Audio Navigation** — Find points using vibration and audio feedback (gets "hotter" as you approach!)
-- 📱 **Mobile-First PWA** — Install on your phone and use offline
-- 📍 **GPX Export** — Download routes for Garmin and other GPS devices
-- 💾 **Save & Share Routes** — Save your favorite routes and share them via URL
-- 🌍 **Privacy-First** — All data stays on your device, no tracking
+- **Trail Discovery** — Load hiking trails from OpenStreetMap using Overpass API
+- **Smart Point Generation** — Automatically generate optimal navigation points while avoiding barriers
+- **Hot-Cold Audio Navigation** — Find points using vibration and audio feedback (gets "hotter" as you approach!)
+- **Mobile-First PWA** — Install on your phone and use offline
+- **GPX Export** — Download routes for Garmin and other GPS devices
+- **Save & Share Routes** — Save your favorite routes and share them via URL
+- **Privacy-First** — All data stays on your device, no tracking
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Online Version
 Visit **[trailspot.app](https://trailspot.app)** (coming soon!)
@@ -44,17 +44,17 @@ npx serve
 
 ---
 
-## 📖 How to Use
+## How to Use
 
-1. **📍 Set Your Area** — Pan/zoom the map to your hiking location
-2. **🎯 Generate Points** — Click "Generate Points" to create trail spots
-3. **🔊 Navigate** — Select a target point and start audio navigation
-4. **💾 Save Route** — Save your route for later or share with friends
-5. **📥 Export GPX** — Download for Garmin or other GPS devices
+1. **Set Your Area** — Pan/zoom the map to your hiking location
+2. **Generate Points** — Click "Generate Points" to create trail spots
+3. **Navigate** — Select a target point and start audio navigation
+4. **Save Route** — Save your route for later or share with friends
+5. **Export GPX** — Download for Garmin or other GPS devices
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 trailspot/
@@ -81,7 +81,7 @@ trailspot/
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 All project documentation is located in the `docs/` folder:
 
@@ -95,7 +95,7 @@ All project documentation is located in the `docs/` folder:
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Frontend
 - **Leaflet.js** — Interactive maps
@@ -114,21 +114,21 @@ All project documentation is located in the `docs/` folder:
 
 ---
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 TrailSpot is built with **privacy-first principles**:
 
-- ✅ **No account required** — Use anonymously
-- ✅ **No tracking** — Zero analytics or cookies
-- ✅ **Local data** — Routes saved in your browser only
-- ✅ **HTTPS only** — All connections encrypted
-- ✅ **Open source** — Verify the code yourself!
+- **No account required** — Use anonymously
+- **No tracking** — Zero analytics or cookies
+- **Local data** — Routes saved in your browser only
+- **HTTPS only** — All connections encrypted
+- **Open source** — Verify the code yourself!
 
 See our [Privacy Policy](PRIVACY.md) for details.
 
 ---
 
-## 📜 Legal
+## Legal
 
 ### Copyright
 © 2025 **TrailSpot**. All rights reserved.
@@ -143,11 +143,11 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 ### Terms of Use
 By using TrailSpot, you agree to our [Terms of Use](TERMS.md).
 
-**⚠️ Safety Disclaimer:** TrailSpot is a navigation aid, not a replacement for proper outdoor equipment and safety practices. Always carry physical maps and use common sense. **Use at your own risk!**
+**Safety Disclaimer:** TrailSpot is a navigation aid, not a replacement for proper outdoor equipment and safety practices. Always carry physical maps and use common sense. **Use at your own risk!**
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please:
 
@@ -159,7 +159,7 @@ Contributions are welcome! Please:
 
 ---
 
-## 🐛 Bug Reports
+## Bug Reports
 
 Found a bug? Please [open an issue](https://github.com/yourusername/trailspot/issues) with:
 - Description of the bug
@@ -169,14 +169,14 @@ Found a bug? Please [open an issue](https://github.com/yourusername/trailspot/is
 
 ---
 
-## 📧 Contact
+## Contact
 
 - **GitHub Issues:** [github.com/yourusername/trailspot/issues](https://github.com/yourusername/trailspot/issues)
 - **Website:** [trailspot.app](https://trailspot.app) (coming soon!)
 
 ---
 
-## 🌟 Roadmap
+## Roadmap
 
 - [ ] Multi-language support (EN, RU, ES, DE)
 - [ ] Offline maps caching
@@ -187,9 +187,9 @@ Found a bug? Please [open an issue](https://github.com/yourusername/trailspot/is
 
 ---
 
-## 💚 Acknowledgments
+## Acknowledgments
 
-Made with 💚 for outdoor enthusiasts by adventurers, for adventurers.
+Made with love for outdoor enthusiasts by adventurers, for adventurers.
 
 Special thanks to:
 - **OpenStreetMap** community for amazing trail data
@@ -198,4 +198,4 @@ Special thanks to:
 
 ---
 
-**Happy trail spotting! 🥾🌲**
+**Happy trail spotting!**
