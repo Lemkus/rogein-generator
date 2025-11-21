@@ -37,6 +37,17 @@ venv.bak/
 *.kml
 *.geojson
 
+# Файлы окружения и конфиденциальные данные
+.env
+.env.local
+.env.*.local
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+backend/rogaine.db
+
 # Файлы деплоя (содержат конфиденциальную информацию)
 deploy_regru.py
 deploy_regru.bat

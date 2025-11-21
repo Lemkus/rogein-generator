@@ -22,7 +22,18 @@ class Settings(BaseSettings):
     # Для PostgreSQL: "postgresql+asyncpg://user:password@localhost/rogaine_db"
     
     # Безопасность (TODO: добавить JWT позже)
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    # SECRET_KEY должен быть установлен через переменную окружения
+    SECRET_KEY: str = os.getenv("SECRET_KEY") or ""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not self.SECRET_KEY:
+            import warnings
+            warnings.warn(
+                "SECRET_KEY не установлен! Установите его через переменную окружения SECRET_KEY "
+                "или в файле .env. В production это обязательно!",
+                UserWarning
+            )
     # ALGORITHM: str = "HS256"  # Отключено пока нет JWT
     # ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     

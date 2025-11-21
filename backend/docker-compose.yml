@@ -18,9 +18,9 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=rogaine_db
-      - POSTGRES_USER=rogaine_user
-      - POSTGRES_PASSWORD=rogaine_password
+      - POSTGRES_DB=${POSTGRES_DB:-rogaine_db}
+      - POSTGRES_USER=${POSTGRES_USER:-rogaine_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
