@@ -1233,3 +1233,94 @@ async function applyAudioSettings() {
   }
 }
 
+/**
+ * Показ модального окна с результатами навигации
+ * @param {Object} stats - Статистика навигации
+ */
+export function showResultsModal(stats) {
+  const resultsModal = document.getElementById('resultsModal');
+  const resultsModalClose = document.getElementById('resultsModalClose');
+  
+  if (!resultsModal) {
+    console.error('resultsModal не найден');
+    return;
+  }
+  
+  // Заполняем общую статистику
+  document.getElementById('resultsPointsVisited').textContent = stats.pointsVisited;
+  document.getElementById('resultsPointsTotal').textContent = stats.pointsTotal;
+  document.getElementById('resultsIdealDistance').textContent = stats.idealDistance;
+  document.getElementById('resultsRealDistance').textContent = stats.realDistance;
+  document.getElementById('resultsDistanceDeviation').textContent = stats.distanceDeviation;
+  document.getElementById('resultsDistanceDeviationPercent').textContent = `(${stats.distanceDeviationPercent}%)`;
+  document.getElementById('resultsTotalTime').textContent = stats.totalTime;
+  document.getElementById('resultsAvgSpeed').textContent = stats.avgSpeed;
+  
+  // Заполняем рейтинг
+  const rating = stats.rating || 0;
+  document.getElementById('resultsRating').textContent = rating;
+  
+  // Текст рейтинга
+  let ratingText = '—';
+  if (rating >= 90) ratingText = 'Отлично! 🌟';
+  else if (rating >= 75) ratingText = 'Очень хорошо! 👍';
+  else if (rating >= 60) ratingText = 'Хорошо! ✅';
+  else if (rating >= 45) ratingText = 'Нормально';
+  else if (rating >= 30) ratingText = 'Нужно улучшить';
+  else ratingText = 'Попробуйте еще раз';
+  
+  document.getElementById('resultsRatingText').textContent = ratingText;
+  
+  // Заполняем таблицу точек
+  const tableBody = document.getElementById('resultsPointsTableBody');
+  if (tableBody && stats.pointDetails) {
+    tableBody.innerHTML = '';
+    
+    stats.pointDetails.forEach((point, index) => {
+      const row = document.createElement('tr');
+      row.style.borderBottom = '1px solid #dee2e6';
+      if (index % 2 === 0) {
+        row.style.background = '#f8f9fa';
+      }
+      
+      // Цвет отклонения
+      let deviationColor = '#28a745'; // зеленый
+      let deviationText = point.deviation;
+      if (point.deviationPercent) {
+        const percent = parseFloat(point.deviationPercent);
+        if (percent > 20) deviationColor = '#dc3545'; // красный
+        else if (percent > 10) deviationColor = '#ffc107'; // желтый
+        deviationText = `${point.deviation} км (${point.deviationPercent}%)`;
+      }
+      
+      row.innerHTML = `
+        <td style="padding: 10px 8px; font-weight: 600; color: #495057;">${point.pointNumber}</td>
+        <td style="padding: 10px 8px; text-align: right; color: #495057;">${point.timeToReach}</td>
+        <td style="padding: 10px 8px; text-align: right; color: #495057;">${point.idealDistance} км</td>
+        <td style="padding: 10px 8px; text-align: right; color: #495057;">${point.realDistance}</td>
+        <td style="padding: 10px 8px; text-align: right; color: ${deviationColor}; font-weight: ${point.deviationPercent ? '600' : '400'};">${deviationText}</td>
+        <td style="padding: 10px 8px; text-align: right; color: #495057;">${point.avgSpeed}</td>
+      `;
+      
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Показываем модальное окно
+  resultsModal.style.display = 'flex';
+  
+  // Обработчик закрытия
+  if (resultsModalClose) {
+    resultsModalClose.onclick = () => {
+      resultsModal.style.display = 'none';
+    };
+  }
+  
+  // Закрытие по клику вне окна
+  resultsModal.onclick = (e) => {
+    if (e.target === resultsModal) {
+      resultsModal.style.display = 'none';
+    }
+  };
+}
+

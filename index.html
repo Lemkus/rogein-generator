@@ -1542,6 +1542,85 @@
     </div>
   </div>
   
+  <!-- Modal: результаты навигации -->
+  <div id="resultsModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: min(90vw, 600px); max-height: 90vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #fff; z-index: 10;">
+        <div style="font-weight: 600; font-size: 18px;">🏁 Результаты навигации</div>
+        <button id="resultsModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
+      </div>
+      <div id="resultsModalBody" style="padding: 20px;">
+        <!-- Рейтинг -->
+        <div style="text-align: center; margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Рейтинг прохождения</div>
+          <div style="font-size: 48px; font-weight: 700; margin-bottom: 4px;">
+            <span id="resultsRating">0</span><span style="font-size: 24px;">/100</span>
+          </div>
+          <div id="resultsRatingText" style="font-size: 16px; opacity: 0.9;">—</div>
+        </div>
+        
+        <!-- Общая статистика -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px;">
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Точек взято</div>
+            <div style="font-size: 24px; font-weight: 600; color: #4CAF50;">
+              <span id="resultsPointsVisited">0</span> / <span id="resultsPointsTotal">0</span>
+            </div>
+          </div>
+          
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Общее время</div>
+            <div style="font-size: 20px; font-weight: 600; color: #333;">
+              <span id="resultsTotalTime">—</span>
+            </div>
+          </div>
+          
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Средняя скорость</div>
+            <div style="font-size: 20px; font-weight: 600; color: #333;">
+              <span id="resultsAvgSpeed">0</span> <span style="font-size: 14px;">км/ч</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Отклонение от маршрута -->
+        <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; margin-bottom: 24px;">
+          <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Отклонение от идеального маршрута</div>
+          <div style="font-size: 20px; font-weight: 600; color: #333;">
+            <span id="resultsDistanceDeviation">0</span> км 
+            <span id="resultsDistanceDeviationPercent" style="font-size: 16px; color: #666;">(0%)</span>
+          </div>
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Идеально: <span id="resultsIdealDistance">0</span> км | 
+            Пробежал: <span id="resultsRealDistance">0</span> км
+          </div>
+        </div>
+        
+        <!-- Таблица детализации по точкам -->
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">Детализация по точкам</div>
+          <div style="overflow-x: auto;">
+            <table id="resultsPointsTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                  <th style="padding: 10px 8px; text-align: left; font-weight: 600; color: #495057;">Точка</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Время</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Идеально</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Пробежал</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Отклонение</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Скорость</th>
+                </tr>
+              </thead>
+              <tbody id="resultsPointsTableBody">
+                <!-- Заполняется динамически -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- Модалка: О проекте и инструкция -->
   <div class="info-modal" id="infoModal">
     <div class="info-content">

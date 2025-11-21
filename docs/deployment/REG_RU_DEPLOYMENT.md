@@ -307,7 +307,37 @@ const response = await fetch(`${BACKEND_SIMPLE_BASE}/save-route`, {...});
 const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {...});
 ```
 
-## Процесс развертывания
+## Первоначальная настройка (только один раз)
+
+⚠️ **Выполняется только при первом развертывании или при необходимости пересоздать окружение**
+
+1. **Создание виртуального окружения на сервере**:
+   ```bash
+   ssh user@server "cd /var/www/u3288673/data/www/trailspot.app && python3.8 -m venv venv"
+   ```
+
+2. **Установка зависимостей**:
+   ```bash
+   ssh user@server "cd /var/www/u3288673/data/www/trailspot.app && source venv/bin/activate && pip install -r requirements.txt"
+   ```
+
+3. **Проверка конфигурации**:
+   - Убедитесь, что `.htaccess` содержит только `PassengerEnabled On`
+   - Проверьте наличие `passenger_wsgi.py` в корне проекта
+   - Убедитесь, что `backend_simple.py` экспортирует `application`
+
+## Ежедневный процесс развертывания
+
+✅ **Оптимизированный процесс для регулярных обновлений**
+
+Скрипт `deploy_regru.py` автоматически:
+- ✅ Проверяет существование виртуального окружения
+- ✅ Обновляет зависимости только если `requirements.txt` изменился
+- ✅ Перезапускает Passenger после деплоя
+- ❌ **НЕ создает** виртуальное окружение каждый раз
+- ❌ **НЕ настраивает** права доступа повторно (если не требуется)
+
+### Шаги ежедневного деплоя:
 
 1. **Подготовка локально**:
    ```bash
@@ -320,16 +350,24 @@ const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {...});
    ```bash
    python deploy_regru.py
    ```
+   
+   Скрипт автоматически:
+   - Загружает файлы на сервер
+   - Исправляет права доступа
+   - Проверяет наличие `venv`:
+     - Если **есть** → обновляет зависимости и перезапускает Passenger
+     - Если **нет** → запускает `setup_venv.sh` для создания окружения
 
-3. **Проверка**:
+3. **Проверка** (опционально):
    ```bash
    curl -I https://trailspot.app/
    ```
 
-4. **Перезапуск при необходимости**:
-   ```bash
-   ssh user@server "cd www/trailspot.app && touch tmp/restart.txt"
-   ```
+### Ручной перезапуск (если нужно):
+
+```bash
+ssh user@server "cd www/trailspot.app && touch passenger_wsgi.py"
+```
 
 ## Резюме
 

@@ -1,0 +1,35 @@
+# Passenger конфигурация для Flask приложения
+Options -MultiViews
+PassengerEnabled On
+PassengerAppRoot /var/www/u3288673/data/www/trailspot.app
+
+# Обработка CORS заголовков
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+# Обработка preflight запросов
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Запрет кеширования для HTML
+<FilesMatch "\.(html|htm)$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires 0
+</FilesMatch>
+
+# Запрет кеширования для Service Worker
+<FilesMatch "sw\.js$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+  Header set Pragma "no-cache"
+  Header set Expires 0
+</FilesMatch>
+
+# Кеширование для статических ресурсов с версионированием
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+
+# Все запросы обрабатываются через Passenger WSGI

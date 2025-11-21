@@ -33,6 +33,13 @@ const CRITICAL_ZONE_DISTANCE = 15; // Критическая зона (метр�
 let wakeLock = null;
 let noSleepInterval = null; // Fallback для браузеров без Wake Lock API
 
+// Переменные для трекинга маршрута и статистики
+let routeTrack = []; // Массив позиций пользователя {lat, lng, timestamp, distance}
+let navigationStartTime = null; // Время начала навигации
+let pointReachTimes = new Map(); // Время достижения каждой точки {pointIndex: timestamp}
+let pointStartTimes = new Map(); // Время начала движения к точке {pointIndex: timestamp}
+let pointDistances = new Map(); // Расстояние до точки при старте движения {pointIndex: distance}
+
 // DOM элементы (новый интерфейс)
 let audioNavBtn, stopNavBtn, navStatus, targetPointSelect, targetPointContainer;
 
@@ -392,9 +399,23 @@ function navigationStep() {
   
   // Проверяем достижение цели
   if (distance < 10) {
+    // Если это старт и все точки взяты - показываем результаты
+    if (currentTargetIndex === -1 && isAutoSequenceMode) {
+      const sequence = getCurrentSequence();
+      const allPointsCompleted = sequence.every(idx => completedPoints.has(idx));
+      
+      if (allPointsCompleted) {
+        // Все точки взяты и вернулись к старту - показываем результаты
+        pointReachTimes.set(-1, Date.now()); // Сохраняем время достижения старта
+        showResultsWindow();
+        return;
+      }
+    }
+    
     // Отмечаем точку как взятую
     if (currentTargetIndex !== null && currentTargetIndex >= 0) {
       completedPoints.add(currentTargetIndex);
+      pointReachTimes.set(currentTargetIndex, Date.now());
       console.log(`✅ Точка ${currentTargetIndex + 1} взята!`);
     }
     
@@ -458,6 +479,27 @@ function onPositionUpdate(position) {
   };
   
   if (isNavigating) {
+    // Трекинг маршрута
+    const now = Date.now();
+    const distance = currentTarget ? haversine(
+      userPosition.lat, userPosition.lng,
+      currentTarget.lat, currentTarget.lng
+    ) : null;
+    
+    routeTrack.push({
+      lat: userPosition.lat,
+      lng: userPosition.lng,
+      timestamp: now,
+      distance: distance,
+      accuracy: position.coords.accuracy || null,
+      targetIndex: currentTargetIndex
+    });
+    
+    // Ограничиваем размер для производительности (последние 10000 точек)
+    if (routeTrack.length > 10000) {
+      routeTrack.shift();
+    }
+    
     navigationStep();
   }
 }
@@ -506,6 +548,21 @@ async function startNavigation() {
   
   // Сбрасываем состояние аудио модуля для новой навигации
   resetNavigation();
+  
+  // Сбрасываем трекинг
+  routeTrack = [];
+  navigationStartTime = Date.now();
+  pointReachTimes.clear();
+  pointStartTimes.clear();
+  pointDistances.clear();
+  completedPoints.clear();
+  
+  // Сохраняем время начала движения к первой точке
+  pointStartTimes.set(firstPointIdx, Date.now());
+  if (userPosition) {
+    const initialDistance = haversine(userPosition.lat, userPosition.lng, coords.lat, coords.lng);
+    pointDistances.set(firstPointIdx, initialDistance);
+  }
   
   // Показываем селект с целевой точкой и обновляем его
   if (targetPointContainer) {
@@ -582,6 +639,14 @@ function switchToNextPoint() {
       currentTarget = { lat: startPoint.lat, lng: startPoint.lng };
       currentTargetIndex = -1;
       lastDistance = null;
+      
+      // Сохраняем время начала движения к старту
+      pointStartTimes.set(-1, Date.now());
+      if (userPosition) {
+        const initialDistance = haversine(userPosition.lat, userPosition.lng, startPoint.lat, startPoint.lng);
+        pointDistances.set(-1, initialDistance);
+      }
+      
       updateNavStatus('🏁 Возврат к старту...', 'blue');
       console.log('🏁 Все точки взяты! Возврат к старту');
       
@@ -599,6 +664,13 @@ function switchToNextPoint() {
   currentTarget = coords;
   currentTargetIndex = nextPointIdx;
   lastDistance = null;
+  
+  // Сохраняем время начала движения к следующей точке
+  pointStartTimes.set(nextPointIdx, Date.now());
+  if (userPosition) {
+    const initialDistance = haversine(userPosition.lat, userPosition.lng, coords.lat, coords.lng);
+    pointDistances.set(nextPointIdx, initialDistance);
+  }
   
   updateNavStatus(`📍 Следующая: Точка ${nextPointIdx + 1}`, 'blue');
   console.log(`📍 Переключение на точку ${nextPointIdx + 1}`);
@@ -726,6 +798,335 @@ function resetCompletedPoints() {
   completedPoints.clear();
   updateTargetPointsList();
   console.log('🔄 Список завершенных точек очищен');
+}
+
+// Функция расчета детальной статистики по точкам
+async function calculatePointDetails() {
+  const sequence = getCurrentSequence();
+  const startPoint = getStartPoint();
+  const { getTrailGraph } = await import('./routeSequence.js');
+  const { dijkstra, findNearestNodeIdx } = await import('./algorithms.js');
+  
+  const pointDetails = [];
+  let prevPos = startPoint;
+  
+  // Получаем граф для расчета идеальных расстояний
+  const trailGraph = getTrailGraph();
+  
+  // Функция расчета идеального расстояния
+  const getIdealDistance = (from, to) => {
+    if (trailGraph && trailGraph.nodes && trailGraph.nodes.length > 0) {
+      const fromNodeIdx = findNearestNodeIdx(from.lat, from.lng, trailGraph.nodes);
+      const toNodeIdx = findNearestNodeIdx(to.lat, to.lng, trailGraph.nodes);
+      if (fromNodeIdx !== -1 && toNodeIdx !== -1) {
+        const result = dijkstra(trailGraph, fromNodeIdx, toNodeIdx);
+        if (result.distance < Infinity) return result.distance;
+      }
+    }
+    return haversine(from.lat, from.lng, to.lat, to.lng);
+  };
+  
+  for (const pointIdx of sequence) {
+    const pointCoords = pointMarkers[pointIdx].getLatLng();
+    const startTime = pointStartTimes.get(pointIdx);
+    const reachTime = pointReachTimes.get(pointIdx);
+    const initialDistance = pointDistances.get(pointIdx) || 0;
+    
+    // Время до достижения точки (в секундах)
+    const timeToReach = startTime && reachTime ? (reachTime - startTime) / 1000 : null;
+    
+    // Идеальное расстояние
+    const idealDistance = getIdealDistance(prevPos, pointCoords);
+    
+    // Реальное расстояние (по треку)
+    let realDistance = 0;
+    if (startTime && reachTime) {
+      // Берем все точки трека в этом временном диапазоне
+      // (не фильтруем по targetIndex, так как он может меняться)
+      const trackSegment = routeTrack.filter(
+        p => p.timestamp >= startTime && p.timestamp <= reachTime
+      );
+      for (let i = 1; i < trackSegment.length; i++) {
+        realDistance += haversine(
+          trackSegment[i-1].lat, trackSegment[i-1].lng,
+          trackSegment[i].lat, trackSegment[i].lng
+        );
+      }
+    }
+    
+    // Отклонение от идеального маршрута
+    const deviation = realDistance > 0 ? realDistance - idealDistance : null;
+    const deviationPercent = realDistance > 0 && idealDistance > 0 
+      ? ((deviation / idealDistance) * 100).toFixed(1) 
+      : null;
+    
+    // Средняя скорость (м/с)
+    const avgSpeed = timeToReach && timeToReach > 0 && realDistance > 0 
+      ? (realDistance / timeToReach).toFixed(2) 
+      : null;
+    
+    pointDetails.push({
+      pointIndex: pointIdx,
+      pointNumber: pointIdx + 1,
+      timeToReach: timeToReach ? formatTime(timeToReach) : '—',
+      timeToReachSeconds: timeToReach,
+      idealDistance: (idealDistance / 1000).toFixed(2),
+      realDistance: realDistance > 0 ? (realDistance / 1000).toFixed(2) : '—',
+      deviation: deviation !== null ? (deviation / 1000).toFixed(2) : '—',
+      deviationPercent: deviationPercent,
+      avgSpeed: avgSpeed ? `${avgSpeed} м/с` : '—',
+      initialDistance: (initialDistance / 1000).toFixed(2)
+    });
+    
+    prevPos = pointCoords;
+  }
+  
+  return pointDetails;
+}
+
+// Функция форматирования времени
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}ч ${minutes}м ${secs}с`;
+  } else if (minutes > 0) {
+    return `${minutes}м ${secs}с`;
+  } else {
+    return `${secs}с`;
+  }
+}
+
+// Функция расчета рейтинга прохождения (1-100)
+async function calculateRating() {
+  const sequence = getCurrentSequence();
+  const startPoint = getStartPoint();
+  const { getRouteStats } = await import('./routeSequence.js');
+  
+  if (!navigationStartTime || routeTrack.length < 10) {
+    return 50; // Базовый рейтинг если данных недостаточно
+  }
+  
+  const routeStats = getRouteStats();
+  if (!routeStats) return 50;
+  
+  // 1. Эффективность маршрута (0-30 баллов)
+  // Рассчитываем реальное расстояние
+  let realDistance = 0;
+  for (let i = 1; i < routeTrack.length; i++) {
+    realDistance += haversine(
+      routeTrack[i-1].lat, routeTrack[i-1].lng,
+      routeTrack[i].lat, routeTrack[i].lng
+    );
+  }
+  
+  const idealDistance = routeStats.totalDistance;
+  const efficiency = idealDistance > 0 ? (idealDistance / realDistance) : 0;
+  const efficiencyScore = Math.min(30, efficiency * 30);
+  
+  // 2. Процент взятых точек (0-25 баллов)
+  const pointsVisited = completedPoints.size;
+  const pointsTotal = sequence.length;
+  const pointsScore = (pointsVisited / pointsTotal) * 25;
+  
+  // 3. Процент рысканий (0-20 баллов) - меньше рысканий = больше баллов
+  const wanderingPercent = calculateWanderingPercent();
+  const wanderingScore = Math.max(0, 20 - (wanderingPercent / 5)); // За каждые 5% рысканий -1 балл
+  
+  // 4. Равномерность темпа (0-15 баллов)
+  const paceScore = calculatePaceScore();
+  
+  // 5. Точность навигации (0-10 баллов)
+  const accuracyScore = calculateAccuracyScore();
+  
+  const totalRating = Math.round(
+    efficiencyScore + pointsScore + wanderingScore + paceScore + accuracyScore
+  );
+  
+  return Math.max(1, Math.min(100, totalRating));
+}
+
+// Функция расчета процента рысканий
+function calculateWanderingPercent() {
+  if (routeTrack.length < 10) return 0;
+  
+  // Вычисляем среднюю скорость за весь маршрут
+  let totalDistance = 0;
+  let totalTime = 0;
+  for (let i = 1; i < routeTrack.length; i++) {
+    const dist = haversine(
+      routeTrack[i-1].lat, routeTrack[i-1].lng,
+      routeTrack[i].lat, routeTrack[i].lng
+    );
+    const time = (routeTrack[i].timestamp - routeTrack[i-1].timestamp) / 1000;
+    if (time > 0) {
+      totalDistance += dist;
+      totalTime += time;
+    }
+  }
+  const avgSpeed = totalTime > 0 ? totalDistance / totalTime : 0;
+  
+  // Находим участки с низкой скоростью (рыскания)
+  let wanderingDistance = 0;
+  const SLOW_SPEED_THRESHOLD = avgSpeed * 0.5; // 50% от средней скорости
+  
+  for (let i = 1; i < routeTrack.length; i++) {
+    const dist = haversine(
+      routeTrack[i-1].lat, routeTrack[i-1].lng,
+      routeTrack[i].lat, routeTrack[i].lng
+    );
+    const time = (routeTrack[i].timestamp - routeTrack[i-1].timestamp) / 1000;
+    const speed = time > 0 ? dist / time : 0;
+    
+    if (speed < SLOW_SPEED_THRESHOLD && speed > 0) {
+      wanderingDistance += dist;
+    }
+  }
+  
+  return totalDistance > 0 ? (wanderingDistance / totalDistance) * 100 : 0;
+}
+
+// Функция расчета равномерности темпа
+function calculatePaceScore() {
+  if (routeTrack.length < 20) return 7.5; // Средний балл
+  
+  // Вычисляем скорости на разных участках
+  const speeds = [];
+  const segmentSize = Math.floor(routeTrack.length / 5); // 5 сегментов
+  
+  for (let seg = 0; seg < 5; seg++) {
+    let segmentDistance = 0;
+    let segmentTime = 0;
+    const startIdx = seg * segmentSize;
+    const endIdx = Math.min(startIdx + segmentSize, routeTrack.length - 1);
+    
+    for (let i = startIdx + 1; i <= endIdx; i++) {
+      const dist = haversine(
+        routeTrack[i-1].lat, routeTrack[i-1].lng,
+        routeTrack[i].lat, routeTrack[i].lng
+      );
+      const time = (routeTrack[i].timestamp - routeTrack[i-1].timestamp) / 1000;
+      if (time > 0) {
+        segmentDistance += dist;
+        segmentTime += time;
+      }
+    }
+    
+    if (segmentTime > 0) {
+      speeds.push(segmentDistance / segmentTime);
+    }
+  }
+  
+  if (speeds.length < 3) return 7.5;
+  
+  // Вычисляем коэффициент вариации (стандартное отклонение / среднее)
+  const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  const variance = speeds.reduce((sum, speed) => sum + Math.pow(speed - avgSpeed, 2), 0) / speeds.length;
+  const stdDev = Math.sqrt(variance);
+  const coefficientOfVariation = avgSpeed > 0 ? stdDev / avgSpeed : 1;
+  
+  // Меньше вариация = больше баллов (максимум 15)
+  return Math.max(0, 15 - (coefficientOfVariation * 10));
+}
+
+// Функция расчета точности навигации
+function calculateAccuracyScore() {
+  const sequence = getCurrentSequence();
+  if (sequence.length === 0) return 5;
+  
+  // Считаем среднее отклонение от идеального маршрута по точкам
+  let totalDeviation = 0;
+  let validPoints = 0;
+  
+  for (const pointIdx of sequence) {
+    const startTime = pointStartTimes.get(pointIdx);
+    const reachTime = pointReachTimes.get(pointIdx);
+    
+    if (startTime && reachTime) {
+      const trackSegment = routeTrack.filter(
+        p => p.timestamp >= startTime && p.timestamp <= reachTime
+      );
+      
+      if (trackSegment.length > 5) {
+        // Приблизительно оцениваем отклонение по количеству точек в зоне поиска
+        const inAccuracyZone = trackSegment.filter(p => p.distance && p.distance < ACCURACY_ZONE_DISTANCE).length;
+        const accuracyRatio = inAccuracyZone / trackSegment.length;
+        
+        // Меньше времени в зоне поиска = лучше (максимум 10 баллов)
+        totalDeviation += accuracyRatio;
+        validPoints++;
+      }
+    }
+  }
+  
+  if (validPoints === 0) return 5;
+  
+  const avgDeviation = totalDeviation / validPoints;
+  return Math.max(0, 10 - (avgDeviation * 10));
+}
+
+// Функция показа окна результатов
+async function showResultsWindow() {
+  const sequence = getCurrentSequence();
+  const { getRouteStats } = await import('./routeSequence.js');
+  
+  // Рассчитываем общую статистику
+  const routeStats = getRouteStats();
+  const pointsVisited = completedPoints.size;
+  const pointsTotal = sequence.length;
+  
+  // Реальное расстояние
+  let realDistance = 0;
+  for (let i = 1; i < routeTrack.length; i++) {
+    realDistance += haversine(
+      routeTrack[i-1].lat, routeTrack[i-1].lng,
+      routeTrack[i].lat, routeTrack[i].lng
+    );
+  }
+  
+  const idealDistance = routeStats ? routeStats.totalDistance : 0;
+  const distanceDeviation = realDistance - idealDistance;
+  const distanceDeviationPercent = idealDistance > 0 
+    ? ((distanceDeviation / idealDistance) * 100).toFixed(1) 
+    : '0';
+  
+  // Общее время
+  const totalTime = navigationStartTime && pointReachTimes.has(-1)
+    ? (pointReachTimes.get(-1) - navigationStartTime) / 1000
+    : 0;
+  
+  // Средняя скорость
+  const avgSpeed = totalTime > 0 && realDistance > 0
+    ? ((realDistance / totalTime) * 3.6).toFixed(2) // км/ч
+    : '0';
+  
+  // Детализация по точкам
+  const pointDetails = await calculatePointDetails();
+  
+  // Рейтинг
+  const rating = await calculateRating();
+  
+  const stats = {
+    pointsVisited,
+    pointsTotal,
+    idealDistance: (idealDistance / 1000).toFixed(2),
+    realDistance: (realDistance / 1000).toFixed(2),
+    distanceDeviation: (distanceDeviation / 1000).toFixed(2),
+    distanceDeviationPercent,
+    totalTime: formatTime(totalTime),
+    avgSpeed,
+    pointDetails,
+    rating
+  };
+  
+  // Импортируем функцию показа модального окна
+  const { showResultsModal } = await import('./uiController.js');
+  showResultsModal(stats);
+  
+  // Останавливаем навигацию
+  await stopNavigation();
 }
 
 // Экспорт функций для внешнего использования
