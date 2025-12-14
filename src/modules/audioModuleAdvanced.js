@@ -299,6 +299,150 @@ function playPulsingTone(frequency, pulseDuration = 0.15, pulses = 3) {
     playNextPulse();
 }
 
+// ===== ТЕСТОВЫЕ ВАРИАНТЫ ЗВУКОВ ДЛЯ ОТЛАДКИ =====
+// Базовая частота для отладочных примеров (средний тон)
+function getDebugBaseFrequency() {
+    return 450; // между minFreq и maxFreq, комфортная середина
+}
+
+// Глубокий "таинственный" звук с легким ревербом для приближения
+function playDeepMysteriousApproaching(frequency, duration = 0.7, volume = 0.35) {
+    if (!initAudioContext() || !isAudioEnabled || isPlaying) {
+        return;
+    }
+
+    stopCurrentSound();
+
+    try {
+        const now = audioContext.currentTime;
+
+        // Основной тон и две низкие гармоники
+        const oscMain = audioContext.createOscillator();
+        oscMain.type = 'sine';
+        oscMain.frequency.value = frequency;
+
+        const oscLow = audioContext.createOscillator();
+        oscLow.type = 'sine';
+        oscLow.frequency.value = frequency * 0.5; // октава ниже
+
+        const oscFifth = audioContext.createOscillator();
+        oscFifth.type = 'sine';
+        oscFifth.frequency.value = frequency * 0.75; // квинта ниже
+
+        // Фильтр – приглушаем верха, оставляем низ
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = frequency * 1.5;
+        filter.Q.value = 1.0;
+
+        // Простая "реверберация" через задержку
+        const delay = audioContext.createDelay();
+        delay.delayTime.value = 0.18;
+
+        const delayGain = audioContext.createGain();
+        delayGain.gain.value = 0.28;
+
+        const feedbackGain = audioContext.createGain();
+        feedbackGain.gain.value = 0.2;
+
+        // Огибающие для каждого осциллятора
+        const mainGain = audioContext.createGain();
+        const lowGain = audioContext.createGain();
+        const fifthGain = audioContext.createGain();
+
+        const fadeTime = duration * 0.2;
+        const maxVolume = Math.min(volume, 0.8);
+
+        mainGain.gain.setValueAtTime(0, now);
+        mainGain.gain.linearRampToValueAtTime(maxVolume, now + fadeTime);
+        mainGain.gain.linearRampToValueAtTime(maxVolume * 0.7, now + duration - fadeTime);
+        mainGain.gain.linearRampToValueAtTime(0, now + duration);
+
+        lowGain.gain.setValueAtTime(0, now);
+        lowGain.gain.linearRampToValueAtTime(maxVolume * 0.45, now + fadeTime);
+        lowGain.gain.linearRampToValueAtTime(maxVolume * 0.35, now + duration - fadeTime);
+        lowGain.gain.linearRampToValueAtTime(0, now + duration);
+
+        fifthGain.gain.setValueAtTime(0, now);
+        fifthGain.gain.linearRampToValueAtTime(maxVolume * 0.35, now + fadeTime);
+        fifthGain.gain.linearRampToValueAtTime(maxVolume * 0.25, now + duration - fadeTime);
+        fifthGain.gain.linearRampToValueAtTime(0, now + duration);
+
+        // Соединяем цепочку
+        oscMain.connect(mainGain);
+        oscLow.connect(lowGain);
+        oscFifth.connect(fifthGain);
+
+        mainGain.connect(filter);
+        lowGain.connect(filter);
+        fifthGain.connect(filter);
+
+        // Прямой сигнал
+        filter.connect(gainNode);
+
+        // Реверб: фильтр -> delay -> delayGain -> выход + feedback
+        filter.connect(delay);
+        delay.connect(delayGain);
+        delayGain.connect(gainNode);
+        delayGain.connect(feedbackGain);
+        feedbackGain.connect(delay);
+
+        // Запускаем
+        oscMain.start(now);
+        oscLow.start(now);
+        oscFifth.start(now);
+        oscMain.stop(now + duration);
+        oscLow.stop(now + duration);
+        oscFifth.stop(now + duration);
+
+        isPlaying = true;
+
+        setTimeout(() => {
+            try {
+                oscMain.disconnect();
+                oscLow.disconnect();
+                oscFifth.disconnect();
+                mainGain.disconnect();
+                lowGain.disconnect();
+                fifthGain.disconnect();
+                filter.disconnect();
+                delay.disconnect();
+                delayGain.disconnect();
+                feedbackGain.disconnect();
+            } catch (e) {
+                // ignore
+            }
+            isPlaying = false;
+        }, duration * 1000 + 500);
+    } catch (error) {
+        console.warn('Ошибка воспроизведения глубокого звука:', error);
+        isPlaying = false;
+    }
+}
+
+// Приближение – глубокий, таинственный вариант
+export function playDebugApproachingDeep() {
+    const baseFreq = getDebugBaseFrequency() * 0.8; // немного ниже для глубины
+    playDeepMysteriousApproaching(baseFreq, 0.8, 0.35);
+}
+
+// Нейтральный – мягкий средний тон
+export function playDebugNeutral() {
+    const baseFreq = getDebugBaseFrequency();
+    playTone(baseFreq, 0.25, 'triangle', 0.25);
+}
+
+// Удаление – мягкий низкий тон
+export function playDebugMovingAway() {
+    const baseFreq = getDebugBaseFrequency() * 0.7;
+    playTone(baseFreq, 0.3, 'sine', 0.25);
+}
+
+// Критическая близость – пульсирующий сигнал, но чуть мягче по частоте
+export function playDebugCritical() {
+    playPulsingTone(650, 0.12, 3);
+}
+
 // Умное определение направления с анализом тренда
 function getStabilizedDirection(distance) {
     // Добавляем текущее измерение в историю
@@ -566,4 +710,318 @@ export function stopMovementSimulation() {
 
 export function getSimulationStatus() {
     return { isRunning: false, distance: 0, speed: 0 };
+}
+
+// ===== КЭШИРОВАНИЕ ИНСТРУМЕНТОВ TONE.JS =====
+// Кэш для загруженных инструментов
+const instrumentCache = new Map();
+const loadingPromises = new Map();
+
+// ===== TONE.JS ВАРИАНТЫ ЗВУКОВ =====
+// Проверка доступности Tone.js
+function isToneJSAvailable() {
+    return typeof Tone !== 'undefined';
+}
+
+// Инициализация Tone.js контекста
+async function initToneJS() {
+    if (!isToneJSAvailable()) {
+        console.warn('Tone.js не загружен');
+        return false;
+    }
+    
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+    return true;
+}
+
+// Вариант 1: Чистый Synth без модуляции (без глухого звука)
+export async function playToneJS_AMSynth(frequency = 450, duration = 0.3) {
+    if (!isAudioEnabled || !await initToneJS()) return;
+    
+    try {
+        const synth = new Tone.Synth({
+            oscillator: {
+                type: 'sine' // Чистый синус, без гармоник
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.5,
+                release: 0.2 // Короткий release, чтобы не было гула
+            },
+            volume: -10
+        }).toDestination();
+        
+        synth.triggerAttackRelease(frequency, duration);
+        
+        setTimeout(() => {
+            synth.dispose();
+        }, duration * 1000 + 100);
+    } catch (error) {
+        console.warn('Ошибка Tone.js CleanSynth:', error);
+    }
+}
+
+// Вариант 2: Synth с highpass фильтром (убирает низкие частоты)
+export async function playToneJS_FMSynth(frequency = 450, duration = 0.3) {
+    if (!isAudioEnabled || !await initToneJS()) return;
+    
+    try {
+        const synth = new Tone.Synth({
+            oscillator: {
+                type: 'triangle' // Мягче чем square
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.12,
+                sustain: 0.4,
+                release: 0.2
+            },
+            volume: -8
+        });
+        
+        // Highpass фильтр - убирает низкие частоты (глухой гул)
+        const filter = new Tone.Filter({
+            type: 'highpass',
+            frequency: frequency * 0.8, // Отсекаем все ниже основной частоты
+            Q: 1
+        }).toDestination();
+        
+        synth.connect(filter);
+        synth.triggerAttackRelease(frequency, duration);
+        
+        setTimeout(() => {
+            synth.dispose();
+            filter.dispose();
+        }, duration * 1000 + 100);
+    } catch (error) {
+        console.warn('Ошибка Tone.js SynthHighPass:', error);
+    }
+}
+
+// Вариант 3: Упрощенный AMSynth (минимальная модуляция)
+export async function playToneJS_SynthWithFilter(frequency = 450, duration = 0.3) {
+    if (!isAudioEnabled || !await initToneJS()) return;
+    
+    try {
+        const synth = new Tone.AMSynth({
+            oscillator: {
+                type: 'sine'
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.4,
+                release: 0.2
+            },
+            harmonicity: 1.0, // Без дополнительных частот
+            modulation: {
+                type: 'sine'
+            },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.1, // Минимальная модуляция
+                release: 0.1
+            },
+            volume: -10
+        }).toDestination();
+        
+        synth.triggerAttackRelease(frequency, duration);
+        
+        setTimeout(() => {
+            synth.dispose();
+        }, duration * 1000 + 100);
+    } catch (error) {
+        console.warn('Ошибка Tone.js AMSynthLight:', error);
+    }
+}
+
+// Вариант 4: Простой MonoSynth с highpass (без низких частот)
+export async function playToneJS_DuoSynth(frequency = 450, duration = 0.3) {
+    if (!isAudioEnabled || !await initToneJS()) return;
+    
+    try {
+        const synth = new Tone.MonoSynth({
+            oscillator: {
+                type: 'sine'
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.5,
+                release: 0.2
+            },
+            filter: {
+                type: 'highpass', // Убираем низкие частоты
+                frequency: frequency * 0.9,
+                Q: 0.5
+            },
+            filterEnvelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.5,
+                release: 0.2,
+                baseFrequency: frequency,
+                octaves: 0 // Без октав ниже!
+            },
+            volume: -10
+        }).toDestination();
+        
+        synth.triggerAttackRelease(frequency, duration);
+        
+        setTimeout(() => {
+            synth.dispose();
+        }, duration * 1000 + 100);
+    } catch (error) {
+        console.warn('Ошибка Tone.js MonoSynthClean:', error);
+    }
+}
+
+// Вариант 5: Synth с легким ревербом, но без низких частот
+export async function playToneJS_MonoSynthWithReverb(frequency = 450, duration = 0.3) {
+    if (!isAudioEnabled || !await initToneJS()) return;
+    
+    try {
+        const synth = new Tone.Synth({
+            oscillator: {
+                type: 'sine'
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.5,
+                release: 0.2
+            },
+            volume: -5 // Громче
+        });
+        
+        // Highpass фильтр перед ревербом - убирает низкие частоты
+        const filter = new Tone.Filter({
+            type: 'highpass',
+            frequency: frequency * 0.85,
+            Q: 1
+        });
+        
+        // Больше реверба для пространства
+        const reverb = new Tone.Reverb({
+            roomSize: 0.6, // Больше помещение
+            dampening: 2000,
+            wet: 0.35 // Больше реверба (35%)
+        }).toDestination();
+        
+        synth.connect(filter);
+        filter.connect(reverb);
+        synth.triggerAttackRelease(frequency, duration);
+        
+        setTimeout(() => {
+            synth.dispose();
+            filter.dispose();
+            reverb.dispose();
+        }, duration * 1000 + 300); // Больше времени для реверба
+    } catch (error) {
+        console.warn('Ошибка Tone.js Synth+Reverb:', error);
+    }
+}
+
+// ===== ЗВУК ПРИБЛИЖЕНИЯ С СЭМПЛОМ КСИЛОФОНА =====
+// Инициализация ксилофона с кэшированием
+async function initXylophoneSampler() {
+    const instrumentName = 'xylophone';
+    
+    // Если уже загружен - возвращаем сразу
+    if (instrumentCache.has(instrumentName)) {
+        return instrumentCache.get(instrumentName);
+    }
+    
+    // Если уже загружается - ждем существующий промис
+    if (loadingPromises.has(instrumentName)) {
+        return await loadingPromises.get(instrumentName);
+    }
+    
+    if (!isToneJSAvailable()) {
+        console.warn('Tone.js не загружен');
+        return null;
+    }
+    
+    await initToneJS();
+    
+    // Создаем промис загрузки
+    const loadPromise = (async () => {
+        try {
+            // Создаем Sampler с одним сэмплом C5
+            // Tone.js автоматически транспонирует его для других нот
+            const sampler = new Tone.Sampler({
+                urls: {
+                    C5: "C5.mp3"
+                },
+                release: 1,
+                baseUrl: "./assets/samples/xylophone/"
+            }).toDestination();
+            
+            // Ждем загрузки сэмпла
+            await Tone.loaded();
+            
+            // Сохраняем в кэш
+            instrumentCache.set(instrumentName, sampler);
+            console.log(`✅ Ксилофон загружен и закэширован`);
+            
+            return sampler;
+        } catch (error) {
+            console.error(`Ошибка загрузки ксилофона:`, error);
+            loadingPromises.delete(instrumentName);
+            return null;
+        } finally {
+            loadingPromises.delete(instrumentName);
+        }
+    })();
+    
+    loadingPromises.set(instrumentName, loadPromise);
+    return await loadPromise;
+}
+
+// Воспроизведение звука приближения с динамическим изменением высоты
+export async function playApproachingSound(distance) {
+    if (!isAudioEnabled) return;
+    
+    // Получаем ксилофон из кэша (или загружаем если нет)
+    const xylophone = await initXylophoneSampler();
+    
+    if (!xylophone) {
+        console.warn('Ксилофон не загружен');
+        return;
+    }
+    
+    // Логика изменения высоты:
+    // До 100м - монотонный звук (C5)
+    // От 100 до 0м - звук плавно повышается от C5 до C8
+    
+    let note = "C5"; // Базовая нота (монотонная до 100м)
+    
+    if (distance >= 100) {
+        // От 100м и дальше - монотонный звук C5
+        note = "C5";
+    } else {
+        // От 100 до 0м: вычисляем высоту с плавным изменением
+        // 100м = C5, 0м = C6 (1 октава = 12 полутонов выше) - медленнее рост
+        const progress = 1 - (distance / 100); // 0 при 100м, 1 при 0м
+        const semitones = Math.floor(progress * 12); // От 0 до 12 полутонов (вместо 36)
+        
+        // Преобразуем полутоны в ноту
+        const baseOctave = 5;
+        const octave = baseOctave + Math.floor(semitones / 12);
+        const noteIndex = semitones % 12;
+        
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const noteName = notes[noteIndex];
+        
+        note = `${noteName}${octave}`;
+    }
+    
+    // Играем ноту
+    xylophone.triggerAttackRelease(note, "8n");
+    
+    console.log(`🎵 Звук приближения: ${distance.toFixed(1)}м, нота: ${note}`);
 }

@@ -219,6 +219,7 @@
                 <button id="audioToggle" class="audio-toggle">🔇 Включить звук</button>
                 <button id="playTestSound">🎵 Проиграть тест</button>
                 <button id="playVictorySound">🏆 Звук победы</button>
+                <button id="playApproachingSound">🎹 Звук приближения (ксилофон)</button>
                 <button id="startContinuousPlay">🔄 Непрерывно</button>
                 <button id="startMovementSimulation">🏃‍♂️ Симуляция</button>
                 <button id="startAutoTest">🎯 Автотест</button>
@@ -344,6 +345,63 @@
             </div>
         </div>
         
+        <div class="control-group">
+            <h3>🎧 Типы сигналов (advanced-модуль)</h3>
+            <div class="examples">
+                <div class="example-btn" id="debugApproachDeep">
+                    <h4>Приближение</h4>
+                    <p>Глубокий таинственный звук</p>
+                    <p>низкие частоты + легкий реверб</p>
+                </div>
+                <div class="example-btn" id="debugNeutral">
+                    <h4>Нейтрально</h4>
+                    <p>Мягкий средний тон</p>
+                    <p>triangle, короткий</p>
+                </div>
+                <div class="example-btn" id="debugAway">
+                    <h4>Удаление</h4>
+                    <p>Мягкий низкий тон</p>
+                    <p>sine, чуть дольше</p>
+                </div>
+                <div class="example-btn" id="debugCritical">
+                    <h4>Критически близко</h4>
+                    <p>Пульсирующий сигнал</p>
+                    <p>несколько мягких импульсов</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>🎹 Tone.js варианты (четкие, но ненавязчивые)</h3>
+            <div class="examples">
+                <div class="example-btn" id="toneAMSynth">
+                    <h4>Tone.js: Чистый Synth</h4>
+                    <p>Без модуляции</p>
+                    <p>чистый синус</p>
+                </div>
+                <div class="example-btn" id="toneFMSynth">
+                    <h4>Tone.js: Synth+HighPass</h4>
+                    <p>Без низких частот</p>
+                    <p>убирает гул</p>
+                </div>
+                <div class="example-btn" id="toneSynthFilter">
+                    <h4>Tone.js: AMSynth Light</h4>
+                    <p>Минимальная модуляция</p>
+                    <p>мягкий тембр</p>
+                </div>
+                <div class="example-btn" id="toneDuoSynth">
+                    <h4>Tone.js: Mono+HighPass</h4>
+                    <p>Без октав ниже</p>
+                    <p>чистый звук</p>
+                </div>
+                <div class="example-btn" id="toneMonoReverb">
+                    <h4>Tone.js: Synth+Reverb</h4>
+                    <p>С фильтром и ревербом</p>
+                    <p>пространство без гула</p>
+                </div>
+            </div>
+        </div>
+        
         <div class="info-panel">
             <h3>📝 Логика работы</h3>
             <ul>
@@ -359,21 +417,35 @@
         </div>
     </div>
 
-    <!-- Tone.js удален - используем простой Web Audio API -->
+    <!-- Подключаем Tone.js -->
+    <script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/build/Tone.js"></script>
+    
+    <!-- Используем продвинутый модуль звуковой навигации -->
     <script type="module">
         import { 
             playNavigationSound, 
             playVictorySound,
+            playApproachingSound,
             toggleAudio, 
             isAudioOn, 
             getSoundInterval,
-            resetNavigation
-        } from './src/modules/audioModuleSimple.js';
+            resetNavigation,
+            playDebugApproachingDeep,
+            playDebugNeutral,
+            playDebugMovingAway,
+            playDebugCritical,
+            playToneJS_AMSynth,
+            playToneJS_FMSynth,
+            playToneJS_SynthWithFilter,
+            playToneJS_DuoSynth,
+            playToneJS_MonoSynthWithReverb
+        } from './src/modules/audioModuleAdvanced.js';
         
         // DOM элементы
         const audioToggle = document.getElementById('audioToggle');
         const playTestBtn = document.getElementById('playTestSound');
         const playVictoryBtn = document.getElementById('playVictorySound');
+        const playApproachingBtn = document.getElementById('playApproachingSound');
         const startAutoTestBtn = document.getElementById('startAutoTest');
         const startMovementSimulationBtn = document.getElementById('startMovementSimulation');
         const distanceSlider = document.getElementById('distanceSlider');
@@ -385,6 +457,17 @@
         const chordTypeValue = document.getElementById('chordType');
         const directionValue = document.getElementById('directionValue');
         const statusDisplay = document.getElementById('statusDisplay');
+        const debugApproachDeepBtn = document.getElementById('debugApproachDeep');
+        const debugNeutralBtn = document.getElementById('debugNeutral');
+        const debugAwayBtn = document.getElementById('debugAway');
+        const debugCriticalBtn = document.getElementById('debugCritical');
+        
+        // Tone.js кнопки
+        const toneAMSynthBtn = document.getElementById('toneAMSynth');
+        const toneFMSynthBtn = document.getElementById('toneFMSynth');
+        const toneSynthFilterBtn = document.getElementById('toneSynthFilter');
+        const toneDuoSynthBtn = document.getElementById('toneDuoSynth');
+        const toneMonoReverbBtn = document.getElementById('toneMonoReverb');
         
         // Элементы симуляции
         const simulationPanel = document.getElementById('simulationPanel');
@@ -568,8 +651,11 @@
                     distanceSlider.value = currentSimDistance;
                     updateValues();
                     
-                    // Проигрываем звук навигации
-                    playNavigationSound(currentSimDistance, speed);
+                    // Проигрываем звук приближения (ксилофон)
+                    // Используем async/await для правильной работы с асинхронной функцией
+                    (async () => {
+                        await playApproachingSound(currentSimDistance);
+                    })();
                 }
             }, 1000); // Обновляем каждую секунду
             
@@ -632,8 +718,10 @@
                 speedSlider.value = testCase.speed;
                 updateValues();
                 
-                // Проигрываем звук
-                playTestSound(testCase.distance, testCase.speed);
+                // Проигрываем звук приближения (ксилофон)
+                (async () => {
+                    await playApproachingSound(testCase.distance);
+                })();
                 
                 testStep++;
             }, 3000);
@@ -658,6 +746,17 @@
             statusDisplay.textContent = '🏆 Звук победы проигран!';
             statusDisplay.className = 'status reached';
         });
+        
+        playApproachingBtn.addEventListener('click', async () => {
+            if (!isAudioOn()) {
+                alert('Включите звук для тестирования!');
+                return;
+            }
+            const distance = parseFloat(distanceSlider.value);
+            await playApproachingSound(distance);
+            statusDisplay.textContent = `🎹 Звук приближения: ${distance}м`;
+            statusDisplay.className = 'status approaching';
+        });
         startContinuousPlayBtn.addEventListener('click', () => {
             if (isContinuousPlaying) {
                 stopContinuousPlay();
@@ -675,6 +774,80 @@
             }
         });
         startAutoTestBtn.addEventListener('click', startAutoTest);
+        
+        // Обработчики для отладочных типов сигналов
+        debugApproachDeepBtn.addEventListener('click', () => {
+            if (!isAudioOn()) {
+                alert('Включите звук для тестирования!');
+                return;
+            }
+            playDebugApproachingDeep();
+        });
+        
+        debugNeutralBtn.addEventListener('click', () => {
+            if (!isAudioOn()) {
+                alert('Включите звук для тестирования!');
+                return;
+            }
+            playDebugNeutral();
+        });
+        
+        debugAwayBtn.addEventListener('click', () => {
+            if (!isAudioOn()) {
+                alert('Включите звук для тестирования!');
+                return;
+            }
+            playDebugMovingAway();
+        });
+        
+debugCriticalBtn.addEventListener('click', () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    playDebugCritical();
+});
+
+// Обработчики для Tone.js вариантов
+toneAMSynthBtn.addEventListener('click', async () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    await playToneJS_AMSynth(450, 0.3);
+});
+
+toneFMSynthBtn.addEventListener('click', async () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    await playToneJS_FMSynth(450, 0.3);
+});
+
+toneSynthFilterBtn.addEventListener('click', async () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    await playToneJS_SynthWithFilter(450, 0.3);
+});
+
+toneDuoSynthBtn.addEventListener('click', async () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    await playToneJS_DuoSynth(450, 0.3);
+});
+
+toneMonoReverbBtn.addEventListener('click', async () => {
+    if (!isAudioOn()) {
+        alert('Включите звук для тестирования!');
+        return;
+    }
+    await playToneJS_MonoSynthWithReverb(450, 0.3);
+});
         
         distanceSlider.addEventListener('input', () => {
             updateValues();
