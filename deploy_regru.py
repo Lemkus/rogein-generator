@@ -156,7 +156,7 @@ def deploy_to_regru():
     
     if success_count == len(upload_commands):
         print("\nИсправляем права доступа...")
-        chmod_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && chmod -R 755 src/ && chmod 644 src/*.js 2>/dev/null || true && chmod -R 755 assets/ && chmod -R 755 libs/ 2>/dev/null || true\""
+        chmod_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && chmod -R 755 src/ && chmod 644 src/*.js 2>/dev/null || true && chmod -R 755 assets/ && chmod 755 assets/icons/ 2>/dev/null || true && chmod 644 assets/icons/*.png 2>/dev/null || true && chmod -R 755 libs/ 2>/dev/null || true && chmod 644 libs/leaflet/*.js libs/leaflet/*.css 2>/dev/null || true\""
         
         if run_command(chmod_cmd, "Исправление прав доступа"):
             # Проверяем существование виртуального окружения
