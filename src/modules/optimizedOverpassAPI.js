@@ -8,16 +8,83 @@ import { OVERPASS_API_BASE, REQUEST_TIMEOUTS, RETRY_CONFIG } from './config.js';
 const REQUEST_TIMEOUT = REQUEST_TIMEOUTS.MEDIUM; // 30 секунд
 
 /**
+ * Проверяет корректность bbox и возвращает распарсенные координаты
+ * @param {string} bbox - строка bbox в формате 'south,west,north,east'
+ * @returns {Object} объект с координатами {south, west, north, east}
+ * @throws {Error} если bbox некорректен
+ */
+function validateBbox(bbox) {
+  const [south, west, north, east] = bbox.split(',').map(Number);
+  
+  if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
+    throw new Error('Некорректные координаты области');
+  }
+  
+  if (south >= north || west >= east) {
+    throw new Error('Некорректные координаты области');
+  }
+  
+  const latDiff = north - south;
+  const lonDiff = east - west;
+  const areaSize = latDiff * lonDiff;
+  
+  if (areaSize > 0.01) {
+    throw new Error('Область слишком большая для загрузки данных');
+  }
+  
+  return { south, west, north, east };
+}
+
+/**
+ * Создает AbortController с таймаутом
+ * @param {number} timeout - таймаут в мс
+ * @param {Function} statusCallback - функция для обновления статуса
+ * @param {string} apiType - тип API для сообщений
+ * @returns {Object} объект с controller и timeoutId
+ */
+function createAbortController(timeout, statusCallback, apiType) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+    if (statusCallback) statusCallback(`⏰ ${apiType}: таймаут ${timeout/1000}с превышен`);
+      controller.abort();
+  }, timeout);
+  return { controller, timeoutId };
+}
+
+/**
  * Единая функция для чтения и парсинга JSON ответа
  * Используется как для серверного, так и для клиентского API
+ * ВАЖНО: Всегда читаем как текст, чтобы избежать зависания на больших ответах
  * @param {Response} response - объект Response от fetch
  * @param {Function} statusCallback - функция для обновления статуса (опционально)
+ * @param {boolean} forceTextMode - принудительно читать как текст (для клиентского API)
  * @returns {Promise<Object>} распарсенные JSON данные
  */
-async function parseJsonResponse(response, statusCallback = null) {
+async function parseJsonResponse(response, statusCallback = null, forceTextMode = false) {
+  // Для клиентского API всегда читаем как текст, чтобы избежать зависания
+  // response.json() может зависать на очень больших ответах
+  if (forceTextMode) {
+    if (statusCallback) statusCallback(`📄 Читаем ответ как текст (режим для больших ответов)...`);
+    const text = await response.text();
+    
+    if (text.includes('<?xml') || text.includes('<html')) {
+      const errorMsg = 'Сервер вернул XML/HTML вместо JSON';
+      if (statusCallback) statusCallback(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    
+    try {
+      if (statusCallback) statusCallback(`🔄 Парсим JSON (размер: ${(text.length / 1024).toFixed(1)} KB)...`);
+      return JSON.parse(text);
+    } catch (parseError) {
+      if (statusCallback) statusCallback(`❌ Ошибка парсинга JSON: ${parseError.message}`);
+      throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
+    }
+  }
+  
+  // Для серверного API пробуем сначала JSON (обычно меньше по размеру)
   const contentType = response.headers.get('content-type') || '';
   
-  // Пытаемся прочитать как JSON напрямую (быстрее для больших ответов)
   if (contentType.includes('json') || contentType.includes('application/json')) {
     try {
       return await response.json();
@@ -35,9 +102,9 @@ async function parseJsonResponse(response, statusCallback = null) {
   if (text.includes('<?xml') || text.includes('<html')) {
     const errorMsg = 'Сервер вернул XML/HTML вместо JSON';
     if (statusCallback) statusCallback(`❌ ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-    
+    throw new Error(errorMsg);
+  }
+  
   try {
     return JSON.parse(text);
   } catch (parseError) {
@@ -208,7 +275,9 @@ async function processOverpassResponse(response, statusCallback, apiType = 'API'
   }
   
   // Используем единую функцию парсинга
-  const data = await parseJsonResponse(response, statusCallback);
+  // Для клиентского API используем forceTextMode=true, чтобы избежать зависания на больших ответах
+  const isClientAPI = apiType === 'Клиентский API' || apiType === 'client';
+  const data = await parseJsonResponse(response, statusCallback, isClientAPI);
   
   // Обрабатываем разные форматы ответа
   if (data.success && data.data && data.data.elements) {
@@ -237,14 +306,13 @@ async function processOverpassResponse(response, statusCallback, apiType = 'API'
  * @returns {Promise<Object>} объект с данными {elements: [...]}
  */
 async function fetchAllWithServerOverpass(bbox, statusCallback = null) {
+  // Проверяем корректность bbox
+  validateBbox(bbox);
+  
   if (statusCallback) statusCallback('🌐 Серверный API: формируем запрос...');
   
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      if (statusCallback) statusCallback(`⏰ Серверный API: таймаут ${REQUEST_TIMEOUT/1000}с превышен`);
-      controller.abort();
-    }, REQUEST_TIMEOUT);
+    const { controller, timeoutId } = createAbortController(REQUEST_TIMEOUT, statusCallback, 'Серверный API');
     
     const query = buildOverpassQuery(bbox);
     if (statusCallback) statusCallback(`📤 Серверный API: отправляем запрос (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
@@ -279,32 +347,26 @@ async function fetchAllWithServerOverpass(bbox, statusCallback = null) {
 }
 
 /**
+ * Кэширует данные карты
+ * @param {string} cacheKey - ключ кэша
+ * @param {Object} data - данные для кэширования
+ */
+function cacheMapData(cacheKey, data) {
+  if (!window.mapDataCache) window.mapDataCache = {};
+  window.mapDataCache[cacheKey] = data;
+}
+
+/**
  * Загружает все данные через клиентский Overpass API с retry логикой
  * @param {string} bbox - строка bbox в формате 'south,west,north,east'
  * @param {Function} statusCallback - функция для обновления статуса
  * @returns {Promise<Object>} объект с данными {paths, barriers, closed_areas, water_areas}
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
-  const [south, west, north, east] = bbox.split(',').map(Number);
+  // Проверяем корректность bbox
+  validateBbox(bbox);
+  
   statusCallback(`🌐 Клиентский API: подключаемся к overpass-api.de...`);
-  
-  if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) {
-    throw new Error(`Некорректные координаты области`);
-  }
-  
-  if (south >= north || west >= east) {
-    throw new Error(`Некорректные координаты области`);
-  }
-  
-  const latDiff = north - south;
-  const lonDiff = east - west;
-  const areaSize = latDiff * lonDiff;
-  
-  if (areaSize > 0.01) {
-    statusCallback('⚠️ Область слишком большая, попробуйте выбрать меньшую область');
-    throw new Error('Область слишком большая для загрузки данных');
-  }
-  
   const query = buildOverpassQuery(bbox);
   let lastError;
   
@@ -312,11 +374,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     try {
       statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS} (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        statusCallback(`⏰ Клиентский API: таймаут ${REQUEST_TIMEOUT/1000}с на попытке ${attempt}`);
-        controller.abort();
-      }, REQUEST_TIMEOUT);
+      const { controller, timeoutId } = createAbortController(REQUEST_TIMEOUT, statusCallback, `Клиентский API (попытка ${attempt})`);
       
       const startTime = Date.now();
       const response = await fetch('https://overpass-api.de/api/interpreter', {
@@ -342,8 +400,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       const result = parseOverpassData(data.elements, statusCallback);
       
       // Кэшируем данные
-      if (!window.mapDataCache) window.mapDataCache = {};
-      window.mapDataCache[`all_data_${bbox}`] = result;
+      cacheMapData(`all_data_${bbox}`, result);
       
       return result;
       
@@ -420,8 +477,7 @@ export async function fetchAllMapData(bbox, statusCallback) {
     if (serverResponse && serverResponse.elements) {
       const parsedData = parseOverpassData(serverResponse.elements, statusCallback);
       
-      if (!window.mapDataCache) window.mapDataCache = {};
-      window.mapDataCache[cacheKey] = parsedData;
+      cacheMapData(cacheKey, parsedData);
       statusCallback('✅ Данные успешно загружены через серверный API');
       return parsedData;
     } else {
