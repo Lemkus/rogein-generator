@@ -52,52 +52,66 @@ function createAbortController(timeout, statusCallback, apiType) {
 }
 
 /**
- * Единая функция для чтения и парсинга JSON ответа
- * Используется как для серверного, так и для клиентского API
- * ВАЖНО: Всегда читаем как текст, чтобы избежать зависания на больших ответах
+ * Читает response body с учетом способа передачи данных
  * @param {Response} response - объект Response от fetch
- * @param {Function} statusCallback - функция для обновления статуса (опционально)
- * @param {boolean} forceTextMode - принудительно читать как текст (для клиентского API)
- * @returns {Promise<Object>} распарсенные JSON данные
+ * @param {boolean} useChunkedReading - читать по chunk'ам с таймаутом (для клиентского API)
+ * @param {Function} statusCallback - функция для обновления статуса
+ * @returns {Promise<string>} текст ответа
  */
-async function parseJsonResponse(response, statusCallback = null, forceTextMode = false) {
-  // Для клиентского API всегда читаем как текст, чтобы избежать зависания
-  // response.json() может зависать на очень больших ответах
-  if (forceTextMode) {
-    if (statusCallback) statusCallback(`📄 Читаем ответ как текст (режим для больших ответов)...`);
-    const text = await response.text();
-    
-    if (text.includes('<?xml') || text.includes('<html')) {
-      const errorMsg = 'Сервер вернул XML/HTML вместо JSON';
-      if (statusCallback) statusCallback(`❌ ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-    
-    try {
-      if (statusCallback) statusCallback(`🔄 Парсим JSON (размер: ${(text.length / 1024).toFixed(1)} KB)...`);
-      return JSON.parse(text);
-    } catch (parseError) {
-      if (statusCallback) statusCallback(`❌ Ошибка парсинга JSON: ${parseError.message}`);
-      throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
-    }
+async function readResponseBody(response, useChunkedReading = false, statusCallback = null) {
+  if (!useChunkedReading) {
+    // Серверный API: обычное чтение (быстро, без chunked проблем)
+    if (statusCallback) statusCallback(`📄 Читаем ответ от сервера...`);
+    return await response.text();
   }
   
-  // Для серверного API пробуем сначала JSON (обычно меньше по размеру)
-  const contentType = response.headers.get('content-type') || '';
+  // Клиентский API: chunked чтение с таймаутом на каждый chunk
+  if (statusCallback) statusCallback(`📄 Читаем ответ по частям (chunked encoding)...`);
   
-  if (contentType.includes('json') || contentType.includes('application/json')) {
-    try {
-      return await response.json();
-    } catch (error) {
-      // Если не получилось, читаем как текст
-      const text = await response.text();
-      return JSON.parse(text);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let result = '';
+  let chunkCount = 0;
+  const CHUNK_TIMEOUT = 10000; // 10 секунд на каждый chunk
+  
+  try {
+    while (true) {
+      const readPromise = reader.read();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Chunk timeout')), CHUNK_TIMEOUT)
+      );
+      
+      const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+      
+      if (done) break;
+      
+      chunkCount++;
+      result += decoder.decode(value, { stream: true });
+      
+      if (statusCallback && chunkCount % 5 === 0) {
+        statusCallback(`📦 Получено ${chunkCount} частей (${(result.length / 1024).toFixed(1)} KB)...`);
+      }
     }
+    
+    if (statusCallback) statusCallback(`✅ Ответ прочитан: ${chunkCount} частей, ${(result.length / 1024).toFixed(1)} KB`);
+    return result;
+    
+  } catch (error) {
+    reader.cancel();
+    if (error.message === 'Chunk timeout') {
+      throw new Error(`Таймаут чтения: не получен chunk в течение ${CHUNK_TIMEOUT/1000}с`);
+    }
+    throw error;
   }
-  
-  // Если Content-Type не JSON, читаем как текст и парсим
-  const text = await response.text();
-  
+}
+
+/**
+ * Парсит JSON из текста с проверками
+ * @param {string} text - текст для парсинга
+ * @param {Function} statusCallback - функция для обновления статуса
+ * @returns {Object} распарсенный JSON объект
+ */
+function parseJsonText(text, statusCallback = null) {
   // Проверяем, что это не XML/HTML
   if (text.includes('<?xml') || text.includes('<html')) {
     const errorMsg = 'Сервер вернул XML/HTML вместо JSON';
@@ -106,10 +120,11 @@ async function parseJsonResponse(response, statusCallback = null, forceTextMode 
   }
   
   try {
+    if (statusCallback) statusCallback(`🔄 Парсим JSON (${(text.length / 1024).toFixed(1)} KB)...`);
     return JSON.parse(text);
   } catch (parseError) {
-    if (statusCallback) statusCallback(`❌ Ошибка парсинга JSON: ${parseError.message}`);
-    throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
+    if (statusCallback) statusCallback(`❌ Ошибка парсинга: ${parseError.message}`);
+    throw new Error(`Ошибка парсинга JSON: ${parseError.message}`);
   }
 }
 
@@ -274,10 +289,14 @@ async function processOverpassResponse(response, statusCallback, apiType = 'API'
     throw new Error(fullErrorMsg);
   }
   
-  // Используем единую функцию парсинга
-  // Для клиентского API используем forceTextMode=true, чтобы избежать зависания на больших ответах
+  // Определяем способ чтения body
   const isClientAPI = apiType === 'Клиентский API' || apiType === 'client';
-  const data = await parseJsonResponse(response, statusCallback, isClientAPI);
+  
+  // Читаем body (chunked для клиентского API, обычное для серверного)
+  const text = await readResponseBody(response, isClientAPI, statusCallback);
+  
+  // Парсим JSON
+  const data = parseJsonText(text, statusCallback);
   
   // Обрабатываем разные форматы ответа
   if (data.success && data.data && data.data.elements) {
