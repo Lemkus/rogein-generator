@@ -87,10 +87,33 @@ function parseOverpassData(elements, statusCallback) {
   let pathCount = 0;
   let barrierCount = 0;
   let closedAreaCount = 0;
+  let skippedCount = 0;
+
+  console.log(`🔄 Начинаем парсинг ${elements.length} элементов...`);
 
   for (const element of elements || []) {
-    if ((element.type === 'way' || element.type === 'relation') && element.geometry) {
-      const geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
+    // Проверяем наличие geometry (для запросов с out geom)
+    // или nodes (для обычных запросов)
+    let geometry = null;
+    
+    if (element.geometry && Array.isArray(element.geometry)) {
+      // Формат с geometry (out geom)
+      geometry = element.geometry.map(coord => [coord.lat, coord.lon]);
+    } else if (element.nodes && Array.isArray(element.nodes)) {
+      // Формат с nodes - нужно будет получить координаты из nodes
+      // Но для этого нужны сами node элементы в ответе
+      // Пока пропускаем такие элементы
+      skippedCount++;
+      continue;
+    } else if (element.type === 'way' && element.lat !== undefined && element.lon !== undefined) {
+      // Одиночная точка
+      geometry = [[element.lat, element.lon]];
+    } else {
+      skippedCount++;
+      continue;
+    }
+    
+    if ((element.type === 'way' || element.type === 'relation') && geometry) {
       
       if (geometry.length >= 2) {
         const tags = element.tags || {};
@@ -144,6 +167,7 @@ function parseOverpassData(elements, statusCallback) {
     }
   }
 
+  console.log(`✅ Парсинг завершен: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон, ${skippedCount} пропущено`);
   statusCallback(`Загружено: ${pathCount} дорог, ${barrierCount} барьеров, ${closedAreaCount} закрытых зон`);
   return result;
 }
@@ -264,11 +288,30 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       
       if (!data || !data.elements) {
         statusCallback(`❌ Клиентский API: некорректный формат данных`);
+        console.log(`❌ Структура данных:`, data);
         throw new Error('Некорректный формат данных от клиентского API');
+      }
+      
+      console.log(`📊 Клиентский API: получено ${data.elements.length} элементов`);
+      if (data.elements.length > 0) {
+        console.log(`📊 Пример первого элемента:`, {
+          type: data.elements[0].type,
+          id: data.elements[0].id,
+          hasGeometry: !!data.elements[0].geometry,
+          hasNodes: !!data.elements[0].nodes,
+          tags: data.elements[0].tags
+        });
       }
       
       // Используем единую функцию парсинга
       const result = parseOverpassData(data.elements, statusCallback);
+      
+      console.log(`📊 Результат парсинга:`, {
+        paths: result.paths.length,
+        barriers: result.barriers.length,
+        closed_areas: result.closed_areas.length,
+        water_areas: result.water_areas.length
+      });
       
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
