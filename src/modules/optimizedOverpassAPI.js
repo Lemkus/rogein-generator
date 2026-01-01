@@ -315,21 +315,15 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   // Retry логика
   for (let attempt = 1; attempt <= RETRY_CONFIG.MAX_ATTEMPTS; attempt++) {
     try {
-      statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS} (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
+      statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS}...`);
       
-      // Используем Promise.race для таймаута без AbortController
-      // Это позволяет избежать проблем с signal, который может влиять на чтение body
-      const fetchPromise = fetch('https://overpass-api.de/api/interpreter', {
+      // Простой fetch без таймаута, как в старой рабочей версии
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: query,
         headers: { 'Content-Type': 'text/plain' }
       });
       
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Fetch timeout')), REQUEST_TIMEOUT)
-      );
-      
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
       statusCallback(`📡 Клиентский API: получен ответ (статус ${response.status})`);
       
       if (!response.ok) {
@@ -360,11 +354,6 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     } catch (error) {
       lastError = error;
       console.log(`❌ Попытка ${attempt} неудачна:`, error.message);
-      
-      // Обработка таймаута
-      if (error.message === 'Fetch timeout') {
-        statusCallback(`⏰ Клиентский API: таймаут ${REQUEST_TIMEOUT/1000}с на попытке ${attempt}`);
-      }
       
       // Если это последняя попытка, выбрасываем ошибку
       if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
