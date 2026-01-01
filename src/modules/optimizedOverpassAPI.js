@@ -1,9 +1,11 @@
 /**
  * Оптимизированный модуль для работы с Overpass API
  * Минимизирует количество запросов, объединяя все данные в один запрос
+ * Использует serverOverpassAPI.js для работы с серверным API (без дублирования кода)
  */
 
-import { OVERPASS_API_BASE, REQUEST_TIMEOUTS, RETRY_CONFIG } from './config.js';
+import { REQUEST_TIMEOUTS, RETRY_CONFIG } from './config.js';
+import { fetchAllWithServerOverpass, buildOverpassQuery } from './serverOverpassAPI.js';
 
 const REQUEST_TIMEOUT = REQUEST_TIMEOUTS.MEDIUM; // 30 секунд
 
@@ -27,149 +29,35 @@ export async function fetchAllMapData(bbox, statusCallback) {
   try {
     // Сначала пробуем серверный API
     statusCallback('🌐 Пробуем серверный API (trailspot.app)...');
-    const serverData = await fetchAllWithServerOverpass(bbox, statusCallback);
-    if (serverData) {
+    const serverResponse = await fetchAllWithServerOverpass(bbox, statusCallback);
+    
+    // Парсим данные из серверного ответа
+    if (serverResponse && serverResponse.elements) {
+      const parsedData = parseOverpassData(serverResponse.elements, statusCallback);
+      
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
-      window.mapDataCache[cacheKey] = serverData;
+      window.mapDataCache[cacheKey] = parsedData;
       statusCallback('✅ Данные успешно загружены через серверный API');
-      return serverData;
+      return parsedData;
+    } else {
+      throw new Error('Серверный API вернул некорректные данные');
     }
   } catch (error) {
     statusCallback(`❌ Серверный API недоступен: ${error.message}`);
     console.log(`❌ Серверный API ошибка:`, error);
+    
+    // Если серверный API недоступен, используем клиентский
+    statusCallback('🔄 Переключаемся на клиентский Overpass API...');
+    return await fetchAllWithClientOverpass(bbox, statusCallback);
   }
-  
-  // Если серверный API недоступен, используем клиентский
-  statusCallback('🔄 Переключаемся на клиентский Overpass API...');
-  return await fetchAllWithClientOverpass(bbox, statusCallback);
 }
 
 /**
  * Загружает все данные через серверный API
+ * Функция удалена - теперь используется fetchAllWithServerOverpass из serverOverpassAPI.js
+ * Это устраняет дублирование кода (DRY принцип)
  */
-async function fetchAllWithServerOverpass(bbox, statusCallback) {
-  console.log(`🚀 Загружаем ВСЕ данные одним запросом через серверный Overpass API...`);
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен, прерываем запрос`);
-      statusCallback(`⏰ Серверный API: таймаут ${REQUEST_TIMEOUT/1000}с превышен`);
-      controller.abort();
-    }, REQUEST_TIMEOUT);
-    
-    console.log(`📤 Отправляем запрос к серверному API...`);
-    statusCallback(`📤 Серверный API: отправляем запрос (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
-    const startTime = Date.now();
-    
-    // Используем единую функцию формирования запроса
-    const query = buildOverpassQuery(bbox);
-
-    const response = await fetch(`${OVERPASS_API_BASE}/execute-query`, {
-      method: 'POST',
-      body: query,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'text/plain'
-      }
-    });
-    
-    const elapsedTime = Date.now() - startTime;
-    clearTimeout(timeoutId);
-    
-    console.log(`📡 Получен ответ за ${elapsedTime}мс:`);
-    console.log(`   Status: ${response.status} ${response.statusText}`);
-    statusCallback(`📡 Серверный API: получен ответ за ${elapsedTime}мс (статус ${response.status})`);
-    
-    if (!response.ok) {
-      let errorText = '';
-      try {
-        errorText = await response.text();
-        console.log(`📄 Тело ответа ошибки:`, errorText);
-      } catch (textError) {
-        console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
-      }
-      
-      const errorMsg = `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`;
-      statusCallback(`❌ Серверный API: ошибка ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-    
-    const data = await response.json();
-    console.log(`✅ JSON успешно распарсен`);
-    console.log(`📊 Структура ответа:`, Object.keys(data));
-    console.log(`📊 Полный ответ:`, data);
-    statusCallback(`✅ Серверный API: JSON успешно распарсен`);
-    
-    // Проверяем разные возможные форматы ответа
-    if (data.success && data.data) {
-      console.log(`✅ Серверный Overpass вернул все данные:`);
-      console.log(`   - Элементов: ${data.data.elements ? data.data.elements.length : 0}`);
-      console.log(`   - Время загрузки: ${data.load_time}с`);
-      
-      // Используем единую функцию парсинга
-      return parseOverpassData(data.data.elements, statusCallback);
-    } else if (data.paths || data.barriers || data.closed_areas) {
-      // Возможно, данные приходят напрямую без обертки
-      console.log(`✅ Серверный Overpass вернул данные напрямую`);
-      const counts = {
-        paths: data.paths ? data.paths.length : 0,
-        barriers: data.barriers ? data.barriers.length : 0,
-        closed_areas: data.closed_areas ? data.closed_areas.length : 0,
-        water_areas: data.water_areas ? data.water_areas.length : 0
-      };
-      
-      statusCallback(`Загружено: ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
-      return data;
-    } else if (data.success && (data.paths || data.barriers)) {
-      // Серверный API возвращает данные в корне объекта
-      console.log(`✅ Серверный Overpass вернул данные в корне объекта`);
-      
-      // Создаем объект с правильной структурой
-      const result = {
-        paths: data.paths || [],
-        barriers: data.barriers || [],
-        closed_areas: data.closed_areas || [],
-        water_areas: data.water_areas || []
-      };
-      
-      const counts = {
-        paths: result.paths.length,
-        barriers: result.barriers.length,
-        closed_areas: result.closed_areas.length,
-        water_areas: result.water_areas.length
-      };
-      
-      console.log(`   - Дороги/тропы: ${counts.paths}`);
-      console.log(`   - Барьеры: ${counts.barriers}`);
-      console.log(`   - Закрытые зоны: ${counts.closed_areas}`);
-      console.log(`   - Водоёмы: ${counts.water_areas}`);
-      console.log(`   - Время загрузки: ${data.load_time}с`);
-      
-      statusCallback(`✅ Серверный API: загружено ${counts.paths} дорог, ${counts.barriers} барьеров, ${counts.closed_areas} закрытых зон`);
-      return result;
-    } else {
-      console.log(`❌ Неожиданная структура данных:`, data);
-      throw new Error(data.error || 'Неизвестная ошибка серверного Overpass API');
-    }
-    
-  } catch (error) {
-    console.log(`❌ === ОШИБКА ЗАПРОСА К СЕРВЕРНОМУ OVERPASS ===`);
-    console.log(`❌ Тип ошибки:`, error.name);
-    console.log(`❌ Сообщение:`, error.message);
-    
-    if (error.name === 'AbortError') {
-      statusCallback(`❌ Серверный API: запрос прерван по таймауту`);
-    } else if (error.message.includes('Failed to fetch')) {
-      statusCallback(`❌ Серверный API: ошибка сети (сервер недоступен)`);
-    } else {
-      statusCallback(`❌ Серверный API: ${error.message}`);
-    }
-    
-    throw error;
-  }
-}
 
 /**
  * Задержка между попытками
@@ -181,29 +69,8 @@ function delay(ms) {
 /**
  * Единая функция формирования Overpass запроса
  * Используется как для серверного, так и для клиентского API
+ * Импортируется из serverOverpassAPI.js для избежания дублирования (DRY принцип)
  */
-function buildOverpassQuery(bbox) {
-  const [south, west, north, east] = bbox.split(',').map(Number);
-  
-  return `[out:json][timeout:30];
-(
-  way["highway"~"^(path|footway|cycleway|track|service|bridleway|unclassified|residential|living_street|steps|pedestrian)$"](${south},${west},${north},${east});
-  way["barrier"="wall"](${south},${west},${north},${east});
-  way["barrier"="gate"](${south},${west},${north},${east});
-  way["barrier"="fence"](${south},${west},${north},${east});
-  way["landuse"="military"](${south},${west},${north},${east});
-  relation["landuse"="military"](${south},${west},${north},${east});
-  way["military"](${south},${west},${north},${east});
-  relation["military"](${south},${west},${north},${east});
-  way["access"="private"](${south},${west},${north},${east});
-  relation["access"="private"](${south},${west},${north},${east});
-  way["access"="no"](${south},${west},${north},${east});
-  relation["access"="no"](${south},${west},${north},${east});
-  way["access"="restricted"](${south},${west},${north},${east});
-  relation["access"="restricted"](${south},${west},${north},${east});
-);
-out geom;`;
-}
 
 /**
  * Единая функция парсинга данных Overpass API
@@ -307,7 +174,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     throw new Error('Область слишком большая для загрузки данных');
   }
   
-  // Используем единую функцию формирования запроса
+  // Используем единую функцию формирования запроса из serverOverpassAPI.js
   const query = buildOverpassQuery(bbox);
 
   let lastError;
@@ -324,6 +191,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
         controller.abort();
       }, REQUEST_TIMEOUT);
       
+      const startTime = Date.now();
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: query,
@@ -332,20 +200,41 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       });
       
       clearTimeout(timeoutId);
-      statusCallback(`📡 Клиентский API: получен ответ (статус ${response.status})`);
+      const elapsedTime = Date.now() - startTime;
+      statusCallback(`📡 Клиентский API: получен ответ за ${elapsedTime}мс (статус ${response.status})`);
       
       if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.log(`📄 Тело ответа ошибки:`, errorText);
+        } catch (textError) {
+          console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
+        }
+        
         if (response.status === 504 || response.status === 429) {
           // Gateway timeout или rate limit - пробуем еще раз
           statusCallback(`⚠️ Клиентский API: сервер перегружен (${response.status}), попытка ${attempt}`);
           throw new Error(`Сервер перегружен (${response.status}), попытка ${attempt}`);
         } else {
-          statusCallback(`❌ Клиентский API: ошибка загрузки (${response.status})`);
-          throw new Error(`Ошибка загрузки данных (${response.status})`);
+          statusCallback(`❌ Клиентский API: ошибка загрузки (${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''})`);
+          throw new Error(`Ошибка загрузки данных (${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''})`);
         }
       }
       
-      const data = await response.json();
+      // Парсим JSON с обработкой ошибок
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        statusCallback(`❌ Клиентский API: ошибка парсинга JSON`);
+        throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
+      }
+      
+      if (!data || !data.elements) {
+        statusCallback(`❌ Клиентский API: некорректный формат данных`);
+        throw new Error('Некорректный формат данных от клиентского API');
+      }
       
       // Используем единую функцию парсинга
       const result = parseOverpassData(data.elements, statusCallback);
@@ -359,17 +248,35 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     } catch (error) {
       lastError = error;
       console.log(`❌ Попытка ${attempt} неудачна:`, error.message);
+      console.log(`❌ Тип ошибки:`, error.name);
       
-      // Если это последняя попытка, выбрасываем ошибку
-      if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
-        statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток`);
-        throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Последняя ошибка: ${error.message}`);
+      // Если это AbortError (таймаут), не делаем retry для последней попытки
+      if (error.name === 'AbortError') {
+        statusCallback(`⏰ Клиентский API: запрос прерван по таймауту на попытке ${attempt}`);
+        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+          statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток (таймауты)`);
+          throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Все запросы превысили таймаут ${REQUEST_TIMEOUT/1000}с`);
+        }
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        statusCallback(`🌐 Клиентский API: ошибка сети на попытке ${attempt}`);
+        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+          statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток (ошибка сети)`);
+          throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Ошибка сети: ${error.message}`);
+        }
+      } else {
+        // Другие ошибки
+        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+          statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток`);
+          throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Последняя ошибка: ${error.message}`);
+        }
       }
       
-      // Ждем перед следующей попыткой
-      const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
-      statusCallback(`⏳ Клиентский API: повторная попытка через ${Math.round(delayTime/1000)}с...`);
-      await delay(delayTime);
+      // Ждем перед следующей попыткой (только если не последняя)
+      if (attempt < RETRY_CONFIG.MAX_ATTEMPTS) {
+        const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
+        statusCallback(`⏳ Клиентский API: повторная попытка через ${Math.round(delayTime/1000)}с...`);
+        await delay(delayTime);
+      }
     }
   }
 }
@@ -382,3 +289,4 @@ export function clearMapDataCache() {
     window.mapDataCache = {};
   }
 }
+
