@@ -51,30 +51,34 @@ export async function fetchAllMapData(bbox, statusCallback) {
       console.log(`❌ [fetchAllMapData] Серверный API вернул некорректные данные:`, serverResponse);
       throw new Error('Серверный API вернул некорректные данные');
     }
-  } catch (error) {
-    console.log(`❌ [fetchAllMapData] Ошибка серверного API, переключаемся на клиентский:`, error);
-    statusCallback(`❌ Серверный API недоступен: ${error.message}`);
-    
-    // Если серверный API недоступен, используем клиентский
-    statusCallback('🔄 Переключаемся на клиентский Overpass API...');
-    console.log(`🔄 [fetchAllMapData] Начинаем fallback на клиентский API...`);
-    
-    try {
-      console.log(`🔄 [fetchAllMapData] Вызываем fetchAllWithClientOverpass...`);
-      const clientData = await fetchAllWithClientOverpass(bbox, statusCallback);
-      console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные:`, {
-        paths: clientData?.paths?.length || 0,
-        barriers: clientData?.barriers?.length || 0,
-        closed_areas: clientData?.closed_areas?.length || 0
-      });
-      return clientData;
-    } catch (clientError) {
-      console.error(`❌ [fetchAllMapData] Ошибка клиентского API после всех попыток:`, clientError);
-      console.error(`❌ [fetchAllMapData] Стек ошибки:`, clientError.stack);
-      statusCallback(`❌ Не удалось загрузить данные: ${clientError.message}`);
-      statusCallback(`💡 Попробуйте: уменьшить область запроса или повторить попытку позже`);
-      throw clientError;
+    } catch (error) {
+      console.log(`❌ [fetchAllMapData] Ошибка серверного API, переключаемся на клиентский:`, error);
+      statusCallback(`❌ Серверный API недоступен: ${error.message}`);
     }
+  } else {
+    console.log(`🔧 [fetchAllMapData] Серверный API временно отключен для отладки`);
+    statusCallback('🔧 Серверный API отключен, используем клиентский...');
+  }
+  
+  // Используем клиентский API
+  statusCallback('🔄 Переключаемся на клиентский Overpass API...');
+  console.log(`🔄 [fetchAllMapData] Начинаем fallback на клиентский API...`);
+  
+  try {
+    console.log(`🔄 [fetchAllMapData] Вызываем fetchAllWithClientOverpass...`);
+    const clientData = await fetchAllWithClientOverpass(bbox, statusCallback);
+    console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные:`, {
+      paths: clientData?.paths?.length || 0,
+      barriers: clientData?.barriers?.length || 0,
+      closed_areas: clientData?.closed_areas?.length || 0
+    });
+    return clientData;
+  } catch (clientError) {
+    console.error(`❌ [fetchAllMapData] Ошибка клиентского API после всех попыток:`, clientError);
+    console.error(`❌ [fetchAllMapData] Стек ошибки:`, clientError.stack);
+    statusCallback(`❌ Не удалось загрузить данные: ${clientError.message}`);
+    statusCallback(`💡 Попробуйте: уменьшить область запроса или повторить попытку позже`);
+    throw clientError;
   }
 }
 
