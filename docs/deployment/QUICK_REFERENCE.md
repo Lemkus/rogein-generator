@@ -66,24 +66,45 @@ tail -f /var/www/u3288673/data/logs/trailspot.app.error.log
 
 ✅ **Оптимизированный процесс** - скрипт автоматически проверяет окружение и не создает его заново
 
+### Деплой в PROD
 ```bash
 # 1. Коммит изменений
 git add .
 git commit -m "Описание"
 git push
 
-# 2. Деплой на сервер (автоматически обновит зависимости и перезапустит Passenger)
+# 2. Деплой в PROD
+python deploy_regru.py --env prod
+# или просто
 python deploy_regru.py
+```
 
-# 3. Ручной перезапуск (если нужно)
-ssh user@server "cd www/trailspot.app && touch passenger_wsgi.py"
+### Деплой в DEV
+```bash
+# 1. Коммит изменений
+git add .
+git commit -m "Описание"
+git push
+
+# 2. Деплой в DEV
+python deploy_regru.py --env dev
 ```
 
 **Что делает скрипт:**
 - ✅ Загружает файлы на сервер
+- ✅ Автоматически определяет путь (PROD или DEV)
 - ✅ Проверяет наличие `venv` (не создает заново, если уже есть)
 - ✅ Обновляет зависимости только при необходимости
 - ✅ Перезапускает Passenger автоматически
+
+### Ручной перезапуск (если нужно)
+```bash
+# PROD
+ssh user@server "cd www/trailspot.app && touch passenger_wsgi.py"
+
+# DEV
+ssh user@server "cd www/dev.trailspot.app && touch passenger_wsgi.py"
+```
 
 ## 📚 Полная документация
 

@@ -24,6 +24,7 @@ Passenger автоматически определяет:
 
 ## Структура файлов
 
+### PROD окружение
 ```
 trailspot.app/
 ├── .htaccess              # Минимальная конфигурация Passenger
@@ -33,8 +34,23 @@ trailspot.app/
 ├── venv/                  # Виртуальное окружение
 ├── index.html            # Frontend
 ├── src/                  # Frontend код
-└── routes_storage.json   # Хранилище маршрутов (создается автоматически)
+└── routes_storage.json   # Хранилище маршрутов (PROD)
 ```
+
+### DEV окружение
+```
+dev.trailspot.app/
+├── .htaccess              # Минимальная конфигурация Passenger
+├── passenger_wsgi.py      # WSGI entry point
+├── backend_simple.py      # Flask приложение
+├── requirements.txt       # Python зависимости
+├── venv/                  # Виртуальное окружение
+├── index.html            # Frontend
+├── src/                  # Frontend код
+└── routes_storage_dev.json   # Хранилище маршрутов (DEV)
+```
+
+**Важно**: Окружение определяется автоматически по домену. Код один и тот же для обоих окружений.
 
 ## Конфигурация .htaccess
 
@@ -334,10 +350,13 @@ const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {...});
 - ✅ Проверяет существование виртуального окружения
 - ✅ Обновляет зависимости только если `requirements.txt` изменился
 - ✅ Перезапускает Passenger после деплоя
+- ✅ Определяет окружение (PROD/DEV) по параметру `--env`
 - ❌ **НЕ создает** виртуальное окружение каждый раз
 - ❌ **НЕ настраивает** права доступа повторно (если не требуется)
 
 ### Шаги ежедневного деплоя:
+
+#### Деплой в PROD
 
 1. **Подготовка локально**:
    ```bash
@@ -346,13 +365,15 @@ const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {...});
    git push
    ```
 
-2. **Деплой на сервер**:
+2. **Деплой в PROD**:
    ```bash
+   python deploy_regru.py --env prod
+   # или просто
    python deploy_regru.py
    ```
    
    Скрипт автоматически:
-   - Загружает файлы на сервер
+   - Загружает файлы в `www/trailspot.app/`
    - Исправляет права доступа
    - Проверяет наличие `venv`:
      - Если **есть** → обновляет зависимости и перезапускает Passenger
@@ -363,11 +384,62 @@ const response = await fetch(`${BACKEND_SIMPLE_BASE}/api/save-route`, {...});
    curl -I https://trailspot.app/
    ```
 
+#### Деплой в DEV
+
+1. **Подготовка локально**:
+   ```bash
+   git add .
+   git commit -m "Описание изменений"
+   git push
+   ```
+
+2. **Деплой в DEV**:
+   ```bash
+   python deploy_regru.py --env dev
+   ```
+   
+   Скрипт автоматически:
+   - Загружает файлы в `www/dev.trailspot.app/`
+   - Исправляет права доступа
+   - Проверяет наличие `venv`:
+     - Если **есть** → обновляет зависимости и перезапускает Passenger
+     - Если **нет** → запускает `setup_venv.sh` для создания окружения
+
+3. **Проверка** (опционально):
+   ```bash
+   curl -I https://dev.trailspot.app/
+   ```
+
 ### Ручной перезапуск (если нужно):
 
 ```bash
+# PROD
 ssh user@server "cd www/trailspot.app && touch passenger_wsgi.py"
+
+# DEV
+ssh user@server "cd www/dev.trailspot.app && touch passenger_wsgi.py"
 ```
+
+### Рекомендуемый workflow
+
+1. **Разработка в DEV**:
+   ```bash
+   git checkout dev
+   # ... вносим изменения ...
+   git commit -m "Новая фича"
+   python deploy_regru.py --env dev
+   # Проверка на dev.trailspot.app
+   ```
+
+2. **Релиз в PROD**:
+   ```bash
+   git checkout main
+   git merge dev
+   python deploy_regru.py --env prod
+   # Проверка на trailspot.app
+   ```
+
+Подробнее см. [GIT_BRANCHES.md](./GIT_BRANCHES.md) и [DEV_PROD_ENVIRONMENTS.md](./DEV_PROD_ENVIRONMENTS.md)
 
 ## Резюме
 
@@ -383,6 +455,18 @@ ssh user@server "cd www/trailspot.app && touch passenger_wsgi.py"
 - Неправильные пути в `passenger_wsgi.py`
 - Двойной `/api/` в URL клиентского кода
 - Отсутствие виртуального окружения или зависимостей
+
+## Dev/Prod окружения
+
+Проект поддерживает два окружения:
+- **PROD**: `https://trailspot.app` → `www/trailspot.app/`
+- **DEV**: `https://dev.trailspot.app` → `www/dev.trailspot.app/`
+
+Окружение определяется автоматически по домену. Код один и тот же для обоих окружений.
+
+**Подробнее:**
+- [DEV_PROD_ENVIRONMENTS.md](./DEV_PROD_ENVIRONMENTS.md) - настройка и использование окружений
+- [GIT_BRANCHES.md](./GIT_BRANCHES.md) - структура веток Git для dev/prod
 
 ## Дополнительные ресурсы
 

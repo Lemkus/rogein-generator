@@ -1,6 +1,10 @@
 // Версия приложения - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
 const APP_VERSION = '1.12.56'; // Синхронизировано с index.html
-const CACHE_NAME = `rogein-v${APP_VERSION}`;
+// Определяем окружение по hostname
+const IS_DEV = self.location.hostname.startsWith('dev.');
+const CACHE_NAME = IS_DEV 
+  ? `rogein-dev-v${APP_VERSION}` 
+  : `rogein-v${APP_VERSION}`;
 
 const urlsToCache = [
   '/',

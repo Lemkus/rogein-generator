@@ -21,7 +21,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Включаем CORS для работы с frontend
+
+# Определение окружения - будет определяться динамически по request.host
+# Для CORS разрешаем оба домена (безопасно для публичного API)
+CORS(app, origins=["https://trailspot.app", "https://dev.trailspot.app", "http://localhost:*", "http://127.0.0.1:*"])
+logger.info("CORS настроен для trailspot.app, dev.trailspot.app и localhost")
 
 # Конфигурация Overpass API
 OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
@@ -31,8 +35,8 @@ TIMEOUT = 60
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 logger.info(f"Корневая директория проекта: {PROJECT_ROOT}")
 
-# Путь к файлу для хранения маршрутов
-ROUTES_FILE = os.path.join(PROJECT_ROOT, 'routes_storage.json')
+# Базовое имя файла storage (будет определяться динамически)
+STORAGE_BASE = 'routes_storage'
 
 # Кэш маршрутов в памяти
 routes_cache = {}
@@ -41,12 +45,16 @@ def load_routes():
     """Загрузить маршруты из файла"""
     global routes_cache
     try:
-        if os.path.exists(ROUTES_FILE):
-            with open(ROUTES_FILE, 'r', encoding='utf-8') as f:
+        routes_file = get_routes_file()
+        env = get_environment()
+        logger.info(f"Загрузка маршрутов для {env.upper()} окружения из {routes_file}")
+        if os.path.exists(routes_file):
+            with open(routes_file, 'r', encoding='utf-8') as f:
                 routes_cache = json.load(f)
                 logger.info(f"Загружено {len(routes_cache)} маршрутов из файла")
         else:
             routes_cache = {}
+            logger.info(f"Файл {routes_file} не найден, создан пустой кэш")
     except Exception as e:
         logger.error(f"Ошибка загрузки маршрутов: {e}")
         routes_cache = {}
@@ -54,10 +62,38 @@ def load_routes():
 def save_routes():
     """Сохранить маршруты в файл"""
     try:
-        with open(ROUTES_FILE, 'w', encoding='utf-8') as f:
+        routes_file = get_routes_file()
+        with open(routes_file, 'w', encoding='utf-8') as f:
             json.dump(routes_cache, f, ensure_ascii=False, indent=2)
+        logger.info(f"Маршруты сохранены в {routes_file}")
     except Exception as e:
         logger.error(f"Ошибка сохранения маршрутов: {e}")
+
+# Функция для определения окружения из request
+def get_environment():
+    """Определяет окружение по текущему запросу"""
+    try:
+        # Пытаемся получить из request context
+        if hasattr(request, 'host') and request.host:
+            if request.host.startswith('dev.'):
+                return 'dev'
+        # Проверяем переменные окружения
+        if os.environ.get('HTTP_HOST', '').startswith('dev.'):
+            return 'dev'
+        if os.environ.get('SERVER_NAME', '').startswith('dev.'):
+            return 'dev'
+    except:
+        pass
+    return 'prod'  # По умолчанию prod
+
+# Функция для получения пути к storage файлу
+def get_routes_file():
+    """Возвращает путь к storage файлу в зависимости от окружения"""
+    env = get_environment()
+    if env == 'dev':
+        return os.path.join(PROJECT_ROOT, 'routes_storage_dev.json')
+    else:
+        return os.path.join(PROJECT_ROOT, 'routes_storage.json')
 
 # Загружаем маршруты при старте
 load_routes()
@@ -125,8 +161,10 @@ def save_route():
         
         logger.info(f"Сохранен маршрут с ID: {route_id}")
         
-        # Всегда используем production домен
-        short_url = f"https://trailspot.app/r/{route_id}"
+        # Используем правильный домен в зависимости от окружения
+        current_env = get_environment()
+        base_domain = "https://dev.trailspot.app" if current_env == 'dev' else "https://trailspot.app"
+        short_url = f"{base_domain}/r/{route_id}"
         
         return jsonify({
             'route_id': route_id,
@@ -193,8 +231,10 @@ def shorten_url():
                     }
                     save_routes()
                     
-                    # Всегда используем production домен
-                    short_url = f"https://trailspot.app/r/{route_id}"
+                    # Используем правильный домен в зависимости от окружения
+                    current_env = get_environment()
+                    base_domain = "https://dev.trailspot.app" if current_env == 'dev' else "https://trailspot.app"
+                    short_url = f"{base_domain}/r/{route_id}"
                     logger.info(f"Создана короткая ссылка: {short_url}")
                     return jsonify({'short_url': short_url})
             except Exception as e:
