@@ -273,28 +273,73 @@ export async function fetchAllWithServerOverpass(bbox, statusCallback = null) {
     
     if (!response.ok) {
       let errorText = '';
+      let errorData = null;
+      
       try {
         errorText = await response.text();
         console.log(`📄 Тело ответа ошибки:`, errorText);
+        
+        // Пытаемся распарсить как JSON, если это JSON ответ
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          // Не JSON, оставляем как текст
+        }
       } catch (textError) {
         console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
       }
       
-      const errorMsg = `HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`;
-      if (statusCallback) statusCallback(`❌ Серверный API: ошибка ${errorMsg}`);
-      throw new Error(errorMsg);
+      // Извлекаем информацию об ошибке
+      let errorMsg = '';
+      if (errorData && errorData.error) {
+        // Если сервер вернул JSON с полем error, используем его
+        errorMsg = errorData.error;
+        // Если это ошибка от Overpass API (например, "Overpass API error: 504"), 
+        // это означает, что Overpass API перегружен
+        if (errorMsg.includes('Overpass API error: 504')) {
+          errorMsg = 'Overpass API перегружен (504 Gateway Timeout)';
+        } else if (errorMsg.includes('Overpass API error: 429')) {
+          errorMsg = 'Overpass API: превышен лимит запросов (429)';
+        }
+      } else {
+        errorMsg = errorText || `${response.status} ${response.statusText}`;
+      }
+      
+      const fullErrorMsg = `HTTP ${response.status}: ${errorMsg}`;
+      if (statusCallback) statusCallback(`❌ Серверный API: ошибка ${fullErrorMsg}`);
+      throw new Error(fullErrorMsg);
     }
     
-    const data = await response.json();
-    console.log(`✅ JSON успешно распарсен`);
+    // Проверяем Content-Type перед парсингом
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    
+    try {
+      if (contentType.includes('json') || contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Пытаемся прочитать как текст и распарсить
+        const textData = await response.text();
+        data = JSON.parse(textData);
+      }
+      console.log(`✅ JSON успешно распарсен`);
+    } catch (parseError) {
+      console.error(`❌ Ошибка парсинга JSON:`, parseError);
+      if (statusCallback) statusCallback(`❌ Серверный API: ошибка парсинга JSON`);
+      throw new Error(`Не удалось распарсить ответ сервера: ${parseError.message}`);
+    }
     
     if (data.success && data.data && data.data.elements) {
       console.log(`✅ Серверный Overpass вернул ${data.data.elements.length} элементов`);
       console.log(`   - Время загрузки: ${data.load_time}с`);
       if (statusCallback) statusCallback(`✅ Серверный API: получено ${data.data.elements.length} элементов`);
       return data.data; // Возвращаем объект с elements для дальнейшей обработки
+    } else if (data.error) {
+      const errorMsg = data.error;
+      if (statusCallback) statusCallback(`❌ Серверный API: ${errorMsg}`);
+      throw new Error(errorMsg);
     } else {
-      const errorMsg = data.error || 'Неизвестная ошибка серверного Overpass API';
+      const errorMsg = 'Неизвестная ошибка серверного Overpass API';
       if (statusCallback) statusCallback(`❌ Серверный API: ${errorMsg}`);
       throw new Error(errorMsg);
     }

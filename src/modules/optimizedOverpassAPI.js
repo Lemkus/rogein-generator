@@ -203,31 +203,62 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       const elapsedTime = Date.now() - startTime;
       statusCallback(`📡 Клиентский API: получен ответ за ${elapsedTime}мс (статус ${response.status})`);
       
+      // Проверяем Content-Type перед чтением ответа
+      const contentType = response.headers.get('content-type') || '';
+      
+      // Читаем ответ как текст (можно прочитать только один раз)
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        console.log(`📄 Не удалось прочитать тело ответа:`, textError.message);
+        throw new Error(`Не удалось прочитать ответ сервера: ${textError.message}`);
+      }
+      
       if (!response.ok) {
-        let errorText = '';
-        try {
-          errorText = await response.text();
-          console.log(`📄 Тело ответа ошибки:`, errorText);
-        } catch (textError) {
-          console.log(`📄 Не удалось прочитать тело ответа ошибки:`, textError.message);
+        // Извлекаем сообщение об ошибке из XML, если это XML ответ
+        let errorMessage = '';
+        if (contentType.includes('xml') || contentType.includes('html') || responseText.includes('<?xml') || responseText.includes('<html')) {
+          // Пытаемся извлечь сообщение об ошибке из XML
+          const errorMatch = responseText.match(/<strong[^>]*>Error<\/strong>.*?<p[^>]*>([^<]+)<\/p>/is);
+          if (errorMatch) {
+            errorMessage = errorMatch[1].trim();
+          } else {
+            errorMessage = 'Сервер Overpass API перегружен или недоступен';
+          }
+        } else {
+          // Пытаемся распарсить как JSON для получения сообщения об ошибке
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMessage = errorData.error || errorData.message || responseText.substring(0, 200);
+          } catch (e) {
+            errorMessage = responseText.substring(0, 200);
+          }
         }
         
         if (response.status === 504 || response.status === 429) {
           // Gateway timeout или rate limit - пробуем еще раз
-          statusCallback(`⚠️ Клиентский API: сервер перегружен (${response.status}), попытка ${attempt}`);
-          throw new Error(`Сервер перегружен (${response.status}), попытка ${attempt}`);
+          statusCallback(`⚠️ Клиентский API: сервер перегружен (${response.status}${errorMessage ? `: ${errorMessage}` : ''}), попытка ${attempt}`);
+          throw new Error(`Сервер перегружен (${response.status}${errorMessage ? `: ${errorMessage}` : ''}), попытка ${attempt}`);
         } else {
-          statusCallback(`❌ Клиентский API: ошибка загрузки (${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''})`);
-          throw new Error(`Ошибка загрузки данных (${response.status}${errorText ? `: ${errorText.substring(0, 100)}` : ''})`);
+          statusCallback(`❌ Клиентский API: ошибка загрузки (${response.status}${errorMessage ? `: ${errorMessage}` : ''})`);
+          throw new Error(`Ошибка загрузки данных (${response.status}${errorMessage ? `: ${errorMessage}` : ''})`);
         }
+      }
+      
+      // Проверяем, что ответ действительно JSON
+      if (responseText.includes('<?xml') || responseText.includes('<html')) {
+        statusCallback(`❌ Клиентский API: получен XML/HTML ответ вместо JSON`);
+        throw new Error('Сервер вернул некорректный формат данных (XML/HTML вместо JSON)');
       }
       
       // Парсим JSON с обработкой ошибок
       let data;
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch (parseError) {
-        statusCallback(`❌ Клиентский API: ошибка парсинга JSON`);
+        statusCallback(`❌ Клиентский API: ошибка парсинга JSON: ${parseError.message}`);
+        console.log(`📄 Сырой ответ (первые 500 символов):`, responseText.substring(0, 500));
         throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
       }
       
