@@ -26,12 +26,16 @@ export async function fetchAllMapData(bbox, statusCallback) {
   
   statusCallback('🔄 Начинаем загрузку данных карты...');
   
-  try {
-    // Сначала пробуем серверный API
-    statusCallback('🌐 Пробуем серверный API (trailspot.app)...');
-    console.log(`🔄 [fetchAllMapData] Пробуем серверный API для bbox: ${bbox}`);
-    
-    const serverResponse = await fetchAllWithServerOverpass(bbox, statusCallback);
+  // ВРЕМЕННО ОТКЛЮЧЕН: Серверный API пропускаем для отладки
+  const USE_SERVER_API = false;
+  
+  if (USE_SERVER_API) {
+    try {
+      // Сначала пробуем серверный API
+      statusCallback('🌐 Пробуем серверный API (trailspot.app)...');
+      console.log(`🔄 [fetchAllMapData] Пробуем серверный API для bbox: ${bbox}`);
+      
+      const serverResponse = await fetchAllWithServerOverpass(bbox, statusCallback);
     
     // Парсим данные из серверного ответа
     if (serverResponse && serverResponse.elements) {
