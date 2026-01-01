@@ -60,7 +60,9 @@ export async function fetchAllMapData(bbox, statusCallback) {
       console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные`);
       return clientData;
     } catch (clientError) {
-      console.error(`❌ [fetchAllMapData] Ошибка клиентского API:`, clientError);
+      console.error(`❌ [fetchAllMapData] Ошибка клиентского API после всех попыток:`, clientError);
+      statusCallback(`❌ Не удалось загрузить данные: ${clientError.message}`);
+      statusCallback(`💡 Попробуйте: уменьшить область запроса или повторить попытку позже`);
       throw clientError;
     }
   }
@@ -337,29 +339,48 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       console.log(`❌ Попытка ${attempt} неудачна:`, error.message);
       console.log(`❌ Тип ошибки:`, error.name);
       
-      // Если это AbortError (таймаут), не делаем retry для последней попытки
+      // Проверяем, последняя ли это попытка
+      const isLastAttempt = attempt === RETRY_CONFIG.MAX_ATTEMPTS;
+      
+      // Если это AbortError (таймаут)
       if (error.name === 'AbortError') {
         statusCallback(`⏰ Клиентский API: запрос прерван по таймауту на попытке ${attempt}`);
-        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+        if (isLastAttempt) {
           statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток (таймауты)`);
           throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Все запросы превысили таймаут ${REQUEST_TIMEOUT/1000}с`);
         }
-      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      } 
+      // Если это ошибка сети
+      else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         statusCallback(`🌐 Клиентский API: ошибка сети на попытке ${attempt}`);
-        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+        if (isLastAttempt) {
           statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток (ошибка сети)`);
           throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Ошибка сети: ${error.message}`);
         }
-      } else {
-        // Другие ошибки
-        if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
+      } 
+      // Если это 504 ошибка (сервер перегружен)
+      else if (error.message.includes('Сервер перегружен') || error.message.includes('504')) {
+        statusCallback(`⚠️ Клиентский API: сервер перегружен (504) на попытке ${attempt}`);
+        if (isLastAttempt) {
+          statusCallback(`❌ Клиентский API: сервер Overpass API перегружен. Попробуйте уменьшить область запроса или повторить позже.`);
+          throw new Error(`Сервер Overpass API перегружен (504). Попробуйте уменьшить область запроса или повторить позже.`);
+        }
+        // Для 504 ошибок увеличиваем задержку (удваиваем)
+        const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1) * 2;
+        statusCallback(`⏳ Клиентский API: сервер перегружен, ждем ${Math.round(delayTime/1000)}с перед следующей попыткой...`);
+        await delay(delayTime);
+        continue; // Продолжаем следующую попытку (пропускаем общую задержку ниже)
+      } 
+      // Другие ошибки
+      else {
+        if (isLastAttempt) {
           statusCallback(`❌ Клиентский API: не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток`);
           throw new Error(`Не удалось загрузить данные после ${RETRY_CONFIG.MAX_ATTEMPTS} попыток. Последняя ошибка: ${error.message}`);
         }
       }
       
-      // Ждем перед следующей попыткой (только если не последняя)
-      if (attempt < RETRY_CONFIG.MAX_ATTEMPTS) {
+      // Ждем перед следующей попыткой (только если не последняя и не 504 ошибка)
+      if (!isLastAttempt) {
         const delayTime = RETRY_CONFIG.DELAY_BETWEEN_ATTEMPTS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt - 1);
         statusCallback(`⏳ Клиентский API: повторная попытка через ${Math.round(delayTime/1000)}с...`);
         await delay(delayTime);
