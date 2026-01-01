@@ -345,7 +345,25 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
         }
       }
       
-      const data = await response.json();
+      // Читаем JSON с таймаутом (браузер сам обрабатывает chunked encoding)
+      // AbortController прерывает только fetch, но не чтение body, поэтому нужен отдельный таймаут
+      const BODY_READ_TIMEOUT = 60000; // 60 секунд на чтение body
+      const jsonPromise = response.json();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Body read timeout')), BODY_READ_TIMEOUT)
+      );
+      
+      let data;
+      try {
+        data = await Promise.race([jsonPromise, timeoutPromise]);
+        statusCallback(`✅ Клиентский API: JSON прочитан (${data.elements ? data.elements.length : 0} элементов)`);
+      } catch (error) {
+        if (error.message === 'Body read timeout') {
+          statusCallback(`❌ Клиентский API: таймаут чтения ответа (>${BODY_READ_TIMEOUT/1000}с)`);
+          throw new Error(`Таймаут чтения ответа: не удалось прочитать за ${BODY_READ_TIMEOUT/1000}с`);
+        }
+        throw error;
+      }
       
       // Используем единую функцию парсинга
       const result = parseOverpassData(data.elements, statusCallback);
