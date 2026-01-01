@@ -240,15 +240,26 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       }, REQUEST_TIMEOUT);
       
       const startTime = Date.now();
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query,
-        signal: controller.signal,
-        headers: { 'Content-Type': 'text/plain' }
-      });
+      console.log(`📤 [fetchAllWithClientOverpass] Отправляем запрос к overpass-api.de (попытка ${attempt})...`);
+      
+      let response;
+      try {
+        response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: query,
+          signal: controller.signal,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+        console.log(`📡 [fetchAllWithClientOverpass] Получен ответ (попытка ${attempt}):`, response.status, response.statusText);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error(`❌ [fetchAllWithClientOverpass] Ошибка fetch (попытка ${attempt}):`, fetchError);
+        throw fetchError;
+      }
       
       clearTimeout(timeoutId);
       const elapsedTime = Date.now() - startTime;
+      console.log(`⏱️ [fetchAllWithClientOverpass] Запрос выполнен за ${elapsedTime}мс (попытка ${attempt})`);
       statusCallback(`📡 Клиентский API: получен ответ за ${elapsedTime}мс (статус ${response.status})`);
       
       // Проверяем Content-Type перед чтением ответа
