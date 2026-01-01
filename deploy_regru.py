@@ -151,12 +151,17 @@ def deploy_to_regru():
     
     # Перемещаем RogeinProject/libs в libs (если загрузили)
     print("\nПроверяем и перемещаем libs в правильное место...")
-    move_libs_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && if [ -d RogeinProject/libs ]; then rm -rf libs 2>/dev/null; mv RogeinProject/libs libs; rmdir RogeinProject 2>/dev/null || true; echo 'libs перемещена'; else echo 'RogeinProject/libs не найдена'; fi\""
+    move_libs_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && if [ -d RogeinProject/libs ]; then rm -rf libs 2>/dev/null; mv RogeinProject/libs libs; rmdir RogeinProject 2>/dev/null || true; echo 'libs перемещена'; elif [ -d libs ]; then echo 'libs уже на месте'; else echo 'RogeinProject/libs не найдена'; fi\""
     run_command(move_libs_cmd, "Перемещение libs")
+    
+    # Проверяем, что файлы на месте
+    print("\nПроверяем наличие файлов...")
+    check_files_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && ls -la libs/leaflet/ 2>/dev/null | head -5 && ls -la assets/icons/ 2>/dev/null | head -5\""
+    run_command(check_files_cmd, "Проверка файлов")
     
     if success_count == len(upload_commands):
         print("\nИсправляем права доступа...")
-        chmod_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && chmod -R 755 src/ && chmod 644 src/*.js 2>/dev/null || true && chmod -R 755 assets/ && chmod 755 assets/icons/ 2>/dev/null || true && chmod 644 assets/icons/*.png 2>/dev/null || true && chmod -R 755 libs/ 2>/dev/null || true && chmod 644 libs/leaflet/*.js libs/leaflet/*.css 2>/dev/null || true\""
+        chmod_cmd = f"ssh {ssh_opts} -i {ssh_key_path} {server['user']}@{server['host']} \"cd {deploy_path} && chmod -R 755 src/ 2>/dev/null || true && find src/ -type f -name '*.js' -exec chmod 644 {{}} \\; 2>/dev/null || true && chmod -R 755 assets/ 2>/dev/null || true && find assets/ -type f -name '*.png' -exec chmod 644 {{}} \\; 2>/dev/null || true && chmod -R 755 libs/ 2>/dev/null || true && find libs/ -type f \\( -name '*.js' -o -name '*.css' \\) -exec chmod 644 {{}} \\; 2>/dev/null || true && chmod 644 index.html sw.js manifest.json favicon.svg 2>/dev/null || true\""
         
         if run_command(chmod_cmd, "Исправление прав доступа"):
             # Проверяем существование виртуального окружения
