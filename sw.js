@@ -1,5 +1,5 @@
 // Версия приложения - ОБНОВЛЯТЬ ПРИ КАЖДОМ ДЕПЛОЕ!
-const APP_VERSION = '1.12.56'; // Синхронизировано с index.html
+const APP_VERSION = '1.12.72'; // Синхронизировано с index.html
 // Определяем окружение по hostname
 const IS_DEV = self.location.hostname.startsWith('dev.');
 const CACHE_NAME = IS_DEV 
