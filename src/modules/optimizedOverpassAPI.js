@@ -264,13 +264,17 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       
       // Проверяем Content-Type перед чтением ответа
       const contentType = response.headers.get('content-type') || '';
+      console.log(`📋 [fetchAllWithClientOverpass] Content-Type: ${contentType}`);
       
       // Читаем ответ как текст (можно прочитать только один раз)
       let responseText = '';
       try {
+        console.log(`📄 [fetchAllWithClientOverpass] Начинаем чтение тела ответа...`);
         responseText = await response.text();
+        console.log(`📄 [fetchAllWithClientOverpass] Тело ответа прочитано, длина: ${responseText.length} символов`);
+        console.log(`📄 [fetchAllWithClientOverpass] Первые 200 символов:`, responseText.substring(0, 200));
       } catch (textError) {
-        console.log(`📄 Не удалось прочитать тело ответа:`, textError.message);
+        console.error(`❌ [fetchAllWithClientOverpass] Не удалось прочитать тело ответа:`, textError);
         throw new Error(`Не удалось прочитать ответ сервера: ${textError.message}`);
       }
       
@@ -312,18 +316,26 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       }
       
       // Парсим JSON с обработкой ошибок
+      console.log(`🔄 [fetchAllWithClientOverpass] Начинаем парсинг JSON...`);
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log(`✅ [fetchAllWithClientOverpass] JSON успешно распарсен`);
+        console.log(`📊 [fetchAllWithClientOverpass] Структура данных:`, {
+          hasElements: !!data.elements,
+          elementsLength: data.elements ? data.elements.length : 0,
+          keys: Object.keys(data)
+        });
       } catch (parseError) {
+        console.error(`❌ [fetchAllWithClientOverpass] Ошибка парсинга JSON:`, parseError);
         statusCallback(`❌ Клиентский API: ошибка парсинга JSON: ${parseError.message}`);
         console.log(`📄 Сырой ответ (первые 500 символов):`, responseText.substring(0, 500));
         throw new Error(`Ошибка парсинга ответа: ${parseError.message}`);
       }
       
       if (!data || !data.elements) {
+        console.error(`❌ [fetchAllWithClientOverpass] Некорректный формат данных:`, data);
         statusCallback(`❌ Клиентский API: некорректный формат данных`);
-        console.log(`❌ Структура данных:`, data);
         throw new Error('Некорректный формат данных от клиентского API');
       }
       
@@ -339,14 +351,13 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       }
       
       // Используем единую функцию парсинга
-      const result = parseOverpassData(data.elements, statusCallback);
-      
-      console.log(`📊 Результат парсинга:`, {
-        paths: result.paths.length,
-        barriers: result.barriers.length,
-        closed_areas: result.closed_areas.length,
-        water_areas: result.water_areas.length
-      });
+      let result;
+      try {
+        result = parseOverpassData(data.elements, statusCallback);
+      } catch (parseError) {
+        console.error(`❌ [fetchAllWithClientOverpass] Ошибка парсинга данных:`, parseError);
+        throw new Error(`Ошибка парсинга данных: ${parseError.message}`);
+      }
       
       // Кэшируем данные
       if (!window.mapDataCache) window.mapDataCache = {};
