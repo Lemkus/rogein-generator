@@ -56,11 +56,17 @@ export async function fetchAllMapData(bbox, statusCallback) {
     console.log(`🔄 [fetchAllMapData] Начинаем fallback на клиентский API...`);
     
     try {
+      console.log(`🔄 [fetchAllMapData] Вызываем fetchAllWithClientOverpass...`);
       const clientData = await fetchAllWithClientOverpass(bbox, statusCallback);
-      console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные`);
+      console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные:`, {
+        paths: clientData?.paths?.length || 0,
+        barriers: clientData?.barriers?.length || 0,
+        closed_areas: clientData?.closed_areas?.length || 0
+      });
       return clientData;
     } catch (clientError) {
       console.error(`❌ [fetchAllMapData] Ошибка клиентского API после всех попыток:`, clientError);
+      console.error(`❌ [fetchAllMapData] Стек ошибки:`, clientError.stack);
       statusCallback(`❌ Не удалось загрузить данные: ${clientError.message}`);
       statusCallback(`💡 Попробуйте: уменьшить область запроса или повторить попытку позже`);
       throw clientError;
@@ -191,6 +197,7 @@ function parseOverpassData(elements, statusCallback) {
  * Загружает все данные через клиентский Overpass API с retry логикой
  */
 async function fetchAllWithClientOverpass(bbox, statusCallback) {
+  console.log(`🔄 [fetchAllWithClientOverpass] Начинаем загрузку через клиентский API для bbox: ${bbox}`);
   const [south, west, north, east] = bbox.split(',').map(Number);
   statusCallback(`🌐 Клиентский API: подключаемся к overpass-api.de...`);
   
@@ -219,8 +226,10 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
   let lastError;
   
   // Retry логика
+  console.log(`🔄 [fetchAllWithClientOverpass] Начинаем retry логику, максимум попыток: ${RETRY_CONFIG.MAX_ATTEMPTS}`);
   for (let attempt = 1; attempt <= RETRY_CONFIG.MAX_ATTEMPTS; attempt++) {
     try {
+      console.log(`🔄 [fetchAllWithClientOverpass] Попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS}`);
       statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS} (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
       
       const controller = new AbortController();
@@ -386,6 +395,15 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
         await delay(delayTime);
       }
     }
+  }
+  
+  // Если мы дошли сюда, значит все попытки неудачны, но ошибка не была выброшена
+  // Это не должно происходить, но на всякий случай
+  console.error(`❌ [fetchAllWithClientOverpass] Все попытки исчерпаны, но ошибка не была выброшена. lastError:`, lastError);
+  if (lastError) {
+    throw lastError;
+  } else {
+    throw new Error('Не удалось загрузить данные: неизвестная ошибка');
   }
 }
 
