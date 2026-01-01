@@ -29,10 +29,13 @@ export async function fetchAllMapData(bbox, statusCallback) {
   try {
     // Сначала пробуем серверный API
     statusCallback('🌐 Пробуем серверный API (trailspot.app)...');
+    console.log(`🔄 [fetchAllMapData] Пробуем серверный API для bbox: ${bbox}`);
+    
     const serverResponse = await fetchAllWithServerOverpass(bbox, statusCallback);
     
     // Парсим данные из серверного ответа
     if (serverResponse && serverResponse.elements) {
+      console.log(`✅ [fetchAllMapData] Серверный API вернул ${serverResponse.elements.length} элементов`);
       const parsedData = parseOverpassData(serverResponse.elements, statusCallback);
       
       // Кэшируем данные
@@ -41,15 +44,25 @@ export async function fetchAllMapData(bbox, statusCallback) {
       statusCallback('✅ Данные успешно загружены через серверный API');
       return parsedData;
     } else {
+      console.log(`❌ [fetchAllMapData] Серверный API вернул некорректные данные:`, serverResponse);
       throw new Error('Серверный API вернул некорректные данные');
     }
   } catch (error) {
+    console.log(`❌ [fetchAllMapData] Ошибка серверного API, переключаемся на клиентский:`, error);
     statusCallback(`❌ Серверный API недоступен: ${error.message}`);
-    console.log(`❌ Серверный API ошибка:`, error);
     
     // Если серверный API недоступен, используем клиентский
     statusCallback('🔄 Переключаемся на клиентский Overpass API...');
-    return await fetchAllWithClientOverpass(bbox, statusCallback);
+    console.log(`🔄 [fetchAllMapData] Начинаем fallback на клиентский API...`);
+    
+    try {
+      const clientData = await fetchAllWithClientOverpass(bbox, statusCallback);
+      console.log(`✅ [fetchAllMapData] Клиентский API успешно вернул данные`);
+      return clientData;
+    } catch (clientError) {
+      console.error(`❌ [fetchAllMapData] Ошибка клиентского API:`, clientError);
+      throw clientError;
+    }
   }
 }
 
