@@ -317,21 +317,19 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     try {
       statusCallback(`🔄 Клиентский API: попытка ${attempt}/${RETRY_CONFIG.MAX_ATTEMPTS} (таймаут ${REQUEST_TIMEOUT/1000}с)...`);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log(`⏰ Таймаут ${REQUEST_TIMEOUT}мс превышен на попытке ${attempt}`);
-        statusCallback(`⏰ Клиентский API: таймаут ${REQUEST_TIMEOUT/1000}с на попытке ${attempt}`);
-        controller.abort();
-      }, REQUEST_TIMEOUT);
-      
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
+      // Используем Promise.race для таймаута без AbortController
+      // Это позволяет избежать проблем с signal, который может влиять на чтение body
+      const fetchPromise = fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: query,
-        signal: controller.signal,
         headers: { 'Content-Type': 'text/plain' }
       });
       
-      clearTimeout(timeoutId);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Fetch timeout')), REQUEST_TIMEOUT)
+      );
+      
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
       statusCallback(`📡 Клиентский API: получен ответ (статус ${response.status})`);
       
       if (!response.ok) {
@@ -345,25 +343,10 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
         }
       }
       
-      // Читаем JSON с таймаутом (браузер сам обрабатывает chunked encoding)
-      // AbortController прерывает только fetch, но не чтение body, поэтому нужен отдельный таймаут
-      const BODY_READ_TIMEOUT = 60000; // 60 секунд на чтение body
-      const jsonPromise = response.json();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Body read timeout')), BODY_READ_TIMEOUT)
-      );
-      
-      let data;
-      try {
-        data = await Promise.race([jsonPromise, timeoutPromise]);
-        statusCallback(`✅ Клиентский API: JSON прочитан (${data.elements ? data.elements.length : 0} элементов)`);
-      } catch (error) {
-        if (error.message === 'Body read timeout') {
-          statusCallback(`❌ Клиентский API: таймаут чтения ответа (>${BODY_READ_TIMEOUT/1000}с)`);
-          throw new Error(`Таймаут чтения ответа: не удалось прочитать за ${BODY_READ_TIMEOUT/1000}с`);
-        }
-        throw error;
-      }
+      // Читаем JSON (браузер сам обрабатывает chunked encoding)
+      // В старой рабочей версии использовался просто response.json() без таймаута
+      const data = await response.json();
+      statusCallback(`✅ Клиентский API: JSON прочитан (${data.elements ? data.elements.length : 0} элементов)`);
       
       // Используем единую функцию парсинга
       const result = parseOverpassData(data.elements, statusCallback);
@@ -377,6 +360,11 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
     } catch (error) {
       lastError = error;
       console.log(`❌ Попытка ${attempt} неудачна:`, error.message);
+      
+      // Обработка таймаута
+      if (error.message === 'Fetch timeout') {
+        statusCallback(`⏰ Клиентский API: таймаут ${REQUEST_TIMEOUT/1000}с на попытке ${attempt}`);
+      }
       
       // Если это последняя попытка, выбрасываем ошибку
       if (attempt === RETRY_CONFIG.MAX_ATTEMPTS) {
