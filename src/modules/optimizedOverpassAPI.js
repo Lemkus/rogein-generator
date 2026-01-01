@@ -339,7 +339,7 @@ async function fetchAllWithClientOverpass(bbox, statusCallback) {
       
       // Читаем JSON (браузер сам обрабатывает chunked encoding)
       // В старой рабочей версии использовался просто response.json() без таймаута
-      const data = await response.json();
+      const data = response.json();
       statusCallback(`✅ Клиентский API: JSON прочитан (${data.elements ? data.elements.length : 0} элементов)`);
       
       // Используем единую функцию парсинга
