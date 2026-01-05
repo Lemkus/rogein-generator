@@ -344,6 +344,26 @@
                     <option value="tonejs">Tone.js Synth</option>
                 </select>
             </div>
+            
+            <div class="settings-group">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="hidePositionCheckbox" onchange="toggleHidePosition()" style="margin-right: 5px;">
+                    🎯 Hide Position (Blind Mode)
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for saving presets -->
+    <div id="savePresetModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2c3e50; padding: 30px; border-radius: 10px; border: 2px solid #4ecdc4; min-width: 300px;">
+            <h3 style="color: #4ecdc4; margin-top: 0;">💾 Save Preset</h3>
+            <input type="text" id="presetNameInput" placeholder="Enter preset name..." 
+                   style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid #4ecdc4; border-radius: 5px; font-size: 16px;">
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="cancelSavePreset()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                <button onclick="confirmSavePreset()" style="background: #4ecdc4; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Save</button>
+            </div>
         </div>
     </div>
     
@@ -472,6 +492,15 @@
                         <button class="preset-btn" onclick="loadSonarPreset('submarine')">Submarine</button>
                         <button class="preset-btn" onclick="loadSonarPreset('scifi')">Sci-Fi</button>
                         <button class="preset-btn" onclick="loadSonarPreset('default')">Default</button>
+                    </div>
+                    <div class="preset-buttons" style="margin-top: 10px;">
+                        <button class="preset-btn" onclick="saveSonarPreset()" style="background: #4ecdc4;">💾 Save Current</button>
+                        <button class="preset-btn" onclick="loadCustomPresets()" style="background: #9b59b6;">📂 Load Custom</button>
+                        <button class="preset-btn" onclick="exportPresets()" style="background: #3498db;">📤 Export</button>
+                        <button class="preset-btn" onclick="importPresets()" style="background: #e67e22;">📥 Import</button>
+                    </div>
+                    <div id="customPresets" class="preset-buttons" style="margin-top: 10px; display: none;">
+                        <!-- Custom presets will be added here dynamically -->
                     </div>
                 </div>
             </div>
@@ -734,7 +763,8 @@
             mousePos: null,
             lastDistance: null,
             movementDirection: 'neutral', // 'approaching', 'moving_away', 'neutral'
-            audioMode: 'sonar'
+            audioMode: 'sonar',
+            hidePosition: false
         };
         
         // Audio Parameters for different modes
@@ -754,6 +784,20 @@
                 // To be implemented
             }
         };
+        
+        // Custom presets storage key
+        const CUSTOM_PRESETS_KEY = 'sonarModeCustomPresets';
+        
+        // Load custom presets from localStorage
+        let customPresets = {};
+        try {
+            const stored = localStorage.getItem(CUSTOM_PRESETS_KEY);
+            if (stored) {
+                customPresets = JSON.parse(stored);
+            }
+        } catch (e) {
+            console.error('Error loading custom presets:', e);
+        }
         
         // Presets for Sonar mode
         const sonarPresets = {
@@ -1010,8 +1054,8 @@
                 ctx.fillText(index + 1, loc.x, loc.y);
             });
             
-            // Draw line from player to current target
-            if (game.isRunning && game.currentTargetIndex < game.locations.length) {
+            // Draw line from player to current target (only if position not hidden)
+            if (!game.hidePosition && game.isRunning && game.currentTargetIndex < game.locations.length) {
                 const target = game.locations[game.currentTargetIndex];
                 ctx.beginPath();
                 ctx.moveTo(game.player.x, game.player.y);
@@ -1023,20 +1067,29 @@
                 ctx.setLineDash([]);
             }
             
-            // Draw player
-            ctx.beginPath();
-            ctx.arc(game.player.x, game.player.y, game.player.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#4ecdc4';
-            ctx.fill();
-            ctx.strokeStyle = '#45b7aa';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            // Draw player (only if position not hidden)
+            if (!game.hidePosition) {
+                ctx.beginPath();
+                ctx.arc(game.player.x, game.player.y, game.player.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#4ecdc4';
+                ctx.fill();
+                ctx.strokeStyle = '#45b7aa';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                // Draw question mark or fog when position is hidden
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(78, 205, 196, 0.3)';
+                ctx.fillText('?', game.canvas.width / 2, game.canvas.height / 2);
+            }
             
-            // Draw player direction indicator
-            if (game.keys['arrowup'] || game.keys['w'] || 
+            // Draw player direction indicator (only if position not hidden)
+            if (!game.hidePosition && 
+                (game.keys['arrowup'] || game.keys['w'] || 
                 game.keys['arrowdown'] || game.keys['s'] || 
                 game.keys['arrowleft'] || game.keys['a'] || 
-                game.keys['arrowright'] || game.keys['d']) {
+                game.keys['arrowright'] || game.keys['d'])) {
                 
                 let angle = 0;
                 if (game.keys['arrowup'] || game.keys['w']) angle = -Math.PI/2;
@@ -1078,17 +1131,25 @@
                 }
                 game.lastDistance = distance;
                 
-                // Update UI
-                document.getElementById('currentTarget').textContent = 
-                    `Location ${game.currentTargetIndex + 1}`;
-                document.getElementById('distance').textContent = 
-                    `${Math.round(distance)} px`;
-                
-                // Direction arrow
-                const angle = getAngle(game.player, target);
-                const arrows = ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'];
-                const arrowIndex = Math.round((angle + Math.PI) / (Math.PI / 4)) % 8;
-                document.getElementById('direction').textContent = arrows[arrowIndex];
+                // Update UI (only if position not hidden)
+                if (!game.hidePosition) {
+                    document.getElementById('currentTarget').textContent = 
+                        `Location ${game.currentTargetIndex + 1}`;
+                    document.getElementById('distance').textContent = 
+                        `${Math.round(distance)} px`;
+                    
+                    // Direction arrow
+                    const angle = getAngle(game.player, target);
+                    const arrows = ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'];
+                    const arrowIndex = Math.round((angle + Math.PI) / (Math.PI / 4)) % 8;
+                    document.getElementById('direction').textContent = arrows[arrowIndex];
+                } else {
+                    // Show hidden state
+                    document.getElementById('currentTarget').textContent = 
+                        `Location ${game.currentTargetIndex + 1}`;
+                    document.getElementById('distance').textContent = '??? px';
+                    document.getElementById('direction').textContent = '?';
+                }
                 
                 // Check if target reached
                 if (distance <= game.tolerance + target.radius) {
@@ -1120,9 +1181,11 @@
                 // Update audio info
                 updateAudioInfo(distance);
                 
-                // Update plots with current position
-                drawFrequencyPlot();
-                drawIntervalPlot();
+                // Update plots with current position (only if not hidden)
+                if (!game.hidePosition) {
+                    drawFrequencyPlot();
+                    drawIntervalPlot();
+                }
             }
             
             // Update timer
@@ -1276,6 +1339,16 @@
         
         // Update audio information display
         function updateAudioInfo(distance) {
+            // Don't update if position is hidden (blind mode)
+            if (game.hidePosition) {
+                // Show "Hidden" or question marks when in blind mode
+                document.getElementById('audioFreq').textContent = '??? Hz';
+                document.getElementById('audioPattern').textContent = '???';
+                document.getElementById('freqBar').style.width = '0%';
+                document.getElementById('intervalBar').style.width = '0%';
+                return;
+            }
+            
             const params = audioParams[game.audioMode];
             
             // Update mode display
@@ -1422,6 +1495,17 @@
             // Also toggle in audio module
             if (game.audioEnabled !== isAudioOn()) {
                 toggleAudioModule();
+            }
+        };
+        
+        // Toggle hide position (blind mode)
+        window.toggleHidePosition = function() {
+            game.hidePosition = document.getElementById('hidePositionCheckbox').checked;
+            
+            // If hiding position, freeze the displays
+            if (game.hidePosition) {
+                // Hide player position on canvas by not updating it
+                // Info panels will also freeze
             }
         };
         
@@ -1730,6 +1814,276 @@
             
             // Update displayed values
             updateSonarParamDisplays();
+        };
+        
+        // Save current sonar preset
+        window.saveSonarPreset = function() {
+            // Show the custom modal
+            const modal = document.getElementById('savePresetModal');
+            const input = document.getElementById('presetNameInput');
+            modal.style.display = 'block';
+            input.value = '';
+            input.focus();
+            
+            // Allow Enter key to save
+            input.onkeypress = function(e) {
+                if (e.key === 'Enter') {
+                    confirmSavePreset();
+                }
+            };
+        };
+        
+        // Cancel saving preset
+        window.cancelSavePreset = function() {
+            document.getElementById('savePresetModal').style.display = 'none';
+        };
+        
+        // Confirm and save the preset
+        window.confirmSavePreset = function() {
+            const input = document.getElementById('presetNameInput');
+            const name = input.value.trim();
+            
+            if (!name) {
+                alert('Please enter a preset name');
+                return;
+            }
+            
+            const presetName = name.toLowerCase().replace(/\s+/g, '_');
+            
+            // Check if preset already exists
+            if (customPresets[presetName]) {
+                if (!confirm(`Preset "${name}" already exists. Overwrite it?`)) {
+                    return;
+                }
+            }
+            
+            // Get current parameters
+            const preset = {
+                minDist: audioParams.sonar.minDist,
+                maxDist: audioParams.sonar.maxDist,
+                minFreq: audioParams.sonar.minFreq,
+                maxFreq: audioParams.sonar.maxFreq,
+                minInterval: audioParams.sonar.minInterval,
+                maxInterval: audioParams.sonar.maxInterval,
+                beepDuration: audioParams.sonar.beepDuration,
+                volume: audioParams.sonar.volume,
+                waveType: audioParams.sonar.waveType,
+                displayName: name,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Add to custom presets
+            customPresets[presetName] = preset;
+            
+            // Save to localStorage
+            try {
+                localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(customPresets));
+                
+                // Hide modal
+                document.getElementById('savePresetModal').style.display = 'none';
+                
+                // Show success message (brief notification)
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #27ae60;
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 5px;
+                    z-index: 1001;
+                    animation: slideIn 0.3s ease;
+                `;
+                notification.textContent = `✅ Preset "${name}" saved!`;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+                
+                // Show custom presets section
+                displayCustomPresets();
+                document.getElementById('customPresets').style.display = 'block';
+            } catch (e) {
+                console.error('Error saving preset:', e);
+                alert('Failed to save preset. Please try again.');
+            }
+        };
+        
+        // Load and display custom presets
+        window.loadCustomPresets = function() {
+            const customPresetsDiv = document.getElementById('customPresets');
+            
+            // Toggle visibility
+            if (customPresetsDiv.style.display === 'none' || !customPresetsDiv.style.display) {
+                displayCustomPresets();
+                customPresetsDiv.style.display = 'block';
+            } else {
+                customPresetsDiv.style.display = 'none';
+            }
+        };
+        
+        // Display custom presets buttons
+        function displayCustomPresets() {
+            const customPresetsDiv = document.getElementById('customPresets');
+            customPresetsDiv.innerHTML = '';
+            
+            if (Object.keys(customPresets).length === 0) {
+                customPresetsDiv.innerHTML = '<p style="color: #aaa; font-size: 12px;">No custom presets saved</p>';
+                return;
+            }
+            
+            // Add buttons for each custom preset
+            for (const [key, preset] of Object.entries(customPresets)) {
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn';
+                btn.style.background = '#8e44ad';
+                btn.textContent = preset.displayName || key;
+                btn.onclick = function() {
+                    loadCustomSonarPreset(key);
+                };
+                
+                // Add delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'preset-btn';
+                deleteBtn.style.background = '#e74c3c';
+                deleteBtn.style.marginLeft = '5px';
+                deleteBtn.textContent = '×';
+                deleteBtn.title = 'Delete preset';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    if (confirm(`Delete preset "${preset.displayName || key}"?`)) {
+                        delete customPresets[key];
+                        localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(customPresets));
+                        displayCustomPresets();
+                    }
+                };
+                
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-block';
+                wrapper.style.marginRight = '10px';
+                wrapper.style.marginBottom = '5px';
+                wrapper.appendChild(btn);
+                wrapper.appendChild(deleteBtn);
+                
+                customPresetsDiv.appendChild(wrapper);
+            }
+        }
+        
+        // Load a custom sonar preset
+        function loadCustomSonarPreset(presetName) {
+            const preset = customPresets[presetName];
+            if (!preset) return;
+            
+            // Update parameters
+            audioParams.sonar = {
+                minDist: preset.minDist,
+                maxDist: preset.maxDist,
+                minFreq: preset.minFreq,
+                maxFreq: preset.maxFreq,
+                minInterval: preset.minInterval,
+                maxInterval: preset.maxInterval,
+                beepDuration: preset.beepDuration,
+                volume: preset.volume,
+                waveType: preset.waveType
+            };
+            
+            // Update UI sliders
+            document.getElementById('sonarMinDist').value = preset.minDist;
+            document.getElementById('sonarMaxDist').value = preset.maxDist;
+            document.getElementById('sonarMinFreq').value = preset.minFreq;
+            document.getElementById('sonarMaxFreq').value = preset.maxFreq;
+            document.getElementById('sonarMinInterval').value = preset.minInterval;
+            document.getElementById('sonarMaxInterval').value = preset.maxInterval;
+            document.getElementById('sonarBeepDuration').value = preset.beepDuration;
+            document.getElementById('sonarVolume').value = preset.volume;
+            document.getElementById('sonarWaveType').value = preset.waveType;
+            
+            // Update displayed values
+            updateSonarParamDisplays();
+        }
+        
+        // Export presets to JSON file
+        window.exportPresets = function() {
+            const dataToExport = {
+                presets: customPresets,
+                version: "1.0.0",
+                exportedAt: new Date().toISOString(),
+                description: "Custom presets for sonar mode audio navigation"
+            };
+            
+            const jsonStr = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sonar-presets-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+        
+        // Import presets from JSON file
+        window.importPresets = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        if (!data.presets) {
+                            alert('Invalid preset file format');
+                            return;
+                        }
+                        
+                        // Ask user how to handle import
+                        const choice = confirm('Do you want to merge with existing presets? (Cancel to replace all)');
+                        
+                        if (!choice) {
+                            // Replace all
+                            customPresets = data.presets;
+                        } else {
+                            // Merge
+                            for (const [key, preset] of Object.entries(data.presets)) {
+                                if (customPresets[key]) {
+                                    const overwrite = confirm(`Preset "${preset.displayName || key}" already exists. Overwrite?`);
+                                    if (overwrite) {
+                                        customPresets[key] = preset;
+                                    }
+                                } else {
+                                    customPresets[key] = preset;
+                                }
+                            }
+                        }
+                        
+                        // Save to localStorage
+                        localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(customPresets));
+                        
+                        // Update display
+                        displayCustomPresets();
+                        document.getElementById('customPresets').style.display = 'block';
+                        
+                        alert('Presets imported successfully!');
+                    } catch (err) {
+                        console.error('Error importing presets:', err);
+                        alert('Failed to import presets. Please check the file format.');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
         };
         
         // Update displayed parameter values

@@ -1,0 +1,34 @@
+{
+  "presets": {
+    "example_indoor": {
+      "minDist": 15,
+      "maxDist": 150,
+      "minFreq": 400,
+      "maxFreq": 1000,
+      "minInterval": 150,
+      "maxInterval": 800,
+      "beepDuration": 75,
+      "volume": 35,
+      "waveType": "sine",
+      "displayName": "Indoor Navigation",
+      "description": "Optimized for indoor spaces with shorter distances",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    "example_outdoor": {
+      "minDist": 50,
+      "maxDist": 500,
+      "minFreq": 200,
+      "maxFreq": 600,
+      "minInterval": 300,
+      "maxInterval": 2500,
+      "beepDuration": 150,
+      "volume": 50,
+      "waveType": "triangle",
+      "displayName": "Outdoor Navigation",
+      "description": "For outdoor navigation with longer distances",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  },
+  "version": "1.0.0",
+  "description": "Custom presets for sonar mode audio navigation"
+}
