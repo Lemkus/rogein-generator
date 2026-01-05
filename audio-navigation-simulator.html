@@ -101,6 +101,16 @@
             min-height: 0;
         }
         
+        /* Static Parameters Panel on Left */
+        .left-panel {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+        
         /* Canvas Container */
         .canvas-container {
             flex: 1;
@@ -191,29 +201,14 @@
             font-size: 14px;
         }
         
-        /* Parameters Panel */
-        .parameters-panel {
-            position: fixed;
-            right: -350px;
-            top: 100px;
-            width: 320px;
-            max-height: 70vh;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 15px 0 0 15px;
-            padding: 20px;
-            overflow-y: auto;
-            transition: right 0.3s ease;
-            z-index: 1000;
-            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
-        }
-        
-        .parameters-panel.active {
-            right: 0;
-        }
-        
-        .parameters-panel h3 {
-            color: #4ecdc4;
-            margin-bottom: 15px;
+        /* Plot canvases */
+        .plot-canvas {
+            width: 100%;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid rgba(78, 205, 196, 0.3);
         }
         
         .param-group {
@@ -349,14 +344,148 @@
                     <option value="tonejs">Tone.js Synth</option>
                 </select>
             </div>
-            
-            <button id="paramBtn" onclick="toggleParametersPanel()">⚙️ Parameters</button>
         </div>
     </div>
     
     <!-- Main game area -->
     <div class="game-container">
-        <!-- Canvas -->
+        <!-- Left Parameters Panel -->
+        <div class="left-panel">
+            <h3>🎛️ Audio Parameters</h3>
+            
+            <!-- Sonar Mode Parameters -->
+            <div id="sonarParams">
+                <div class="param-group">
+                    <h4>Distance Mapping</h4>
+                    
+                    <div class="param-slider">
+                        <label>Min Clamp Distance (pixels)</label>
+                        <input type="range" id="sonarMinDist" min="10" max="100" value="20" step="5">
+                        <div class="param-value">
+                            <span>10px</span>
+                            <span id="sonarMinDistValue">20px</span>
+                            <span>100px</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Max Clamp Distance (pixels)</label>
+                        <input type="range" id="sonarMaxDist" min="200" max="800" value="400" step="50">
+                        <div class="param-value">
+                            <span>200px</span>
+                            <span id="sonarMaxDistValue">400px</span>
+                            <span>800px</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="param-group">
+                    <h4>Frequency Range</h4>
+                    <canvas id="freqPlot" class="plot-canvas"></canvas>
+                    
+                    <div class="param-slider">
+                        <label>Min Frequency (Hz)</label>
+                        <input type="range" id="sonarMinFreq" min="100" max="400" value="200" step="10">
+                        <div class="param-value">
+                            <span>100Hz</span>
+                            <span id="sonarMinFreqValue">200Hz</span>
+                            <span>400Hz</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Max Frequency (Hz)</label>
+                        <input type="range" id="sonarMaxFreq" min="500" max="1500" value="800" step="50">
+                        <div class="param-value">
+                            <span>500Hz</span>
+                            <span id="sonarMaxFreqValue">800Hz</span>
+                            <span>1500Hz</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="param-group">
+                    <h4>Interval Range</h4>
+                    <canvas id="intervalPlot" class="plot-canvas"></canvas>
+                    
+                    <div class="param-slider">
+                        <label>Min Interval (ms)</label>
+                        <input type="range" id="sonarMinInterval" min="100" max="500" value="200" step="50">
+                        <div class="param-value">
+                            <span>100ms</span>
+                            <span id="sonarMinIntervalValue">200ms</span>
+                            <span>500ms</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Max Interval (ms)</label>
+                        <input type="range" id="sonarMaxInterval" min="1000" max="5000" value="2000" step="100">
+                        <div class="param-value">
+                            <span>1000ms</span>
+                            <span id="sonarMaxIntervalValue">2000ms</span>
+                            <span>5000ms</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="param-group">
+                    <h4>Sound Properties</h4>
+                    
+                    <div class="param-slider">
+                        <label>Beep Duration (ms)</label>
+                        <input type="range" id="sonarBeepDuration" min="50" max="500" value="100" step="10">
+                        <div class="param-value">
+                            <span>50ms</span>
+                            <span id="sonarBeepDurationValue">100ms</span>
+                            <span>500ms</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Volume</label>
+                        <input type="range" id="sonarVolume" min="0" max="100" value="30" step="5">
+                        <div class="param-value">
+                            <span>0%</span>
+                            <span id="sonarVolumeValue">30%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Wave Type</label>
+                        <select id="sonarWaveType" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); color: white; border: 1px solid #4ecdc4; border-radius: 5px;">
+                            <option value="sine">Sine (Smooth)</option>
+                            <option value="triangle">Triangle (Soft)</option>
+                            <option value="square">Square (Sharp)</option>
+                            <option value="sawtooth">Sawtooth (Harsh)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="param-group">
+                    <h4>Presets</h4>
+                    <div class="preset-buttons">
+                        <button class="preset-btn" onclick="loadSonarPreset('close')">Close Range</button>
+                        <button class="preset-btn" onclick="loadSonarPreset('medium')">Medium Range</button>
+                        <button class="preset-btn" onclick="loadSonarPreset('far')">Far Range</button>
+                        <button class="preset-btn" onclick="loadSonarPreset('submarine')">Submarine</button>
+                        <button class="preset-btn" onclick="loadSonarPreset('scifi')">Sci-Fi</button>
+                        <button class="preset-btn" onclick="loadSonarPreset('default')">Default</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Shepard Mode Parameters (placeholder) -->
+            <div id="shepardParams" style="display: none;">
+                <div class="param-group">
+                    <h4>Shepard Tone Parameters</h4>
+                    <p style="color: #aaa; font-size: 14px;">Coming soon...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Canvas Container -->
         <div class="canvas-container">
             <canvas id="gameCanvas" width="800" height="600"></canvas>
             
@@ -451,7 +580,6 @@
                     <li><strong>Space:</strong> Play test sound</li>
                     <li><strong>R:</strong> Reset simulation</li>
                     <li><strong>M:</strong> Toggle audio</li>
-                    <li><strong>P:</strong> Toggle parameters panel</li>
                 </ul>
                 
                 <h4 style="margin-top: 10px;">🎯 Goal</h4>
@@ -459,15 +587,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Parameters Panel -->
-    <div class="parameters-panel" id="parametersPanel">
-        <h3>🎛️ Audio Parameters</h3>
-        
-        <!-- Sonar Mode Parameters -->
-        <div id="sonarParams">
-            <div class="param-group">
-                <h4>Distance Mapping</h4>
                 
                 <div class="param-slider">
                     <label>Min Clamp Distance (pixels)</label>
@@ -478,9 +597,6 @@
                         <span>100px</span>
                     </div>
                 </div>
-                
-                <div class="param-slider">
-                    <label>Max Clamp Distance (pixels)</label>
                     <input type="range" id="sonarMaxDist" min="200" max="800" value="400" step="50">
                     <div class="param-value">
                         <span>200px</span>
@@ -582,14 +698,6 @@
                     <button class="preset-btn" onclick="loadSonarPreset('scifi')">Sci-Fi</button>
                     <button class="preset-btn" onclick="loadSonarPreset('default')">Default</button>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Shepard Mode Parameters (placeholder) -->
-        <div id="shepardParams" style="display: none;">
-            <div class="param-group">
-                <h4>Shepard Tone Parameters</h4>
-                <p style="color: #aaa; font-size: 14px;">Coming soon...</p>
             </div>
         </div>
     </div>
@@ -732,8 +840,6 @@
                     await resetSimulation();
                 } else if (e.key.toLowerCase() === 'm') {
                     await toggleAudio();
-                } else if (e.key.toLowerCase() === 'p') {
-                    toggleParametersPanel();
                 }
             });
             
@@ -1013,6 +1119,10 @@
                 
                 // Update audio info
                 updateAudioInfo(distance);
+                
+                // Update plots with current position
+                drawFrequencyPlot();
+                drawIntervalPlot();
             }
             
             // Update timer
@@ -1327,11 +1437,267 @@
             }
         });
         
-        // Toggle parameters panel
-        window.toggleParametersPanel = function() {
-            const panel = document.getElementById('parametersPanel');
-            panel.classList.toggle('active');
-        };
+        // Draw frequency plot
+        function drawFrequencyPlot() {
+            const canvas = document.getElementById('freqPlot');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const params = audioParams.sonar;
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 80;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 20;
+            const plotWidth = width - 2 * padding;
+            const plotHeight = height - 2 * padding;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Extended range to show full piecewise linear function
+            const plotMinDist = 0;
+            const plotMaxDist = Math.max(params.maxDist * 1.5, 600);
+            const distanceRange = plotMaxDist - plotMinDist;
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 1; i < 4; i++) {
+                const y = padding + (i / 4) * plotHeight;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Draw vertical lines at minDist and maxDist
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            
+            // minDist line
+            const minDistX = padding + (params.minDist / distanceRange) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(minDistX, padding);
+            ctx.lineTo(minDistX, height - padding);
+            ctx.stroke();
+            
+            // maxDist line
+            const maxDistX = padding + (params.maxDist / distanceRange) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(maxDistX, padding);
+            ctx.lineTo(maxDistX, height - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw mapping line (piecewise linear)
+            ctx.strokeStyle = '#ffeb3b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Plot the full piecewise linear function
+            const steps = 100;
+            for (let i = 0; i <= steps; i++) {
+                const distance = plotMinDist + (distanceRange * i / steps);
+                const frequency = getFrequencyForDistance(distance);
+                
+                const x = padding + (distance / distanceRange) * plotWidth;
+                const y = height - padding - ((frequency - params.minFreq) / (params.maxFreq - params.minFreq)) * plotHeight;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw labels
+            ctx.fillStyle = '#aaa';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            
+            // X-axis labels
+            ctx.fillText('0', padding, height - 5);
+            ctx.fillText(`${params.minDist}`, minDistX, height - 5);
+            ctx.fillText(`${params.maxDist}`, maxDistX, height - 5);
+            ctx.fillText(`${plotMaxDist}px`, width - padding, height - 5);
+            
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            ctx.fillText(`${params.maxFreq}Hz`, padding - 5, padding + 5);
+            ctx.fillText(`${params.minFreq}Hz`, padding - 5, height - padding);
+            
+            // Title
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#4ecdc4';
+            ctx.font = '11px Arial';
+            ctx.fillText('Frequency vs Distance', width / 2, padding - 5);
+            
+            // Draw current value if game is running
+            if (game.isRunning && game.currentTargetIndex < game.locations.length) {
+                const target = game.locations[game.currentTargetIndex];
+                const distance = getDistance(game.player, target);
+                const frequency = getFrequencyForDistance(distance);
+                
+                const x = padding + Math.min(distance / distanceRange, 1) * plotWidth;
+                const y = height - padding - ((frequency - params.minFreq) / (params.maxFreq - params.minFreq)) * plotHeight;
+                
+                // Draw point
+                ctx.fillStyle = '#4ecdc4';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw value label
+                ctx.fillStyle = '#4ecdc4';
+                ctx.font = '9px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${Math.round(distance)}px, ${Math.round(frequency)}Hz`, x + 6, y - 3);
+            }
+        }
+        
+        // Draw interval plot
+        function drawIntervalPlot() {
+            const canvas = document.getElementById('intervalPlot');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const params = audioParams.sonar;
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 80;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 20;
+            const plotWidth = width - 2 * padding;
+            const plotHeight = height - 2 * padding;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Extended range to show full piecewise linear function
+            const plotMinDist = 0;
+            const plotMaxDist = Math.max(params.maxDist * 1.5, 600);
+            const distanceRange = plotMaxDist - plotMinDist;
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 1; i < 4; i++) {
+                const y = padding + (i / 4) * plotHeight;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Draw vertical lines at minDist and maxDist
+            ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            
+            // minDist line
+            const minDistX = padding + (params.minDist / distanceRange) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(minDistX, padding);
+            ctx.lineTo(minDistX, height - padding);
+            ctx.stroke();
+            
+            // maxDist line
+            const maxDistX = padding + (params.maxDist / distanceRange) * plotWidth;
+            ctx.beginPath();
+            ctx.moveTo(maxDistX, padding);
+            ctx.lineTo(maxDistX, height - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw mapping line (piecewise linear)
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Plot the full piecewise linear function
+            const steps = 100;
+            for (let i = 0; i <= steps; i++) {
+                const distance = plotMinDist + (distanceRange * i / steps);
+                const interval = getSoundInterval(distance);
+                
+                const x = padding + (distance / distanceRange) * plotWidth;
+                const y = height - padding - ((params.maxInterval - interval) / (params.maxInterval - params.minInterval)) * plotHeight;
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw labels
+            ctx.fillStyle = '#aaa';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            
+            // X-axis labels
+            ctx.fillText('0', padding, height - 5);
+            ctx.fillText(`${params.minDist}`, minDistX, height - 5);
+            ctx.fillText(`${params.maxDist}`, maxDistX, height - 5);
+            ctx.fillText(`${plotMaxDist}px`, width - padding, height - 5);
+            
+            // Y-axis labels  
+            ctx.textAlign = 'right';
+            ctx.fillText(`${params.minInterval}ms`, padding - 5, padding + 5);
+            ctx.fillText(`${params.maxInterval}ms`, padding - 5, height - padding);
+            
+            // Title
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = '11px Arial';
+            ctx.fillText('Interval vs Distance', width / 2, padding - 5);
+            
+            // Draw current value if game is running
+            if (game.isRunning && game.currentTargetIndex < game.locations.length) {
+                const target = game.locations[game.currentTargetIndex];
+                const distance = getDistance(game.player, target);
+                const interval = getSoundInterval(distance);
+                
+                const x = padding + Math.min(distance / distanceRange, 1) * plotWidth;
+                const y = height - padding - ((params.maxInterval - interval) / (params.maxInterval - params.minInterval)) * plotHeight;
+                
+                // Draw point
+                ctx.fillStyle = '#4ecdc4';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw value label
+                ctx.fillStyle = '#4ecdc4';
+                ctx.font = '9px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${Math.round(distance)}px, ${Math.round(interval)}ms`, x + 6, y - 3);
+            }
+        }
         
         // Update audio mode UI
         window.updateAudioModeUI = function() {
@@ -1376,6 +1742,10 @@
             document.getElementById('sonarMaxIntervalValue').textContent = audioParams.sonar.maxInterval + 'ms';
             document.getElementById('sonarBeepDurationValue').textContent = audioParams.sonar.beepDuration + 'ms';
             document.getElementById('sonarVolumeValue').textContent = audioParams.sonar.volume + '%';
+            
+            // Update plots
+            drawFrequencyPlot();
+            drawIntervalPlot();
         }
         
         // Setup parameter change listeners
@@ -1384,33 +1754,41 @@
             document.getElementById('sonarMinDist').addEventListener('input', (e) => {
                 audioParams.sonar.minDist = parseInt(e.target.value);
                 document.getElementById('sonarMinDistValue').textContent = e.target.value + 'px';
+                drawFrequencyPlot();
+                drawIntervalPlot();
             });
             
             document.getElementById('sonarMaxDist').addEventListener('input', (e) => {
                 audioParams.sonar.maxDist = parseInt(e.target.value);
                 document.getElementById('sonarMaxDistValue').textContent = e.target.value + 'px';
+                drawFrequencyPlot();
+                drawIntervalPlot();
             });
             
             // Frequency parameters
             document.getElementById('sonarMinFreq').addEventListener('input', (e) => {
                 audioParams.sonar.minFreq = parseInt(e.target.value);
                 document.getElementById('sonarMinFreqValue').textContent = e.target.value + 'Hz';
+                drawFrequencyPlot();
             });
             
             document.getElementById('sonarMaxFreq').addEventListener('input', (e) => {
                 audioParams.sonar.maxFreq = parseInt(e.target.value);
                 document.getElementById('sonarMaxFreqValue').textContent = e.target.value + 'Hz';
+                drawFrequencyPlot();
             });
             
             // Interval parameters
             document.getElementById('sonarMinInterval').addEventListener('input', (e) => {
                 audioParams.sonar.minInterval = parseInt(e.target.value);
                 document.getElementById('sonarMinIntervalValue').textContent = e.target.value + 'ms';
+                drawIntervalPlot();
             });
             
             document.getElementById('sonarMaxInterval').addEventListener('input', (e) => {
                 audioParams.sonar.maxInterval = parseInt(e.target.value);
                 document.getElementById('sonarMaxIntervalValue').textContent = e.target.value + 'ms';
+                drawIntervalPlot();
             });
             
             // Sound properties
@@ -1436,17 +1814,14 @@
             setupParameterListeners();
             updateSonarParamDisplays();
             
-            // Click outside parameters panel to close
-            document.addEventListener('click', (e) => {
-                const panel = document.getElementById('parametersPanel');
-                const paramBtn = document.getElementById('paramBtn');
-                if (!panel.contains(e.target) && e.target !== paramBtn && panel.classList.contains('active')) {
-                    panel.classList.remove('active');
-                }
-            });
+            // Initialize plots
+            setTimeout(() => {
+                drawFrequencyPlot();
+                drawIntervalPlot();
+            }, 100);
             
             console.log('Audio Navigation Simulator loaded with configurable parameters!');
-            console.log('Press P or click ⚙️ Parameters to customize audio feedback');
+            console.log('Left panel shows audio parameters with live visualization plots');
         });
     </script>
 </body>
