@@ -6,6 +6,36 @@
     <title>Audio Navigation Simulator</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
+        :root {
+            /* Default theme (Sky Blue) */
+            --bg-gradient-start: #87CEEB;
+            --bg-gradient-end: #4682B4;
+            --text-primary: white;
+            --text-secondary: #e0f7ff;
+            --panel-bg: rgba(30, 60, 90, 0.6);
+            --panel-border: #00bfff;
+            --btn-primary: #00bfff;
+            --btn-hover: #0099cc;
+            --btn-danger: #ff6b6b;
+            --btn-warning: #ffd93d;
+            --btn-success: #6bcf7f;
+            --canvas-bg: #f0f8ff;
+            --canvas-grid: #ddeeff;
+            --target-current: #ffd700;
+            --target-completed: #32cd32;
+            --target-future: #b0c4de;
+            --player-color: #1e90ff;
+            --player-stroke: #0073e6;
+            --progress-bg: rgba(255, 255, 255, 0.2);
+            --progress-fill: #00bfff;
+            --input-bg: rgba(255, 255, 255, 0.15);
+            --input-border: #00bfff;
+            --slider-track: rgba(255, 255, 255, 0.3);
+            --slider-thumb: #00bfff;
+            --modal-bg: rgba(0, 0, 0, 0.6);
+            --modal-panel: #2c5282;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -14,17 +44,18 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            color: white;
+            color: var(--text-primary);
             overflow: hidden;
+            transition: background 0.3s ease;
         }
         
         /* Header Controls */
         .header {
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--panel-bg);
             padding: 15px;
             display: flex;
             justify-content: space-between;
@@ -45,8 +76,8 @@
         }
         
         button {
-            background: #4ecdc4;
-            color: white;
+            background: var(--btn-primary);
+            color: var(--text-primary);
             border: none;
             padding: 10px 20px;
             border-radius: 25px;
@@ -57,7 +88,7 @@
         }
         
         button:hover {
-            background: #45b7aa;
+            background: var(--btn-hover);
             transform: translateY(-2px);
         }
         
@@ -67,7 +98,7 @@
         }
         
         button.active {
-            background: #ff6b6b;
+            background: var(--btn-danger);
         }
         
         .settings-group {
@@ -104,7 +135,7 @@
         /* Static Parameters Panel on Left */
         .left-panel {
             width: 350px;
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--panel-bg);
             border-radius: 15px;
             padding: 20px;
             overflow-y: auto;
@@ -135,7 +166,7 @@
         /* Info Panel */
         .info-panel {
             width: 300px;
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--panel-bg);
             border-radius: 15px;
             padding: 20px;
             overflow-y: auto;
@@ -166,7 +197,7 @@
         .progress-bar {
             width: 100%;
             height: 20px;
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--progress-bg);
             border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
@@ -174,7 +205,7 @@
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #4ecdc4, #45b7aa);
+            background: linear-gradient(90deg, var(--progress-fill), var(--btn-hover));
             transition: width 0.3s ease;
         }
         
@@ -351,18 +382,32 @@
                     Hide Position (Blind Mode)
                 </label>
             </div>
+            
+            <div class="settings-group">
+                <label>Theme:</label>
+                <select id="themeSelector" onchange="changeTheme()" style="background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border);">
+                    <option value="skyblue" selected>Sky Blue</option>
+                    <option value="dark">Dark Purple</option>
+                    <option value="light">Light Mode</option>
+                    <option value="smokeygray">Smokey Gray</option>
+                    <option value="ocean">Ocean Deep</option>
+                    <option value="forest">Forest Green</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="midnight">Midnight Blue</option>
+                </select>
+            </div>
         </div>
     </div>
     
     <!-- Modal for saving presets -->
-    <div id="savePresetModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000;">
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2c3e50; padding: 30px; border-radius: 10px; border: 2px solid #4ecdc4; min-width: 300px;">
-            <h3 style="color: #4ecdc4; margin-top: 0;">💾 Save Preset</h3>
+    <div id="savePresetModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--modal-panel); padding: 30px; border-radius: 10px; border: 2px solid var(--panel-border); min-width: 300px;">
+            <h3 style="color: var(--btn-primary); margin-top: 0;">Save Preset</h3>
             <input type="text" id="presetNameInput" placeholder="Enter preset name..." 
-                   style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid #4ecdc4; border-radius: 5px; font-size: 16px;">
+                   style="width: 100%; padding: 10px; background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--input-border); border-radius: 5px; font-size: 16px;">
             <div style="margin-top: 20px; text-align: right;">
-                <button onclick="cancelSavePreset()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">Cancel</button>
-                <button onclick="confirmSavePreset()" style="background: #4ecdc4; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Save</button>
+                <button onclick="cancelSavePreset()" style="background: var(--btn-danger); color: var(--text-primary); border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                <button onclick="confirmSavePreset()" style="background: var(--btn-primary); color: var(--text-primary); border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Save</button>
             </div>
         </div>
     </div>
@@ -785,6 +830,270 @@
             }
         };
         
+        // Theme definitions
+        const themes = {
+            dark: {
+                name: 'Dark Purple',
+                '--bg-gradient-start': '#667eea',
+                '--bg-gradient-end': '#764ba2',
+                '--text-primary': 'white',
+                '--text-secondary': '#aaa',
+                '--panel-bg': 'rgba(0, 0, 0, 0.6)',
+                '--panel-border': '#4ecdc4',
+                '--btn-primary': '#4ecdc4',
+                '--btn-hover': '#45b7aa',
+                '--btn-danger': '#e74c3c',
+                '--btn-warning': '#f39c12',
+                '--btn-success': '#27ae60',
+                '--canvas-bg': '#f0f0f0',
+                '--canvas-grid': '#e0e0e0',
+                '--target-current': '#ffeb3b',
+                '--target-completed': '#4caf50',
+                '--target-future': '#999',
+                '--player-color': '#4ecdc4',
+                '--player-stroke': '#45b7aa',
+                '--progress-bg': 'rgba(255, 255, 255, 0.1)',
+                '--progress-fill': '#4ecdc4',
+                '--input-bg': 'rgba(255, 255, 255, 0.1)',
+                '--input-border': '#4ecdc4',
+                '--slider-track': 'rgba(255, 255, 255, 0.2)',
+                '--slider-thumb': '#4ecdc4',
+                '--modal-bg': 'rgba(0, 0, 0, 0.7)',
+                '--modal-panel': '#2c3e50'
+            },
+            light: {
+                name: 'Light Mode',
+                '--bg-gradient-start': '#ffffff',
+                '--bg-gradient-end': '#f0f0f0',
+                '--text-primary': '#333333',
+                '--text-secondary': '#666666',
+                '--panel-bg': 'rgba(255, 255, 255, 0.95)',
+                '--panel-border': '#2196F3',
+                '--btn-primary': '#2196F3',
+                '--btn-hover': '#1976D2',
+                '--btn-danger': '#f44336',
+                '--btn-warning': '#ff9800',
+                '--btn-success': '#4CAF50',
+                '--canvas-bg': '#ffffff',
+                '--canvas-grid': '#f5f5f5',
+                '--target-current': '#FFC107',
+                '--target-completed': '#4CAF50',
+                '--target-future': '#cccccc',
+                '--player-color': '#2196F3',
+                '--player-stroke': '#1976D2',
+                '--progress-bg': 'rgba(0, 0, 0, 0.1)',
+                '--progress-fill': '#2196F3',
+                '--input-bg': 'rgba(0, 0, 0, 0.05)',
+                '--input-border': '#2196F3',
+                '--slider-track': 'rgba(0, 0, 0, 0.2)',
+                '--slider-thumb': '#2196F3',
+                '--modal-bg': 'rgba(0, 0, 0, 0.5)',
+                '--modal-panel': '#ffffff'
+            },
+            skyblue: {
+                name: 'Sky Blue',
+                '--bg-gradient-start': '#87CEEB',
+                '--bg-gradient-end': '#4682B4',
+                '--text-primary': 'white',
+                '--text-secondary': '#e0f7ff',
+                '--panel-bg': 'rgba(30, 60, 90, 0.6)',
+                '--panel-border': '#00bfff',
+                '--btn-primary': '#00bfff',
+                '--btn-hover': '#0099cc',
+                '--btn-danger': '#ff6b6b',
+                '--btn-warning': '#ffd93d',
+                '--btn-success': '#6bcf7f',
+                '--canvas-bg': '#f0f8ff',
+                '--canvas-grid': '#ddeeff',
+                '--target-current': '#ffd700',
+                '--target-completed': '#32cd32',
+                '--target-future': '#b0c4de',
+                '--player-color': '#1e90ff',
+                '--player-stroke': '#0073e6',
+                '--progress-bg': 'rgba(255, 255, 255, 0.2)',
+                '--progress-fill': '#00bfff',
+                '--input-bg': 'rgba(255, 255, 255, 0.15)',
+                '--input-border': '#00bfff',
+                '--slider-track': 'rgba(255, 255, 255, 0.3)',
+                '--slider-thumb': '#00bfff',
+                '--modal-bg': 'rgba(0, 0, 0, 0.6)',
+                '--modal-panel': '#2c5282'
+            },
+            smokeygray: {
+                name: 'Smokey Gray',
+                '--bg-gradient-start': '#636363',
+                '--bg-gradient-end': '#3d3d3d',
+                '--text-primary': '#ffffff',
+                '--text-secondary': '#b0b0b0',
+                '--panel-bg': 'rgba(0, 0, 0, 0.5)',
+                '--panel-border': '#888888',
+                '--btn-primary': '#888888',
+                '--btn-hover': '#666666',
+                '--btn-danger': '#d32f2f',
+                '--btn-warning': '#f57c00',
+                '--btn-success': '#388e3c',
+                '--canvas-bg': '#e8e8e8',
+                '--canvas-grid': '#d0d0d0',
+                '--target-current': '#ffa726',
+                '--target-completed': '#66bb6a',
+                '--target-future': '#999999',
+                '--player-color': '#9e9e9e',
+                '--player-stroke': '#757575',
+                '--progress-bg': 'rgba(255, 255, 255, 0.1)',
+                '--progress-fill': '#888888',
+                '--input-bg': 'rgba(255, 255, 255, 0.1)',
+                '--input-border': '#888888',
+                '--slider-track': 'rgba(255, 255, 255, 0.2)',
+                '--slider-thumb': '#888888',
+                '--modal-bg': 'rgba(0, 0, 0, 0.7)',
+                '--modal-panel': '#424242'
+            },
+            ocean: {
+                name: 'Ocean Deep',
+                '--bg-gradient-start': '#006994',
+                '--bg-gradient-end': '#003d5c',
+                '--text-primary': '#ffffff',
+                '--text-secondary': '#b3d9ff',
+                '--panel-bg': 'rgba(0, 30, 50, 0.7)',
+                '--panel-border': '#00acc1',
+                '--btn-primary': '#00acc1',
+                '--btn-hover': '#0097a7',
+                '--btn-danger': '#e91e63',
+                '--btn-warning': '#ffb300',
+                '--btn-success': '#00c853',
+                '--canvas-bg': '#e6f2ff',
+                '--canvas-grid': '#cce5ff',
+                '--target-current': '#ffeb3b',
+                '--target-completed': '#00e676',
+                '--target-future': '#80deea',
+                '--player-color': '#00bcd4',
+                '--player-stroke': '#0097a7',
+                '--progress-bg': 'rgba(255, 255, 255, 0.15)',
+                '--progress-fill': '#00acc1',
+                '--input-bg': 'rgba(255, 255, 255, 0.1)',
+                '--input-border': '#00acc1',
+                '--slider-track': 'rgba(255, 255, 255, 0.25)',
+                '--slider-thumb': '#00acc1',
+                '--modal-bg': 'rgba(0, 0, 0, 0.7)',
+                '--modal-panel': '#004d66'
+            },
+            forest: {
+                name: 'Forest Green',
+                '--bg-gradient-start': '#2d5016',
+                '--bg-gradient-end': '#1a2f0a',
+                '--text-primary': '#ffffff',
+                '--text-secondary': '#c8e6c9',
+                '--panel-bg': 'rgba(20, 30, 10, 0.7)',
+                '--panel-border': '#66bb6a',
+                '--btn-primary': '#66bb6a',
+                '--btn-hover': '#4caf50',
+                '--btn-danger': '#ef5350',
+                '--btn-warning': '#ffa726',
+                '--btn-success': '#8bc34a',
+                '--canvas-bg': '#f1f8e9',
+                '--canvas-grid': '#dcedc8',
+                '--target-current': '#ffeb3b',
+                '--target-completed': '#8bc34a',
+                '--target-future': '#a5d6a7',
+                '--player-color': '#4caf50',
+                '--player-stroke': '#388e3c',
+                '--progress-bg': 'rgba(255, 255, 255, 0.15)',
+                '--progress-fill': '#66bb6a',
+                '--input-bg': 'rgba(255, 255, 255, 0.1)',
+                '--input-border': '#66bb6a',
+                '--slider-track': 'rgba(255, 255, 255, 0.2)',
+                '--slider-thumb': '#66bb6a',
+                '--modal-bg': 'rgba(0, 0, 0, 0.7)',
+                '--modal-panel': '#2e4a15'
+            },
+            sunset: {
+                name: 'Sunset',
+                '--bg-gradient-start': '#ff6b6b',
+                '--bg-gradient-end': '#ffd93d',
+                '--text-primary': '#ffffff',
+                '--text-secondary': '#ffe0b2',
+                '--panel-bg': 'rgba(50, 20, 0, 0.6)',
+                '--panel-border': '#ff9800',
+                '--btn-primary': '#ff9800',
+                '--btn-hover': '#f57c00',
+                '--btn-danger': '#d32f2f',
+                '--btn-warning': '#ffc107',
+                '--btn-success': '#689f38',
+                '--canvas-bg': '#fff8e1',
+                '--canvas-grid': '#ffecb3',
+                '--target-current': '#ffc107',
+                '--target-completed': '#8bc34a',
+                '--target-future': '#ffcc80',
+                '--player-color': '#ff6f00',
+                '--player-stroke': '#e65100',
+                '--progress-bg': 'rgba(255, 255, 255, 0.2)',
+                '--progress-fill': '#ff9800',
+                '--input-bg': 'rgba(255, 255, 255, 0.15)',
+                '--input-border': '#ff9800',
+                '--slider-track': 'rgba(255, 255, 255, 0.3)',
+                '--slider-thumb': '#ff9800',
+                '--modal-bg': 'rgba(0, 0, 0, 0.6)',
+                '--modal-panel': '#5d4037'
+            },
+            midnight: {
+                name: 'Midnight Blue',
+                '--bg-gradient-start': '#191970',
+                '--bg-gradient-end': '#000033',
+                '--text-primary': '#ffffff',
+                '--text-secondary': '#9999ff',
+                '--panel-bg': 'rgba(0, 0, 20, 0.7)',
+                '--panel-border': '#6666ff',
+                '--btn-primary': '#6666ff',
+                '--btn-hover': '#5555ee',
+                '--btn-danger': '#ff4444',
+                '--btn-warning': '#ffaa00',
+                '--btn-success': '#44ff44',
+                '--canvas-bg': '#e8e8ff',
+                '--canvas-grid': '#d0d0ff',
+                '--target-current': '#ffff00',
+                '--target-completed': '#00ff00',
+                '--target-future': '#8888ff',
+                '--player-color': '#7777ff',
+                '--player-stroke': '#5555dd',
+                '--progress-bg': 'rgba(255, 255, 255, 0.1)',
+                '--progress-fill': '#6666ff',
+                '--input-bg': 'rgba(255, 255, 255, 0.1)',
+                '--input-border': '#6666ff',
+                '--slider-track': 'rgba(255, 255, 255, 0.2)',
+                '--slider-thumb': '#6666ff',
+                '--modal-bg': 'rgba(0, 0, 0, 0.8)',
+                '--modal-panel': '#1a1a3e'
+            }
+        };
+        
+        // Load and apply saved theme
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('selectedTheme') || 'skyblue';
+            applyTheme(savedTheme);
+            document.getElementById('themeSelector').value = savedTheme;
+        }
+        
+        // Apply theme
+        function applyTheme(themeName) {
+            const theme = themes[themeName];
+            if (!theme) return;
+            
+            const root = document.documentElement;
+            for (const [property, value] of Object.entries(theme)) {
+                if (property.startsWith('--')) {
+                    root.style.setProperty(property, value);
+                }
+            }
+        }
+        
+        // Change theme
+        window.changeTheme = function() {
+            const selector = document.getElementById('themeSelector');
+            const themeName = selector.value;
+            applyTheme(themeName);
+            localStorage.setItem('selectedTheme', themeName);
+        };
+        
         // Custom presets storage key
         const CUSTOM_PRESETS_KEY = 'sonarModeCustomPresets';
         
@@ -975,11 +1284,11 @@
             const ctx = game.ctx;
             
             // Clear canvas
-            ctx.fillStyle = '#f0f0f0';
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg');
             ctx.fillRect(0, 0, game.canvas.width, game.canvas.height);
             
             // Draw grid
-            ctx.strokeStyle = '#e0e0e0';
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--canvas-grid');
             ctx.lineWidth = 1;
             for (let i = 0; i <= game.canvas.width; i += 50) {
                 ctx.beginPath();
@@ -1023,26 +1332,33 @@
                 ctx.arc(loc.x, loc.y, loc.radius, 0, Math.PI * 2);
                 
                 if (loc.visited) {
-                    ctx.fillStyle = '#4caf50'; // Green for completed
+                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--target-completed');
                     ctx.fill();
                 } else if (index === game.currentTargetIndex) {
                     // Pulsing effect for current target
                     const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
-                    ctx.fillStyle = `rgba(255, 235, 59, ${pulse})`; // Yellow
+                    const targetColor = getComputedStyle(document.documentElement).getPropertyValue('--target-current');
+                    
+                    // Parse RGB values for opacity animation (simplified approach)
+                    ctx.fillStyle = targetColor;
+                    ctx.globalAlpha = pulse;
                     ctx.fill();
-                    ctx.strokeStyle = '#ffc107';
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = targetColor;
                     ctx.lineWidth = 3;
                     ctx.stroke();
                     
                     // Draw tolerance circle
                     ctx.beginPath();
                     ctx.arc(loc.x, loc.y, loc.radius + game.tolerance, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'rgba(255, 235, 59, 0.3)';
+                    ctx.strokeStyle = targetColor;
+                    ctx.globalAlpha = 0.3;
                     ctx.setLineDash([5, 5]);
                     ctx.stroke();
+                    ctx.globalAlpha = 1;
                     ctx.setLineDash([]);
                 } else {
-                    ctx.fillStyle = '#999'; // Gray for future targets
+                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--target-future');
                     ctx.fill();
                 }
                 
@@ -1071,17 +1387,20 @@
             if (!game.hidePosition) {
                 ctx.beginPath();
                 ctx.arc(game.player.x, game.player.y, game.player.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#4ecdc4';
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--player-color');
                 ctx.fill();
-                ctx.strokeStyle = '#45b7aa';
+                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--player-stroke');
                 ctx.lineWidth = 2;
                 ctx.stroke();
             } else {
                 // Draw question mark or fog when position is hidden
                 ctx.font = 'bold 48px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillStyle = 'rgba(78, 205, 196, 0.3)';
+                const playerColor = getComputedStyle(document.documentElement).getPropertyValue('--player-color');
+                ctx.fillStyle = playerColor;
+                ctx.globalAlpha = 0.3;
                 ctx.fillText('?', game.canvas.width / 2, game.canvas.height / 2);
+                ctx.globalAlpha = 1;
             }
             
             // Draw player direction indicator (only if position not hidden)
@@ -2163,6 +2482,9 @@
         
         // Initialize on load
         document.addEventListener('DOMContentLoaded', () => {
+            // Load saved theme
+            loadSavedTheme();
+            
             initCanvas();
             resetSimulation();
             setupParameterListeners();
