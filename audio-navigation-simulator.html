@@ -362,7 +362,7 @@
                 <label>Audio Mode:</label>
                 <select id="audioMode" onchange="updateAudioModeUI()">
                     <option value="sonar">Sonar Mode</option>
-                    <option value="shepard" disabled>Shepard Mode (Coming Soon)</option>
+                    <option value="shepard">Shepard Mode</option>
                 </select>
             </div>
             
@@ -550,11 +550,89 @@
                 </div>
             </div>
             
-            <!-- Shepard Mode Parameters (placeholder) -->
+            <!-- Shepard Mode Parameters -->
             <div id="shepardParams" style="display: none;">
                 <div class="param-group">
                     <h4>Shepard Tone Parameters</h4>
-                    <p style="color: #aaa; font-size: 14px;">Coming soon...</p>
+                    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 15px;">
+                        Infinite illusion with distance-based frequency mapping.<br>
+                        <strong>f₀ = 48400 / distance</strong> (220Hz at 220px)<br>
+                        Gaussian envelope centered at modulation frequency.
+                    </p>
+                    
+                    <div class="param-slider">
+                        <label>Modulation Center (Gaussian)</label>
+                        <input type="range" id="shepardBaseFreq" min="100" max="400" value="220" step="10">
+                        <div class="param-value">
+                            <span>100Hz</span>
+                            <span id="shepardBaseFreqValue">220Hz</span>
+                            <span>400Hz</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Octave Range (±)</label>
+                        <input type="range" id="shepardOctaveRange" min="2" max="4" value="3" step="1">
+                        <div class="param-value">
+                            <span>±2</span>
+                            <span id="shepardOctaveRangeValue">±3</span>
+                            <span>±4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Gaussian Width</label>
+                        <input type="range" id="shepardGaussianWidth" min="0.5" max="2.0" value="1.2" step="0.1">
+                        <div class="param-value">
+                            <span>0.5</span>
+                            <span id="shepardGaussianWidthValue">1.2</span>
+                            <span>2.0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Chromatic Shift Speed</label>
+                        <input type="range" id="shepardSweepSpeed" min="0" max="5" value="0" step="0.5">
+                        <div class="param-value">
+                            <span>Off</span>
+                            <span id="shepardSweepSpeedValue">0.0</span>
+                            <span>5.0/s</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Smoothing</label>
+                        <input type="range" id="shepardSmoothing" min="0.8" max="0.99" value="0.95" step="0.01">
+                        <div class="param-value">
+                            <span>0.8</span>
+                            <span id="shepardSmoothingValue">0.95</span>
+                            <span>0.99</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-slider">
+                        <label>Volume</label>
+                        <input type="range" id="shepardVolume" min="0" max="100" value="30" step="5">
+                        <div class="param-value">
+                            <span>0%</span>
+                            <span id="shepardVolumeValue">30%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="param-group">
+                    <h4>Distance → Frequency Mapping</h4>
+                    <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                        <div>📏 <strong>110px:</strong> 440Hz (A4)</div>
+                        <div>📏 <strong>220px:</strong> 220Hz (A3)</div>
+                        <div>📏 <strong>440px:</strong> 110Hz (A2)</div>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <strong>Movement adds chromatic shift:</strong><br>
+                            🔼 Approaching: +semitones<br>
+                            🔽 Moving away: -semitones
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -826,7 +904,15 @@
                 waveType: 'sine'
             },
             shepard: {
-                // To be implemented
+                baseFreq: 220,          // Gaussian envelope center frequency (for modulation)
+                gaussianWidth: 1.2,     // Width of Gaussian envelope
+                sweepSpeed: 0,          // Chromatic shift speed (0 = distance-only mapping)
+                direction: 0,           // -1 (down), 0 (neutral), 1 (up)
+                volume: 30,             // Overall volume
+                smoothing: 0.92,        // Smoothing factor for direction changes
+                octaveRange: 3,         // Number of octaves above and below center
+                minDist: 20,            // Min distance for effect (not used in new formula)
+                maxDist: 400            // Max distance for effect (not used in new formula)
             }
         };
         
@@ -1490,11 +1576,22 @@
                 }
                 
                 // Play navigation sound
-                const now = Date.now();
-                const soundInterval = getSoundInterval(distance);
-                if (now - game.lastSoundTime > soundInterval) {
-                    playNavigationAudio(distance);
-                    game.lastSoundTime = now;
+                if (game.audioMode === 'shepard') {
+                    // Shepard tone is continuous, just update it
+                    if (game.audioEnabled) {
+                        if (!shepardState.isPlaying) {
+                            initShepardTone();
+                        }
+                        updateShepardTone(distance, game.lastDistance);
+                    }
+                } else {
+                    // Other modes use interval-based sounds
+                    const now = Date.now();
+                    const soundInterval = getSoundInterval(distance);
+                    if (now - game.lastSoundTime > soundInterval) {
+                        playNavigationAudio(distance);
+                        game.lastSoundTime = now;
+                    }
                 }
                 
                 // Update audio info
@@ -1526,6 +1623,176 @@
             // Linear interpolation
             const ratio = (value - inMin) / (inMax - inMin);
             return outMin + ratio * (outMax - outMin);
+        }
+        
+        // Shepard Tone Implementation
+        let shepardAudioContext = null;
+        let shepardState = {
+            oscillators: [],
+            gainNodes: [],
+            masterGain: null,
+            isPlaying: false,
+            phase: 0,
+            lastUpdateTime: 0,
+            currentDirection: 0,
+            smoothedDirection: 0,
+            basePhase: 0
+        };
+        
+        // Initialize Shepard tone oscillators
+        function initShepardTone() {
+            if (!shepardAudioContext) {
+                shepardAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Clean up existing oscillators
+            stopShepardTone();
+            
+            const params = audioParams.shepard;
+            
+            // Create master gain node
+            shepardState.masterGain = shepardAudioContext.createGain();
+            shepardState.masterGain.gain.value = params.volume / 100;
+            shepardState.masterGain.connect(shepardAudioContext.destination);
+            
+            // Create oscillators for multiple octaves
+            // We'll create oscillators from -octaveRange to +octaveRange around base frequency
+            const octaveRange = params.octaveRange;
+            for (let octave = -octaveRange; octave <= octaveRange; octave++) {
+                const osc = shepardAudioContext.createOscillator();
+                const gain = shepardAudioContext.createGain();
+                
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(shepardState.masterGain);
+                
+                // Initial frequency at this octave (start with 220Hz as default)
+                const initialFundamental = 220;
+                const initialFreq = initialFundamental * Math.pow(2, octave);
+                osc.frequency.value = initialFreq;
+                
+                // Calculate initial amplitude using Gaussian envelope
+                // Envelope is centered at baseFreq parameter (modulation center)
+                const x = Math.log(initialFreq / params.baseFreq) / Math.log(2);
+                const B = params.gaussianWidth;
+                const amplitude = Math.exp(-(B * x) * (B * x));
+                gain.gain.value = amplitude * 0.25; // Scale down to prevent clipping
+                
+                shepardState.oscillators.push(osc);
+                shepardState.gainNodes.push(gain);
+                
+                osc.start();
+            }
+            
+            shepardState.isPlaying = true;
+            shepardState.lastUpdateTime = shepardAudioContext.currentTime;
+            shepardState.phase = 0;
+            shepardState.smoothedDirection = 0;
+        }
+        
+        // Stop Shepard tone
+        function stopShepardTone() {
+            if (shepardState.isPlaying) {
+                shepardState.oscillators.forEach(osc => {
+                    try {
+                        osc.stop();
+                        osc.disconnect();
+                    } catch (e) {}
+                });
+                
+                shepardState.gainNodes.forEach(gain => {
+                    try {
+                        gain.disconnect();
+                    } catch (e) {}
+                });
+                
+                if (shepardState.masterGain) {
+                    shepardState.masterGain.disconnect();
+                }
+                
+                shepardState.oscillators = [];
+                shepardState.gainNodes = [];
+                shepardState.isPlaying = false;
+            }
+        }
+        
+        // Update Shepard tone based on movement
+        function updateShepardTone(distance, lastDistance) {
+            if (!shepardState.isPlaying || game.audioMode !== 'shepard') return;
+            
+            const params = audioParams.shepard;
+            const currentTime = shepardAudioContext.currentTime;
+            const deltaTime = currentTime - shepardState.lastUpdateTime;
+            shepardState.lastUpdateTime = currentTime;
+            
+            // Calculate the fundamental frequency based on distance
+            // w[0] = (referenceFreq^2) / distance
+            // Using 220 as reference: at 220px we get 220Hz, at 110px we get 440Hz, etc.
+            const referenceFreq = 220; // Fixed reference for distance mapping
+            const clampedDistance = Math.max(50, Math.min(1000, distance)); // Clamp to reasonable range
+            const fundamentalFreq = (referenceFreq * referenceFreq) / clampedDistance;
+            
+            // Determine movement direction for optional chromatic shifting
+            let targetDirection = 0;
+            if (lastDistance !== null && Math.abs(distance - lastDistance) > 0.1) {
+                if (distance < lastDistance) {
+                    targetDirection = 1;  // Getting closer = ascending
+                } else if (distance > lastDistance) {
+                    targetDirection = -1; // Getting farther = descending
+                }
+            }
+            
+            // Smooth the direction change
+            shepardState.smoothedDirection = shepardState.smoothedDirection * params.smoothing + 
+                                           targetDirection * (1 - params.smoothing);
+            
+            // Optional: Add chromatic shifting based on movement (can be disabled by setting sweepSpeed to 0)
+            shepardState.phase += shepardState.smoothedDirection * params.sweepSpeed * deltaTime * 12;
+            
+            // Wrap phase to stay within an octave
+            if (shepardState.phase > 12) {
+                shepardState.phase -= 12;
+            } else if (shepardState.phase < -12) {
+                shepardState.phase += 12;
+            }
+            
+            // Calculate frequency shift multiplier for chromatic movement
+            const chromaticMultiplier = Math.exp(Math.log(2) * shepardState.phase / 12);
+            
+            // Update each oscillator
+            const octaveRange = params.octaveRange;
+            for (let i = 0; i < shepardState.oscillators.length; i++) {
+                const octave = i - octaveRange; // Convert index back to octave number
+                
+                // Calculate frequency for this octave
+                // w[i] = w[0] * 2^i, where w[0] is distance-dependent
+                const octaveFreq = fundamentalFreq * Math.pow(2, octave);
+                
+                // Apply optional chromatic shifting
+                const finalFreq = octaveFreq * chromaticMultiplier;
+                
+                // Calculate amplitude using Gaussian envelope
+                // The envelope is ONLY centered at the baseFreq parameter (not affected by distance)
+                // x = ln(freq / centerFreq) / ln(2) for logarithmic scaling
+                const x = Math.log(finalFreq / params.baseFreq) / Math.log(2);
+                const B = params.gaussianWidth; // Width parameter from settings
+                const amplitude = Math.exp(-(B * x) * (B * x));
+                
+                // Apply frequency and amplitude with smoothing
+                if (shepardState.oscillators[i]) {
+                    shepardState.oscillators[i].frequency.setTargetAtTime(
+                        finalFreq, 
+                        currentTime, 
+                        0.02 // Smooth transition time
+                    );
+                    
+                    shepardState.gainNodes[i].gain.setTargetAtTime(
+                        amplitude * 0.25, // Scale to prevent clipping
+                        currentTime, 
+                        0.02
+                    );
+                }
+            }
         }
         
         // Get frequency based on distance using current mode parameters
@@ -1674,27 +1941,58 @@
             document.getElementById('audioModeDisplay').textContent = 
                 game.audioMode.charAt(0).toUpperCase() + game.audioMode.slice(1);
             
-            // Get calculated frequency based on current parameters
-            const frequency = getFrequencyForDistance(distance);
-            document.getElementById('audioFreq').textContent = `${Math.round(frequency)} Hz`;
-            
-            // Update frequency progress bar
-            const freqPercent = ((frequency - params.minFreq) / (params.maxFreq - params.minFreq)) * 100;
-            document.getElementById('freqBar').style.width = `${Math.max(0, Math.min(100, freqPercent))}%`;
-            
-            // Get interval and determine pattern description
-            const interval = getSoundInterval(distance);
-            let pattern = 'Silent';
-            if (interval < 300) pattern = 'Rapid';
-            else if (interval < 600) pattern = 'Fast';
-            else if (interval < 1000) pattern = 'Medium';
-            else if (interval < 2000) pattern = 'Slow';
-            else pattern = 'Very Slow';
-            document.getElementById('audioPattern').textContent = `${pattern} (${Math.round(interval)}ms)`;
-            
-            // Update interval progress bar (inverted - faster = fuller bar)
-            const intervalPercent = ((params.maxInterval - interval) / (params.maxInterval - params.minInterval)) * 100;
-            document.getElementById('intervalBar').style.width = `${Math.max(0, Math.min(100, intervalPercent))}%`;
+            if (game.audioMode === 'shepard') {
+                // Calculate fundamental frequency from distance
+                const clampedDistance = Math.max(50, Math.min(1000, distance));
+                const fundamentalFreq = (220 * 220) / clampedDistance;
+                
+                // Shepard mode shows calculated frequency and movement direction
+                let directionText = 'Stable';
+                let directionSymbol = '⏸️';
+                
+                if (shepardState.smoothedDirection > 0.2) {
+                    directionText = 'Rising shift';
+                    directionSymbol = '🔼';
+                } else if (shepardState.smoothedDirection < -0.2) {
+                    directionText = 'Falling shift';
+                    directionSymbol = '🔽';
+                }
+                
+                // Show the actual fundamental frequency based on distance
+                document.getElementById('audioFreq').textContent = `${Math.round(fundamentalFreq)} Hz`;
+                document.getElementById('audioPattern').textContent = `${directionSymbol} ${directionText}`;
+                
+                // Show frequency mapping in progress bar (inverse distance relationship)
+                const freqPercent = Math.min(100, (fundamentalFreq / 440) * 100);
+                document.getElementById('freqBar').style.width = `${freqPercent}%`;
+                
+                // Show direction strength in interval bar
+                const directionPercent = Math.abs(shepardState.smoothedDirection) * 100;
+                document.getElementById('intervalBar').style.width = `${directionPercent}%`;
+            } else {
+                // Sonar mode (original behavior)
+                // Get calculated frequency based on current parameters
+                const frequency = getFrequencyForDistance(distance);
+                document.getElementById('audioFreq').textContent = `${Math.round(frequency)} Hz`;
+                
+                // Update frequency progress bar
+                const freqPercent = ((frequency - params.minFreq) / (params.maxFreq - params.minFreq)) * 100;
+                document.getElementById('freqBar').style.width = `${Math.max(0, Math.min(100, freqPercent))}%`;
+                
+                // Get interval and determine pattern description
+                const interval = getSoundInterval(distance);
+                let pattern = 'Silent';
+                if (interval < 300) pattern = 'Rapid';
+                else if (interval < 600) pattern = 'Fast';
+                else if (interval < 1000) pattern = 'Medium';
+                else if (interval < 2000) pattern = 'Slow';
+                else pattern = 'Very Slow';
+                document.getElementById('audioPattern').textContent = `${pattern} (${Math.round(interval)}ms)`;
+                
+                // Update interval progress bar (inverted - faster = fuller bar)
+                const intervalPercent = ((params.maxInterval - interval) / (params.maxInterval - params.minInterval)) * 100;
+                document.getElementById('intervalBar').style.width = `${Math.max(0, Math.min(100, intervalPercent))}%`;
+            }
             
             // Show actual volume from parameters
             document.getElementById('audioVolume').textContent = `${params.volume}%`;
@@ -1789,6 +2087,9 @@
             game.lastDistance = null;
             game.movementDirection = 'neutral';
             
+            // Stop Shepard tone if playing
+            stopShepardTone();
+            
             generateLocations();
             draw();
             
@@ -1810,6 +2111,11 @@
             const btn = document.getElementById('audioBtn');
             btn.textContent = game.audioEnabled ? '🔊 Audio ON' : '🔇 Audio OFF';
             btn.className = game.audioEnabled ? '' : 'active';
+            
+            // Stop Shepard tone if audio disabled
+            if (!game.audioEnabled) {
+                stopShepardTone();
+            }
             
             // Also toggle in audio module
             if (game.audioEnabled !== isAudioOn()) {
@@ -2105,7 +2411,13 @@
         // Update audio mode UI
         window.updateAudioModeUI = function() {
             const mode = document.getElementById('audioMode').value;
+            const previousMode = game.audioMode;
             game.audioMode = mode;
+            
+            // Stop Shepard tone if switching away from Shepard mode
+            if (previousMode === 'shepard' && mode !== 'shepard') {
+                stopShepardTone();
+            }
             
             // Show/hide appropriate parameter panels
             document.getElementById('sonarParams').style.display = mode === 'sonar' ? 'block' : 'none';
@@ -2421,6 +2733,16 @@
             drawIntervalPlot();
         }
         
+        // Update Shepard parameter displays
+        function updateShepardParamDisplays() {
+            document.getElementById('shepardBaseFreqValue').textContent = audioParams.shepard.baseFreq + 'Hz';
+            document.getElementById('shepardOctaveRangeValue').textContent = '±' + audioParams.shepard.octaveRange;
+            document.getElementById('shepardGaussianWidthValue').textContent = audioParams.shepard.gaussianWidth.toFixed(1);
+            document.getElementById('shepardSweepSpeedValue').textContent = audioParams.shepard.sweepSpeed.toFixed(1);
+            document.getElementById('shepardSmoothingValue').textContent = audioParams.shepard.smoothing.toFixed(2);
+            document.getElementById('shepardVolumeValue').textContent = audioParams.shepard.volume + '%';
+        }
+        
         // Setup parameter change listeners
         function setupParameterListeners() {
             // Distance parameters
@@ -2478,6 +2800,46 @@
             document.getElementById('sonarWaveType').addEventListener('change', (e) => {
                 audioParams.sonar.waveType = e.target.value;
             });
+            
+            // Shepard parameters
+            document.getElementById('shepardBaseFreq').addEventListener('input', (e) => {
+                audioParams.shepard.baseFreq = parseInt(e.target.value);
+                updateShepardParamDisplays();
+            });
+            
+            document.getElementById('shepardOctaveRange').addEventListener('input', (e) => {
+                audioParams.shepard.octaveRange = parseInt(e.target.value);
+                updateShepardParamDisplays();
+                // Restart Shepard tone if playing to apply new octave range
+                if (shepardState.isPlaying) {
+                    stopShepardTone();
+                    initShepardTone();
+                }
+            });
+            
+            document.getElementById('shepardGaussianWidth').addEventListener('input', (e) => {
+                audioParams.shepard.gaussianWidth = parseFloat(e.target.value);
+                updateShepardParamDisplays();
+            });
+            
+            document.getElementById('shepardSweepSpeed').addEventListener('input', (e) => {
+                audioParams.shepard.sweepSpeed = parseFloat(e.target.value);
+                updateShepardParamDisplays();
+            });
+            
+            document.getElementById('shepardSmoothing').addEventListener('input', (e) => {
+                audioParams.shepard.smoothing = parseFloat(e.target.value);
+                updateShepardParamDisplays();
+            });
+            
+            document.getElementById('shepardVolume').addEventListener('input', (e) => {
+                audioParams.shepard.volume = parseInt(e.target.value);
+                updateShepardParamDisplays();
+                // Update volume in real-time if playing
+                if (shepardState.masterGain) {
+                    shepardState.masterGain.gain.value = audioParams.shepard.volume / 100;
+                }
+            });
         }
         
         // Initialize on load
@@ -2489,6 +2851,7 @@
             resetSimulation();
             setupParameterListeners();
             updateSonarParamDisplays();
+            updateShepardParamDisplays();
             
             // Initialize plots
             setTimeout(() => {
