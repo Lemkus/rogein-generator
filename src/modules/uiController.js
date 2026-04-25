@@ -317,6 +317,20 @@ function setupEventHandlers() {
     gpxFileInput.click();
   });
   savedRoutesMenuItem.addEventListener('click', handleShowSavedRoutes);
+
+  const openLinkMenuItem = document.getElementById('openLinkMenuItem');
+  if (openLinkMenuItem) {
+    openLinkMenuItem.addEventListener('click', async () => {
+      menuModal.classList.remove('show');
+      const input = prompt(
+        'Вставьте ссылку или ID маршрута:\n' +
+        '(например, https://trailspot.app/r/2d4ef14c или 2d4ef14c)'
+      );
+      if (input && window.openRoute) {
+        await window.openRoute(input);
+      }
+    });
+  }
   
   // GPX файл input
   gpxFileInput.addEventListener('change', handleLoadGPX);

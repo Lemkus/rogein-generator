@@ -22,6 +22,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+                Deep link: открывает приложение по ссылке вида
+                https://trailspot.app/r/<route_id>
+                autoVerify=true включает Android App Links (нужно
+                разместить .well-known/assetlinks.json на trailspot.app
+                для бесшовного открытия без диалога выбора).
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="trailspot.app" android:pathPrefix="/r/" />
+                <data android:scheme="http"  android:host="trailspot.app" android:pathPrefix="/r/" />
+            </intent-filter>
+
         </activity>
 
         <!--

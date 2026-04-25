@@ -512,9 +512,71 @@ function renderRouteOnMap(route) {
   }
 }
 
+// Извлекает route_id из любой ссылки вида .../r/<id> или ?routeId=<id>
+function extractRouteIdFromUrl(urlString) {
+  if (!urlString) return null;
+  // /r/<id>
+  const m = urlString.match(/\/r\/([a-f0-9]{6,})/i);
+  if (m) return m[1];
+  // ?routeId=<id> или ?route=<id>
+  try {
+    const u = new URL(urlString);
+    return u.searchParams.get('routeId') || u.searchParams.get('route');
+  } catch {
+    return null;
+  }
+}
+
+// Загружает маршрут по короткому ID и рендерит его
+async function loadShortRoute(routeId) {
+  console.log('🔗 Загружаем маршрут по ID:', routeId);
+  try {
+    const response = await fetch(`${BACKEND_SIMPLE_BASE}/r/${routeId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.points && Array.isArray(data.points) && data.sequence && Array.isArray(data.sequence)) {
+        await restoreRouteFromShareData(data);
+        return true;
+      }
+    } else {
+      addApiLog('❌ Маршрут не найден');
+      alert('Маршрут не найден или срок действия ссылки истёк.');
+    }
+  } catch (e) {
+    console.error('Ошибка загрузки маршрута:', e);
+    addApiLog('❌ Ошибка загрузки маршрута');
+    alert('Ошибка загрузки маршрута из ссылки.');
+  }
+  return false;
+}
+
+// Слушаем deep links из Android (MainActivity → Intent VIEW)
+window.addEventListener('trailspotDeepLink', async (e) => {
+  const url = e.detail || window.__trailspotDeepLink;
+  const id = extractRouteIdFromUrl(url);
+  if (id) await loadShortRoute(id);
+});
+
+// Глобальный хелпер: window.openRoute('https://trailspot.app/r/2d4ef14c')
+// или window.openRoute('2d4ef14c') — для ручной загрузки маршрута
+window.openRoute = async (urlOrId) => {
+  const id = extractRouteIdFromUrl(urlOrId) || String(urlOrId).trim();
+  if (!/^[a-f0-9]{6,}$/i.test(id)) {
+    alert('Неверный ID маршрута. Ожидался hex-ID или ссылка вида trailspot.app/r/<id>');
+    return false;
+  }
+  return await loadShortRoute(id);
+};
+
 // Автозагрузка из URL
 async function bootstrapFromUrl() {
   try {
+    // Android deep link: URL передан из MainActivity при старте
+    if (window.__trailspotDeepLink) {
+      const id = extractRouteIdFromUrl(window.__trailspotDeepLink);
+      if (id && await loadShortRoute(id)) return;
+    }
+
     // Проверяем короткие ссылки типа /r/route_id
     const pathMatch = window.location.pathname.match(/^\/r\/([a-f0-9]{8})$/);
     if (pathMatch) {
