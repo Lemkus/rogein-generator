@@ -1,32 +1,28 @@
 /**
  * Geolocation Adapter
  *
- * Detects whether the app is running inside a Capacitor Android shell.
- * - In Android: uses @capacitor-community/background-geolocation, which runs
- *   as an Android Foreground Service with a persistent notification, so GPS
- *   keeps working when the screen is off or the app is sent to background.
- * - In browser: falls back to the standard navigator.geolocation API.
+ * In Android (Capacitor): uses BackgroundGeolocation plugin via the native
+ * Capacitor bridge (window.Capacitor.Plugins) — runs as Android Foreground
+ * Service so GPS keeps working with screen off or app backgrounded.
  *
- * Usage (drop-in replacement for navigator.geolocation.watchPosition):
+ * In browser: falls back to navigator.geolocation.watchPosition.
  *
+ * Usage:
  *   import { watchPosition, clearWatch } from './android/geolocationAdapter.js';
- *
- *   const watchId = await watchPosition(onPosition, onError, options);
- *   clearWatch(watchId);
+ *   const id = await watchPosition(onSuccess, onError, options);
+ *   clearWatch(id);
  */
 
-const isCapacitor = () =>
+const isCapacitorNative = () =>
   typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
 
-let _bgGeo = null;
-
-async function loadBackgroundGeolocation() {
-  if (_bgGeo) return _bgGeo;
-  const { BackgroundGeolocation } = await import(
-    /* webpackIgnore: true */ '/node_modules/@capacitor-community/background-geolocation/dist/esm/index.js'
-  );
-  _bgGeo = BackgroundGeolocation;
-  return _bgGeo;
+/**
+ * Returns the BackgroundGeolocation plugin from the Capacitor bridge.
+ * Available automatically when running inside the Capacitor WebView —
+ * no imports or node_modules needed.
+ */
+function getBgGeo() {
+  return window.Capacitor?.Plugins?.BackgroundGeolocation ?? null;
 }
 
 /**
@@ -34,68 +30,64 @@ async function loadBackgroundGeolocation() {
  * @returns {Promise<string|number>} watchId to pass to clearWatch()
  */
 export async function watchPosition(onSuccess, onError, options = {}) {
-  if (!isCapacitor()) {
-    return navigator.geolocation.watchPosition(onSuccess, onError, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 1000,
-      ...options,
-    });
-  }
+  const bgGeo = isCapacitorNative() ? getBgGeo() : null;
 
-  try {
-    const BackgroundGeolocation = await loadBackgroundGeolocation();
-
-    const watcherId = await BackgroundGeolocation.addWatcher(
-      {
-        backgroundMessage:
-          'TrailSpot продолжает навигацию. Следуйте аудио-подсказкам.',
-        backgroundTitle: 'Навигация активна',
-        requestPermissions: true,
-        stale: false,
-        distanceFilter: 3,
-      },
-      (location, error) => {
-        if (error) {
-          if (error.code === 'NOT_AUTHORIZED') {
-            onError({
-              code: 1,
-              message:
-                'Нет разрешения на геолокацию. ' +
-                'Откройте Настройки → Приложения → TrailSpot → Разрешения ' +
-                'и разрешите геолокацию "Всегда".',
-            });
-          } else {
-            onError({ code: 2, message: error.message || 'GPS error' });
+  if (bgGeo) {
+    try {
+      const watcherId = await bgGeo.addWatcher(
+        {
+          backgroundMessage:
+            'TrailSpot продолжает навигацию. Следуйте аудио-подсказкам.',
+          backgroundTitle: 'Навигация активна',
+          requestPermissions: true,
+          stale: false,
+          distanceFilter: 3,
+        },
+        (location, error) => {
+          if (error) {
+            if (error.code === 'NOT_AUTHORIZED') {
+              onError({
+                code: 1,
+                message:
+                  'Нет разрешения на геолокацию. ' +
+                  'Откройте Настройки → Приложения → TrailSpot → Разрешения ' +
+                  'и разрешите геолокацию "Всегда".',
+              });
+            } else {
+              onError({ code: 2, message: error.message || 'GPS error' });
+            }
+            return;
           }
-          return;
+
+          onSuccess({
+            coords: {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: location.accuracy,
+              altitude: location.altitude,
+              altitudeAccuracy: location.altitudeAccuracy,
+              heading: location.bearing,
+              speed: location.speed,
+            },
+            timestamp: location.time,
+          });
         }
+      );
 
-        onSuccess({
-          coords: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy,
-            altitude: location.altitude,
-            altitudeAccuracy: location.altitudeAccuracy,
-            heading: location.bearing,
-            speed: location.speed,
-          },
-          timestamp: location.time,
-        });
-      }
-    );
-
-    return watcherId;
-  } catch (err) {
-    console.warn('[GeoAdapter] BackgroundGeolocation failed, using browser API:', err);
-    return navigator.geolocation.watchPosition(onSuccess, onError, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 1000,
-      ...options,
-    });
+      console.log('[GeoAdapter] BackgroundGeolocation watcher started:', watcherId);
+      return watcherId;
+    } catch (err) {
+      console.warn('[GeoAdapter] BackgroundGeolocation failed, using browser API:', err);
+    }
   }
+
+  // Browser fallback
+  return navigator.geolocation.watchPosition(onSuccess, onError, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 1000,
+    ...options,
+  });
 }
 
 /**
@@ -103,36 +95,19 @@ export async function watchPosition(onSuccess, onError, options = {}) {
  * @param {string|number} watchId returned by watchPosition()
  */
 export async function clearWatch(watchId) {
-  if (!isCapacitor() || typeof watchId === 'number') {
-    navigator.geolocation.clearWatch(watchId);
-    return;
+  if (watchId === null || watchId === undefined) return;
+
+  const bgGeo = isCapacitorNative() ? getBgGeo() : null;
+
+  if (bgGeo && typeof watchId === 'string') {
+    try {
+      await bgGeo.removeWatcher({ id: watchId });
+      console.log('[GeoAdapter] BackgroundGeolocation watcher removed');
+      return;
+    } catch (err) {
+      console.warn('[GeoAdapter] removeWatcher failed:', err);
+    }
   }
 
-  try {
-    const BackgroundGeolocation = await loadBackgroundGeolocation();
-    await BackgroundGeolocation.removeWatcher({ id: watchId });
-  } catch (err) {
-    console.warn('[GeoAdapter] removeWatcher failed:', err);
-  }
-}
-
-/**
- * Request location permissions upfront (Android only).
- * Call this before starting navigation so the permission dialog
- * appears at a natural moment, not mid-navigation.
- */
-export async function requestPermissions() {
-  if (!isCapacitor()) return true;
-
-  try {
-    const BackgroundGeolocation = await loadBackgroundGeolocation();
-    await BackgroundGeolocation.addWatcher(
-      { requestPermissions: true, stale: true },
-      () => {}
-    ).then(id => BackgroundGeolocation.removeWatcher({ id }));
-    return true;
-  } catch (err) {
-    console.warn('[GeoAdapter] requestPermissions failed:', err);
-    return false;
-  }
+  navigator.geolocation.clearWatch(watchId);
 }
