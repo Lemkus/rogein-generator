@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>TrailSpot - Find Your Spots on the Trail</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TrailSpot">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta http-equiv="Last-Modified" content="0">
+  <meta http-equiv="ETag" content="">
+  <link rel="apple-touch-icon" href="/assets/icons/MainLogo.png">
+  <script>
+    // Версия приложения для cache-busting всех ресурсов
+    // ОБНОВЛЯЕТСЯ АВТОМАТИЧЕСКИ ПРИ ДЕПЛОЕ!
+    window.APP_VERSION = '1.12.71';
+    window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
+  </script>
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.71" />
+  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.71" />
+  <style>
+    /* ========== БАЗОВЫЕ СТИЛИ ========== */
+    html {
+      margin: 0 !important;
+      padding: 0 !important;
+      height: 100% !important;
+      width: 100% !important;
+      overflow: hidden !important;
+      box-sizing: border-box;
+      background: transparent !important;
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: transparent !important;
+      overflow: hidden !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-width: 100vw !important;
+      min-height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+    }
+    
+    /* Убираем все возможные отступы и зазоры */
+    body::after,
+    body::before {
+      display: none !important;
+      content: none !important;
+    }
+    
+    /* ========== ИСПРАВЛЕНИЕ ОШИБОК LEAFLET DRAW ========== */
+    .leaflet-draw-toolbar a {
+      background-image: none !important;
+    }
+    
+    /* Позиционируем элементы управления полигона под командами управления справа */
+    .leaflet-right .leaflet-draw-actions {
+      right: 10px !important; /* Выравниваем с правым краем top-toolbar */
+      left: auto !important;
+      top: 64px !important; /* Под top-toolbar (10px top + 44px высота кнопки + 10px отступ) */
+    }
+    
+    .leaflet-touch .leaflet-right .leaflet-draw-actions {
+      right: 10px !important;
+      left: auto !important;
+      top: 64px !important;
+    }
+    
+    /* Позиционируем подсказки Leaflet Draw под командами управления справа */
+    .leaflet-draw-tooltip {
+      position: fixed !important;
+      right: 10px !important;
+      left: auto !important;
+      top: 110px !important; /* Под элементами управления (64px top + 46px высота) */
+      margin-left: 0 !important;
+      margin-top: 0 !important;
+      z-index: 1001 !important;
+    }
+    
+    .leaflet-draw-tooltip:before {
+      display: none !important; /* Скрываем стрелку, так как подсказка не привязана к курсору */
+    }
+    
+    /* ========== КАРТА (ПОЛНОЭКРАННАЯ) ========== */
+    #map { 
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-width: 100vw !important;
+      min-height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      z-index: 1;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    /* Убеждаемся что контейнер Leaflet занимает весь экран */
+    #map .leaflet-container,
+    #map .leaflet-pane,
+    #map .leaflet-map-pane {
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      min-width: 100% !important;
+      min-height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+    }
+    
+    /* Убираем украинский флаг из атрибуции Leaflet */
+    .leaflet-attribution-flag {
+      display: none !important;
+    }
+    
+    /* ========== ВЕРХНЯЯ ПАНЕЛЬ ИКОНОК ========== */
+    .top-toolbar {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    /* Иконка инструкции (левый верхний угол) */
+    .top-left-info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+    }
+    .top-left-info .icon-btn { width: 56px; height: 56px; padding: 10px; }
+    .top-left-info .icon-btn img { width: 100%; height: 100%; object-fit: contain; }
+    
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 50%;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .icon-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    /* ========== ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ========== */
+    .left-controls {
+      position: fixed;
+      left: 10px;
+      top: 20%;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .left-bottom-controls {
+      position: fixed;
+      left: 10px;
+      bottom: 80px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    /* На мобилках поднимаем кнопки выше чтобы не мешали info-panel */
+    @media (max-width: 768px) {
+      .left-bottom-controls {
+        bottom: 200px; /* Выше info-panel */
+      }
+    }
+    
+    /* ========== КНОПКИ РИСОВАНИЯ ОБЛАСТИ ========== */
+    #drawAreaBtn, #polygonBtn {
+      position: relative;
+    }
+    
+    #drawAreaBtn.active, #polygonBtn.active {
+      background: #4CAF50;
+      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+      }
+    }
+    
+    /* ========== ПОДСКАЗКА-СТИКЕР ========== */
+    .hint-sticker {
+      position: fixed;
+      left: 70px;
+      top: 20%;
+      z-index: 1001;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-width: 220px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      display: none;
+    }
+    
+    .hint-sticker::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-right: 8px solid white;
+    }
+    
+    .hint-sticker.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    /* ========== КРЕСТИК ДЛЯ ОЧИСТКИ ОБЛАСТИ ========== */
+    .clear-area-btn {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: white;
+      border: 2px solid #d32f2f;
+      border-radius: 50%;
+      color: #d32f2f;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 999;
+      line-height: 1;
+      padding: 0;
+    }
+    
+    .clear-area-btn:hover {
+      background: #d32f2f;
+      color: white;
+    }
+    
+    /* ========== ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ) ========== */
+    .info-panel {
+      position: fixed;
+      left: 10px;
+      top: 20%;
+      z-index: 1000;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      padding: 12px;
+      max-width: 280px;
+      display: none;
+    }
+    
+    .info-panel.show {
+      display: block;
+    }
+    
+    /* Кнопка сворачивания скрыта на десктопе */
+    .info-panel-toggle-btn {
+      display: none;
+    }
+    
+    /* На мобилках скрываем footer и прижимаем info-panel к низу */
+    @media (max-width: 768px) {
+      /* Делаем attribution прозрачным и компактным, но оставляем видимым */
+      .leaflet-control-attribution {
+        background: transparent !important;
+        background-color: transparent !important;
+        padding: 2px 4px !important;
+        margin: 0 !important;
+        font-size: 9px !important;
+        line-height: 1.1 !important;
+        bottom: 0 !important;
+      }
+      
+      /* Убираем все отступы у элементов Leaflet внизу */
+      .leaflet-bottom {
+        bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Убираем отступы у всех Leaflet контролов внизу */
+      .leaflet-control-container .leaflet-bottom {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Полностью убираем footer из потока документа на мобилках */
+      body footer,
+      html body footer,
+      footer,
+      body.navigating footer,
+      #map ~ footer,
+      body > footer,
+      html footer {
+        display: none !important;
+      }
+      
+      /* Убеждаемся что карта занимает весь экран до самого низа */
+      #map {
+        bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+      }
+      
+      /* Убеждаемся что Leaflet контейнеры занимают весь экран до самого низа */
+      #map .leaflet-container,
+      #map .leaflet-pane,
+      #map .leaflet-map-pane,
+      #map .leaflet-viewport {
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        bottom: 0 !important;
+      }
+      
+      /* Убеждаемся что карта растягивается под attribution control */
+      #map .leaflet-control-container {
+        bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Убираем все возможные отступы у body и html */
+      html, body {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      
+      .info-panel {
+        left: 10px !important;
+        right: 10px !important;
+        top: auto !important;
+        bottom: max(0px, env(safe-area-inset-bottom, 0px)) !important; /* Прижимаем к низу с учетом safe-area для iOS */
+        max-width: none !important;
+        max-height: 80dvh !important; /* Используем dynamic viewport height если доступно */
+        max-height: 80vh !important; /* Fallback для старых браузеров */
+        overflow-y: auto;
+        z-index: 1001 !important;
+        position: fixed !important;
+        border-radius: 12px 12px 0 0 !important; /* Скругление только сверху */
+        transform: translateY(0) !important; /* Принудительное позиционирование */
+        will-change: transform, bottom; /* Оптимизация для анимаций */
+      }
+      
+      /* Убеждаемся что info-panel виден когда показывается */
+      .info-panel.show {
+        display: block !important;
+        visibility: visible !important;
+      }
+      
+      /* Скрываем info-panel только если он не имеет класса show */
+      .info-panel:not(.show) {
+        display: none !important;
+      }
+      
+      /* Кнопка сворачивания/разворачивания */
+      .info-panel-toggle-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
+      }
+      
+      .info-panel-toggle-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .info-panel-toggle-btn svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 0.2s ease;
+      }
+      
+      .info-panel.collapsed .info-panel-toggle-btn svg {
+        transform: rotate(180deg);
+      }
+      
+      /* Свернутое состояние */
+      .info-panel.collapsed {
+        max-height: 50px !important;
+        overflow: hidden !important;
+      }
+      
+      .info-panel.collapsed .info-panel-content {
+        display: none;
+      }
+    }
+    
+    /* Оптимизация для горизонтальной ориентации на мобилках */
+    @media (max-width: 768px) and (orientation: landscape) {
+      /* Убеждаемся что приложение на весь экран */
+      html, body {
+        width: 100vw !important;
+        height: 100vh !important;
+        min-width: 100vw !important;
+        min-height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+      }
+      
+      #map {
+        width: 100vw !important;
+        height: 100vh !important;
+        min-width: 100vw !important;
+        min-height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+      }
+      
+      #map .leaflet-container,
+      #map .leaflet-pane,
+      #map .leaflet-map-pane {
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 100% !important;
+        min-height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+      
+      /* Уменьшаем размеры кнопок */
+      .icon-btn {
+        width: 36px !important;
+        height: 36px !important;
+        padding: 6px !important;
+      }
+      
+      .top-left-info .icon-btn {
+        width: 40px !important;
+        height: 40px !important;
+        padding: 8px !important;
+      }
+      
+      /* Уменьшаем отступы верхней панели */
+      .top-toolbar {
+        top: 5px !important;
+        right: 5px !important;
+        gap: 6px !important;
+      }
+      
+      .top-left-info {
+        top: 5px !important;
+        left: 5px !important;
+      }
+      
+      /* Уменьшаем левые панели управления - сдвигаем ниже чтобы не налезали на top-left-info */
+      .left-controls {
+        left: 5px !important;
+        top: 60px !important; /* Ниже значка информации */
+        gap: 6px !important;
+      }
+      
+      /* Правые кнопки зума - сдвигаем ниже чтобы не налезали на top-toolbar */
+      .left-bottom-controls {
+        left: auto !important;
+        right: 5px !important;
+        bottom: auto !important;
+        top: 60px !important; /* Ниже верхней панели */
+        gap: 6px !important;
+      }
+      
+      /* Компактный info-panel в landscape */
+      .info-panel {
+        left: 5px !important;
+        right: 5px !important;
+        bottom: 0 !important;
+        max-height: 50vh !important; /* Ограничиваем высоту в landscape */
+        padding: 8px !important;
+        font-size: 12px !important;
+      }
+      
+      .info-panel-header {
+        font-size: 11px !important;
+        margin-bottom: 4px !important;
+      }
+      
+      .info-panel-points {
+        font-size: 12px !important;
+        margin-bottom: 4px !important;
+      }
+      
+      .info-panel-nav-btn {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+        margin-top: 6px !important;
+      }
+      
+      .info-panel-actions {
+        gap: 6px !important;
+        margin-top: 6px !important;
+      }
+      
+      .info-panel-action-btn {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 6px !important;
+      }
+      
+      .sequence-link {
+        font-size: 12px !important;
+      }
+      
+      .sequence-distance {
+        font-size: 11px !important;
+        gap: 4px !important;
+      }
+      
+      .distance-control-btn {
+        font-size: 14px !important;
+        padding: 1px 6px !important;
+        min-width: 20px !important;
+      }
+      
+      /* Уменьшаем подсказки */
+      .hint-sticker {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+        max-width: 200px !important;
+      }
+      
+      /* Уменьшаем кнопку очистки */
+      .clear-area-btn {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 16px !important;
+      }
+    }
+    
+    /* Скрываем info-panel в режиме навигации */
+    .navigation-fullscreen.active ~ .info-panel,
+    body.navigating .info-panel {
+      display: none !important;
+    }
+    
+    .info-panel-header {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-status {
+      font-size: 14px;
+      color: #333;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    
+    .info-panel-generating,
+    .info-panel-error,
+    .info-panel-ready {
+      display: none;
+    }
+    
+    .info-panel-points {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-sequence {
+      margin-bottom: 12px;
+    }
+    
+    .sequence-link {
+      color: #4CAF50;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .sequence-distance {
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    
+    .distance-label-text {
+      color: #666;
+    }
+    
+    .distance-value {
+      color: #333;
+      font-weight: 500;
+      min-width: 60px;
+    }
+    
+    .distance-control-btn {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      color: #666;
+      padding: 2px 8px;
+      line-height: 1;
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+      min-width: 24px;
+      text-align: center;
+    }
+    
+    .distance-control-btn:hover {
+      color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
+      border-color: #4CAF50;
+    }
+    
+    .distance-control-btn:active {
+      color: #45a049;
+      background: rgba(76, 175, 80, 0.2);
+    }
+    
+    .distance-control-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .info-panel-nav-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      width: 100%;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    
+    .info-panel-nav-btn:active {
+      background: #45a049;
+    }
+    
+    .info-panel-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .info-panel-action-btn {
+      flex: 1;
+      background: #f5f5f5;
+      border: none;
+      padding: 8px;
+      border-radius: 6px; 
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .info-panel-action-btn img {
+      width: 20px;
+      height: 20px;
+    }
+    
+    /* ========== ЛОГИ API (ПРАВЫЙ НИЖНИЙ УГОЛ) ========== */
+    .api-logs {
+      display: none !important; /* Скрыт по требованию */
+    }
+    
+    .api-log-entry {
+      margin-bottom: 4px;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* ========== МЕНЮ (МОДАЛЬНОЕ) ========== */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .menu-modal.show {
+      display: flex;
+    }
+    
+    .menu-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .menu-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .menu-close {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+    }
+    
+    .menu-item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .menu-item:last-child {
+      border-bottom: none;
+    }
+    
+    .menu-item:active {
+      background: #f5f5f5;
+    }
+    
+    .menu-item-icon {
+      width: 24px;
+      height: 24px;
+    }
+    
+    /* ========== НАСТРОЙКИ (МОДАЛЬНОЕ) ========== */
+    .settings-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .settings-modal.show {
+      display: flex;
+    }
+    
+    .settings-content {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .settings-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .settings-close {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+    }
+    
+    .settings-item {
+      margin-bottom: 20px;
+    }
+    
+    .settings-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .settings-input {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    
+    .settings-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    
+    /* ========== МОДАЛКА ИНСТРУКЦИИ ========== */
+    .info-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .info-modal.show { display: flex; }
+    .info-content {
+      background: #fff;
+      width: min(920px, 92vw);
+      max-height: 86vh;
+      overflow: auto;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .info-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+    .info-close {
+      width: 30px; height: 30px; border: 0; background: none; font-size: 22px; color: #999; cursor: pointer;
+    }
+    /* ========== СЛАЙДЕР ========== */
+    .slider-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    .slider-track {
+      display: flex;
+      transition: transform 0.3s ease;
+    }
+    .slider-slide {
+      min-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      text-align: center;
+    }
+    .slider-slide img, .slider-slide .ph {
+      width: 100%;
+      max-width: 400px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: #f5f5f5;
+    }
+    .slider-slide .ph {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 13px;
+    }
+    .slider-text {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #333;
+      max-width: 500px;
+    }
+    .slider-nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .slider-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ddd;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .slider-dot.active {
+      background: #4CAF50;
+    }
+    .slider-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ddd;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: #333;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .slider-arrow:hover {
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .slider-arrow.prev {
+      left: 8px;
+    }
+    .slider-arrow.next {
+      right: 8px;
+    }
+    @media (max-width: 768px) {
+      .slider-arrow {
+        display: none;
+      }
+    }
+    .info-body { padding: 14px 16px; }
+    .subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .subtabs button { border: 1px solid #e0e0e0; background: #fafafa; color: #333; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .subtabs button.active { background: #4CAF50; color: #fff; border-color: #4CAF50; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .section-title { font-size: 16px; font-weight: 600; margin: 10px 0; }
+    .para { font-size: 14px; color: #444; margin: 8px 0; }
+    .list { margin: 8px 0 8px 18px; font-size: 14px; color: #444; }
+    .grid-placeholders { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
+    .ph {
+      border: 2px dashed #ddd; border-radius: 10px; padding: 10px; color: #777; font-size: 12px; text-align: center; background: #fafafa;
+    }
+    .anchor-link { color: #4CAF50; text-decoration: none; }
+    
+    /* Footer styles - скрыт на мобилках */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      font-size: 12px;
+      color: #666;
+      z-index: 500;
+      display: block; /* Показываем только на десктопе */
+      line-height: 1.4;
+    }
+    
+    /* Скрываем footer в режиме навигации */
+    body.navigating footer {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    footer a {
+      color: #4CAF50;
+      text-decoration: none;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    
+    footer a:hover {
+      text-decoration: underline;
+    }
+    
+    .copyright {
+      margin: 0;
+      font-size: 11px;
+      display: inline;
+    }
+    
+    .legal-links {
+      margin: 0;
+      display: inline-flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      font-size: 11px;
+      margin-left: 12px;
+    }
+    
+    /* Компактное отображение footer на десктопе - все в одну строку */
+    @media (min-width: 769px) {
+      footer {
+        padding: 6px 16px;
+        font-size: 12px;
+      }
+      
+      .copyright {
+        display: inline;
+        margin-right: 12px;
+      }
+      
+      .legal-links {
+        display: inline-flex;
+        margin-left: 0;
+        gap: 16px;
+      }
+      
+      footer > div {
+        display: inline;
+        margin: 0 8px;
+      }
+      
+      footer > div:last-child {
+        display: block;
+        margin-top: 4px;
+        font-size: 10px;
+      }
+    }
+    
+    /* Полноэкранный режим навигации */
+    .navigation-fullscreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 9999;
+      display: none;
+    }
+    
+    .navigation-fullscreen.active {
+      display: block;
+    }
+    
+    .nav-fullscreen-map {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    /* Убеждаемся, что карта в полноэкранном режиме занимает весь экран */
+    .navigation-fullscreen.active .nav-fullscreen-map {
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    .navigation-fullscreen.active .nav-fullscreen-map .leaflet-container {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    .nav-fullscreen-controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 280px;
+      max-width: calc(100vw - 20px);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+    }
+    
+    /* На десктопах делаем окно побольше */
+    @media (min-width: 768px) {
+      .nav-fullscreen-controls {
+        width: 450px;
+        padding: 14px;
+      }
+      
+      .nav-fullscreen-controls h3 {
+        font-size: 16px;
+      }
+      
+      .nav-control-row label {
+        font-size: 14px;
+        min-width: 130px;
+      }
+      
+      .nav-control-row select {
+        font-size: 14px;
+        padding: 8px 10px;
+      }
+      
+      .nav-control-row button {
+        font-size: 14px;
+        padding: 8px 14px;
+        min-height: 40px;
+      }
+      
+      .nav-distance-display {
+        font-size: 16px;
+        padding: 8px 12px;
+      }
+    }
+    
+    .nav-fullscreen-controls h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #333;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .nav-control-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin: 4px 0;
+    }
+    
+    .nav-control-row label {
+      margin: 0;
+      font-weight: 500;
+      color: #555;
+      min-width: 110px;
+      font-size: 13px;
+    }
+    
+    .nav-control-row select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    .nav-control-row button {
+      padding: 6px 12px;
+      margin: 0;
+      font-size: 13px;
+      min-width: auto;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+    }
+    
+    .nav-control-row button:active {
+      background: #f0f0f0;
+    }
+    
+    .nav-control-row button:disabled,
+    .nav-control-row select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #e0e0e0;
+      color: #999;
+    }
+    
+    .nav-control-row button:disabled:active {
+      background: #e0e0e0;
+    }
+    
+    .nav-distance-display {
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      color: #4CAF50;
+      margin: 6px 0;
+      padding: 6px 10px;
+      background: rgba(76, 175, 80, 0.1);
+      border-radius: 6px;
+    }
+    
+    .nav-exit-btn {
+      display: none !important;
+    }
+    
+    .nav-close-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(0, 0, 0, 0.1);
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .nav-close-btn:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .nav-icon-btn {
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- КАРТА (ПОЛНОЭКРАННАЯ) -->
+  <div id="map"></div>
+  
+  <!-- ВЕРХНЯЯ ПАНЕЛЬ ИКОНОК (СПРАВА) -->
+  <!-- Иконка инструкции (СЛЕВА) -->
+  <div class="top-left-info">
+    <button class="icon-btn" id="openInfoTopBtn" title="О проекте и инструкция">
+      <img src="/assets/icons/information.png" alt="Info">
+    </button>
+  </div>
+  
+  
+  <div class="top-toolbar">
+    <button class="icon-btn" id="shareBtn" title="Поделиться">
+      <img src="/assets/icons/Share.png" alt="Share">
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="Настройки">
+      <img src="/assets/icons/Settings.png" alt="Settings">
+    </button>
+    <button class="icon-btn" id="menuBtn" title="Меню">
+      <img src="/assets/icons/Menu.png" alt="Menu">
+    </button>
+  </div>
+  
+  <!-- ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКИ РИСОВАНИЯ ОБЛАСТИ) -->
+  <div class="left-controls">
+    <button class="icon-btn active" id="drawAreaBtn" title="Выбрать область (прямоугольник)">
+      <img src="/assets/icons/DrawArea.png" alt="Draw Area">
+    </button>
+    <button class="icon-btn" id="polygonBtn" title="Выбрать область (многоугольник)">
+      <img src="/assets/icons/Polygon.png" alt="Polygon">
+    </button>
+  </div>
+  
+  <!-- ПОДСКАЗКА-СТИКЕР -->
+  <div class="hint-sticker show" id="hintSticker">
+    Укажите область для тренировки
+  </div>
+  
+  <!-- ЛЕВАЯ НИЖНЯЯ ПАНЕЛЬ (ZOOM И GPS) -->
+  <div class="left-bottom-controls">
+    <button class="icon-btn" id="zoomInBtn" title="Приблизить">
+      <span style="font-size: 20px; font-weight: bold;">+</span>
+    </button>
+    <button class="icon-btn" id="zoomOutBtn" title="Отдалить">
+      <span style="font-size: 20px; font-weight: bold;">−</span>
+    </button>
+    <button class="icon-btn" id="gpsBtn" title="Моя позиция">
+      <img src="/assets/icons/GPS_Position.png" alt="GPS">
+    </button>
+      </div>
+  
+  <!-- КРЕСТИК ДЛЯ ОЧИСТКИ ОБЛАСТИ -->
+  <button class="clear-area-btn" id="clearAreaBtn">×</button>
+  
+  <!-- ИНФОРМАЦИОННАЯ ПАНЕЛЬ (ПОСЛЕ ГЕНЕРАЦИИ ТОЧЕК) -->
+  <div class="info-panel" id="infoPanel">
+    <!-- Кнопка сворачивания/разворачивания -->
+    <button class="info-panel-toggle-btn" id="infoPanelToggleBtn" title="Свернуть/Развернуть" aria-label="Свернуть/Развернуть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+    <!-- Контент панели -->
+    <div class="info-panel-content">
+      <!-- Состояние: формирование точек -->
+      <div class="info-panel-generating" id="infoPanelGenerating" style="display: none;">
+        <div class="info-panel-header">Формирование точек маршрута</div>
+        <div class="info-panel-status" id="infoPanelStatus">Загрузка данных...</div>
+      </div>
+      
+      <!-- Состояние: ошибка -->
+      <div class="info-panel-error" id="infoPanelError" style="display: none;">
+        <div class="info-panel-header" style="color: #d32f2f;">Ошибка</div>
+        <div class="info-panel-status" id="infoPanelErrorMessage">Не удалось загрузить данные. Попробуйте еще раз.</div>
+      </div>
+      
+      <!-- Состояние: готово -->
+      <div class="info-panel-ready" id="infoPanelReady" style="display: none;">
+        <div class="info-panel-header">Маршрут готов</div>
+        <div class="info-panel-points" id="infoPanelPoints">Точек: 10</div>
+        <div class="info-panel-sequence">
+          <a href="#" class="sequence-link" id="sequenceLink">Последовательность</a>
+          <div class="sequence-distance" id="sequenceDistance">
+            <span class="distance-label-text">Дистанция:</span>
+            <span class="distance-value" id="distanceValue">0 км</span>
+            <button type="button" class="distance-control-btn" id="distanceDecreaseBtn" title="Удалить точку">−</button>
+            <button type="button" class="distance-control-btn" id="distanceIncreaseBtn" title="Добавить точку">+</button>
+          </div>
+        </div>
+        <button class="info-panel-nav-btn" id="startNavBtn">🎧 Начать навигацию</button>
+        <div class="info-panel-actions">
+          <button class="info-panel-action-btn" id="refreshBtn" title="Обновить">
+            <img src="/assets/icons/Refresh.png" alt="Refresh">
+          </button>
+          <button class="info-panel-action-btn" id="deleteBtn" title="Удалить">
+            <img src="/assets/icons/Delete.png" alt="Delete">
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ЛОГИ API (ПРАВЫЙ НИЖНИЙ УГОЛ) -->
+  <div class="api-logs" id="apiLogs"></div>
+  
+  <!-- Полноэкранный режим навигации -->
+  <div id="navigationFullscreen" class="navigation-fullscreen">
+    <div id="navFullscreenMap" class="nav-fullscreen-map"></div>
+    
+    <div class="nav-fullscreen-controls">
+      <h3>🎯 Навигация</h3>
+      
+      <div class="nav-distance-display" id="navDistanceDisplay">
+        Расстояние: - м
+      </div>
+      
+      <div class="nav-control-row">
+        <label>Следующая точка:</label>
+        <select id="navTargetSelect">
+          <option value="">Выберите точку</option>
+        </select>
+      </div>
+      
+      <div class="nav-control-row">
+        <button id="navStopBtn" title="Пауза">⏹️ Пауза</button>
+        <button id="navToggleAudioBtn" title="Включить/отключить звук">🔇</button>
+        <button id="navUnmuteBtn" title="Разблокировать кнопки">🔓</button>
+      </div>
+      
+      <button id="navCloseBtn" class="nav-close-btn" title="Закрыть навигацию">✕</button>
+    </div>
+    
+    <button id="navExitBtn" class="nav-exit-btn" title="Выйти из полноэкранного режима">✕</button>
+  </div>
+  
+  <!-- МЕНЮ -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content">
+      <div class="menu-header">
+        <span>Меню</span>
+        <button class="menu-close" id="menuClose">×</button>
+      </div>
+      <div class="menu-item" id="saveGpxMenuItem">
+        <span>📥 Сохранить GPX</span>
+      </div>
+      <div class="menu-item" id="loadGpxMenuItem">
+        <span>📤 Загрузить GPX</span>
+      </div>
+      <div class="menu-item" id="savedRoutesMenuItem">
+        <span>📂 Сохранённые маршруты</span>
+      </div>
+      <div class="menu-item" id="openInfoMenuItem">
+        <span>ℹ️ О проекте и инструкция</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- НАСТРОЙКИ -->
+  <div class="settings-modal" id="settingsModal">
+    <div class="settings-content">
+      <div class="settings-header">
+        <span>Настройки</span>
+        <button class="settings-close" id="settingsClose">×</button>
+      </div>
+      <div class="settings-item">
+        <label class="settings-label" for="pointsCount">Количество точек</label>
+        <input type="number" id="pointsCount" class="settings-input" min="1" max="50" value="10">
+      </div>
+      <div class="settings-item">
+        <label class="settings-label" for="difficultyLevel">Уровень сложности</label>
+        <select id="difficultyLevel" class="settings-input">
+          <option value="1">🟢 Новичок (плотное размещение)</option>
+          <option value="2" selected>🟡 Любитель (сбалансированное)</option>
+          <option value="3">🔴 Эксперт (максимальное разнесение)</option>
+        </select>
+      </div>
+      <div class="settings-item">
+        <label class="settings-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="runningWithMusic" style="width: 20px; height: 20px; cursor: pointer;">
+          <span>🎵 Бегаю с музыкой</span>
+        </label>
+        <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 30px;">
+          Усиленные звуки для лучшей слышимости поверх музыки
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal: список маршрутов -->
+  <div id="routesModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: min(520px, 92vw); max-height: 80vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-weight: 600; font-size: 16px;">Сохранённые маршруты</div>
+        <button id="routesModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
+      </div>
+      <div id="routesModalBody" style="padding: 10px 12px;">
+        <div id="routesListEmpty" style="color:#777; padding: 8px;">Пока нет сохранённых маршрутов</div>
+        <div id="routesList" style="display: grid; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: редактирование последовательности -->
+  <div id="sequenceModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: min(520px, 92vw); max-height: 80vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-weight: 600; font-size: 16px;">✏️ Редактирование последовательности</div>
+        <button id="sequenceModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
+      </div>
+      <div id="sequenceModalBody" style="padding: 16px;">
+        <p style="margin: 0 0 12px 0; color: #666; font-size: 14px;">
+          Перетащите точки для изменения порядка или введите последовательность вручную:
+        </p>
+        <div id="sequenceEditor" style="display: grid; gap: 8px; margin-bottom: 16px;">
+          <!-- Сюда будут добавляться элементы для перетаскивания -->
+        </div>
+        <label style="display: block; margin: 16px 0 8px 0; font-weight: 500; color: #555;">
+          Или введите последовательность (через запятую):
+        </label>
+        <input type="text" id="sequenceInput" placeholder="Например: 8, 5, 4, 1, 3" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;">
+        <button id="applySequenceBtn" style="margin-top: 12px; width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">Применить</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal: результаты навигации -->
+  <div id="resultsModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: min(90vw, 600px); max-height: 90vh; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #fff; z-index: 10;">
+        <div style="font-weight: 600; font-size: 18px;">🏁 Результаты навигации</div>
+        <button id="resultsModalClose" style="width: auto; padding: 8px 12px; background:#e0e0e0; color:#333; border: none; border-radius: 6px; cursor: pointer;">Закрыть</button>
+      </div>
+      <div id="resultsModalBody" style="padding: 20px;">
+        <!-- Рейтинг -->
+        <div style="text-align: center; margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Рейтинг прохождения</div>
+          <div style="font-size: 48px; font-weight: 700; margin-bottom: 4px;">
+            <span id="resultsRating">0</span><span style="font-size: 24px;">/100</span>
+          </div>
+          <div id="resultsRatingText" style="font-size: 16px; opacity: 0.9;">—</div>
+        </div>
+        
+        <!-- Общая статистика -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px;">
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Точек взято</div>
+            <div style="font-size: 24px; font-weight: 600; color: #4CAF50;">
+              <span id="resultsPointsVisited">0</span> / <span id="resultsPointsTotal">0</span>
+            </div>
+          </div>
+          
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Общее время</div>
+            <div style="font-size: 20px; font-weight: 600; color: #333;">
+              <span id="resultsTotalTime">—</span>
+            </div>
+          </div>
+          
+          <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Средняя скорость</div>
+            <div style="font-size: 20px; font-weight: 600; color: #333;">
+              <span id="resultsAvgSpeed">0</span> <span style="font-size: 14px;">км/ч</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Отклонение от маршрута -->
+        <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; margin-bottom: 24px;">
+          <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Отклонение от идеального маршрута</div>
+          <div style="font-size: 20px; font-weight: 600; color: #333;">
+            <span id="resultsDistanceDeviation">0</span> км 
+            <span id="resultsDistanceDeviationPercent" style="font-size: 16px; color: #666;">(0%)</span>
+          </div>
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Идеально: <span id="resultsIdealDistance">0</span> км | 
+            Пробежал: <span id="resultsRealDistance">0</span> км
+          </div>
+        </div>
+        
+        <!-- Таблица детализации по точкам -->
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">Детализация по точкам</div>
+          <div style="overflow-x: auto;">
+            <table id="resultsPointsTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                  <th style="padding: 10px 8px; text-align: left; font-weight: 600; color: #495057;">Точка</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Время</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Идеально</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Пробежал</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Отклонение</th>
+                  <th style="padding: 10px 8px; text-align: right; font-weight: 600; color: #495057;">Скорость</th>
+                </tr>
+              </thead>
+              <tbody id="resultsPointsTableBody">
+                <!-- Заполняется динамически -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Модалка: О проекте и инструкция -->
+  <div class="info-modal" id="infoModal">
+    <div class="info-content">
+      <div class="info-header">
+        <button class="info-close" id="infoClose">×</button>
+      </div>
+      <div class="info-body">
+        <nav class="subtabs" id="infoTabs">
+          <button data-tab="#about" class="active">Для чего?</button>
+          <button data-tab="#quick-start">Быстрый старт</button>
+          <button data-tab="#guide">Инструкция</button>
+          <button data-tab="#project-info">О проекте</button>
+        </nav>
+
+        <section id="quick-start" class="tab">
+          <div class="slider-container" id="quickStartSlider">
+            <button class="slider-arrow prev" id="quickStartPrev">‹</button>
+            <button class="slider-arrow next" id="quickStartNext">›</button>
+            <div class="slider-track" id="quickStartTrack">
+              <div class="slider-slide">
+                <div class="ph">Скрин 1 — перемещение карты</div>
+                <div class="slider-text">Переместите карту в нужный район</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 2 — выделение области и старт</div>
+                <div class="slider-text">Укажите область и поставьте старт</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 3 — генерация точек</div>
+                <div class="slider-text">Задайте количество точек и нажмите «Сгенерировать»</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 4 — выбор последовательности</div>
+                <div class="slider-text">Выберите «🎯 Автоматическая последовательность»</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 5 — начало навигации</div>
+                <div class="slider-text">Нажмите «🔊 Начать навигацию»</div>
+              </div>
+            </div>
+            <div class="slider-nav" id="quickStartNav">
+              <button class="slider-dot active" data-slide="0"></button>
+              <button class="slider-dot" data-slide="1"></button>
+              <button class="slider-dot" data-slide="2"></button>
+              <button class="slider-dot" data-slide="3"></button>
+              <button class="slider-dot" data-slide="4"></button>
+            </div>
+          </div>
+        </section>
+
+        <section id="about" class="tab active">
+          <div class="slider-container" id="promoSlider">
+            <button class="slider-arrow prev" id="sliderPrev">‹</button>
+            <button class="slider-arrow next" id="sliderNext">›</button>
+            <div class="slider-track" id="sliderTrack">
+              <div class="slider-slide">
+                <div class="ph">Скрин 1 — новый маршрут каждый раз</div>
+                <div class="slider-text">Каждый раз новый маршрут, даже там, где знаешь каждую тропинку. TrailSpot генерирует точки по уникальному алгоритму — каждый раз по-новому.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 2 — промежуточные цели</div>
+                <div class="slider-text">Больше мотивации: каждый раз — новая цель, не только финиш. Промежуточные точки делают тренировку интереснее.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 3 — прогулки с семьёй или одному</div>
+                <div class="slider-text">Из рутинной прогулки — в квест. Один или с компанией — каждый маршрут как новая игра.</div>
+              </div>
+              <div class="slider-slide">
+                <div class="ph">Скрин 4 — аудионавигация</div>
+                <div class="slider-text">Навигация как игра: звук подскажет — ближе или дальше. Не смотри в телефон, смотри на тропу и слушай подсказки.</div>
+              </div>
+            </div>
+            <div class="slider-nav" id="sliderNav">
+              <button class="slider-dot active" data-slide="0"></button>
+              <button class="slider-dot" data-slide="1"></button>
+              <button class="slider-dot" data-slide="2"></button>
+              <button class="slider-dot" data-slide="3"></button>
+            </div>
+          </div>
+        </section>
+
+        <section id="guide" class="tab">
+          <div class="section-title">Инструкция</div>
+          <details open>
+            <summary>Карта и выделение области</summary>
+            <p class="para">Нарисуйте область на карте, затем кликните по карте, чтобы поставить стартовую точку.</p>
+            <div class="grid-placeholders"><div class="ph">Скрин — выделение области и старт</div></div>
+          </details>
+          <details>
+            <summary>Последовательность точек</summary>
+            <p class="para">Секция маршрута показывает порядок: СТАРТ → 8 → 5 → … → СТАРТ. Можно переключать направление «🔄» или отредактировать порядок.</p>
+            <div class="grid-placeholders"><div class="ph">Скрин — секция маршрута и кнопка 🔄</div></div>
+          </details>
+          <details id="audio">
+            <summary>Навигация звуком («горячо‑холодно»)</summary>
+            <p class="para">Когда до точки остаётся ~100 м, подсказки становятся чаще. Если вы приближаетесь — звучит приятный <strong>мажорный аккорд</strong> (основной тон + большая терция). Если удаляетесь — более низкий мягкий тон. Когда совсем близко (≈10 м) — короткая пульсация. После взятия точки звучит победная мелодия, и следующая цель выбирается автоматически.</p>
+            <ul class="list">
+              <li>Далеко: редкие подсказки (не утомляют)</li>
+              <li>≤100 м: чаще; «приятный» аккорд = идёте правильно</li>
+              <li>≤30 м: чётче и реже; ориентируйтесь внимательнее</li>
+              <li>≤10 м: пульсирующий «пип‑пип» вместо постоянного писка</li>
+              <li>Точка взята: короткая победная мелодия</li>
+            </ul>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;">
+              <button class="icon-btn" id="audioDemoApproach" title="Приближаюсь — мажорный аккорд" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Приближаюсь</button>
+              <button class="icon-btn" id="audioDemoAway" title="Удаляюсь — низкий тон" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Удаляюсь</button>
+              <button class="icon-btn" id="audioDemoNeutral" title="Нейтрально" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Нейтрально</button>
+              <button class="icon-btn" id="audioDemoCritical" title="Критически близко — пульсация" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Критически близко</button>
+              <button class="icon-btn" id="audioDemoVictory" title="Победная мелодия" style="border-radius:8px; width:auto; padding:6px 10px;">▶ Победа</button>
+            </div>
+            <p class="para">Советы: после поворота пройдите пару шагов — системе нужно 2–3 измерения, чтобы «понять» тренд; на последних метрах смотрите глазами.</p>
+            <div class="grid-placeholders">
+              <div class="ph">Скрин — панель навигации с расстоянием и 🔊</div>
+              <div class="ph">Схема — «приближаюсь» (мажор), «удаляюсь» (низкий тон)</div>
+            </div>
+          </details>
+          <details>
+            <summary>Сохранение, экспорт и шаринг</summary>
+            <p class="para">Сохраните маршрут, экспортируйте GPX и делитесь ссылкой с друзьями.</p>
+            <div class="grid-placeholders"><div class="ph">Скрин — экспорт GPX / поделиться</div></div>
+          </details>
+        </section>
+
+        <section id="project-info" class="tab">
+          <div class="section-title">О проекте</div>
+          <p class="para">TrailSpot — открытый проект для генерации маршрутов и аудионавигации. Использует OpenStreetMap данные и работает полностью локально.</p>
+          <p class="para" style="margin-top: 12px;">
+            <strong>Исходный код:</strong><br>
+            <a href="https://github.com/Lemkus/rogein-generator" target="_blank" rel="noopener" style="color: #4CAF50; text-decoration: underline;">GitHub: Lemkus/rogein-generator</a>
+          </p>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+            <div class="section-title" style="font-size: 14px; margin-bottom: 8px;">Приватность и безопасность</div>
+            <p class="para">Данные хранятся локально на вашем устройстве. Нет аккаунтов и трекинга. Навигация — вспомогательный инструмент: используйте ответственно и соблюдайте технику безопасности.</p>
+          </div>
+        </section>
+
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- Скрытый input для загрузки GPX -->
+  <input type="file" id="gpxFileInput" accept=".gpx" style="display: none;">
+  
+  <script src="/libs/leaflet/leaflet.js"></script>
+  <script src="/libs/leaflet/leaflet.draw.js"></script>
+  <!-- Tone.js удален - используем простой Web Audio API -->
+  
+  <script>
+    // Локализация Leaflet Draw на русский язык
+    if (typeof L !== 'undefined' && L.drawLocal) {
+      L.drawLocal.draw.toolbar.actions.title = "Отменить рисование";
+      L.drawLocal.draw.toolbar.actions.text = "Отмена";
+      L.drawLocal.draw.toolbar.finish.title = "Завершить рисование";
+      L.drawLocal.draw.toolbar.finish.text = "Завершить";
+      L.drawLocal.draw.toolbar.undo.title = "Удалить последнюю точку";
+      L.drawLocal.draw.toolbar.undo.text = "Удалить точку";
+      
+      // Локализация подсказок для полигона
+      L.drawLocal.draw.handlers.polygon.tooltip.start = "Кликните, чтобы начать рисование фигуры";
+      L.drawLocal.draw.handlers.polygon.tooltip.cont = "Кликните, чтобы продолжить рисование фигуры";
+      L.drawLocal.draw.handlers.polygon.tooltip.end = "Кликните на первую точку, чтобы закрыть эту фигуру";
+      
+      // Локализация подсказок для прямоугольника
+      L.drawLocal.draw.handlers.rectangle.tooltip.start = "Кликните и перетащите, чтобы нарисовать прямоугольник";
+      L.drawLocal.draw.handlers.simpleshape.tooltip.end = "Отпустите, чтобы завершить рисование";
+    }
+    
+    // Запрос разрешений для уведомлений (без Service Worker)
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+  </script>
+  
+  <script type="module">
+    // Используем глобальную версию из head
+    const APP_VERSION = window.APP_VERSION || '1.12.71';
+    const CACHE_BUST = window.CACHE_BUST || `?v=${APP_VERSION}&t=${Date.now()}`;
+    
+    // Обновляем версию в footer
+    const versionDisplay = document.getElementById('appVersionDisplay');
+    if (versionDisplay) {
+      versionDisplay.textContent = APP_VERSION;
+    }
+    
+    // Регистрация Service Worker с принудительным обновлением
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js?v=' + APP_VERSION, { 
+        updateViaCache: 'none' // Не кешировать сам SW
+      }).then(registration => {
+        console.log('Service Worker зарегистрирован:', registration.scope);
+        
+        // Проверяем обновления каждые 60 секунд
+        setInterval(() => {
+          registration.update();
+        }, 60000);
+        
+        // Принудительное обновление при загрузке страницы
+        registration.update();
+        
+        // Слушаем обновления SW
+        registration.addEventListener('updatefound', () => {
+          console.log('Обнаружена новая версия Service Worker');
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Новый SW готов - принудительно активируем
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                // Перезагружаем страницу
+                window.location.reload();
+              }
+            });
+          }
+        });
+        
+        // Слушаем сообщения от SW
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data && event.data.type === 'SW_UPDATED') {
+            console.log('Service Worker обновлен до версии:', event.data.version);
+            // Можно показать уведомление пользователю или перезагрузить
+            window.location.reload();
+          }
+        });
+      }).catch(error => {
+        console.error('Ошибка регистрации Service Worker:', error);
+      });
+    }
+    
+    import(`/src/app.js${CACHE_BUST}`).then(module => {
+      if (typeof module.initApp === 'function') {
+        module.initApp();
+      } else {
+        console.error('Функция initApp не найдена в модуле');
+      }
+    }).catch(error => {
+      console.error('Ошибка загрузки модуля:', error);
+    });
+    
+    // === Инструкция: открытие/закрытие и вкладки ===
+    const infoModal = document.getElementById('infoModal');
+    const infoClose = document.getElementById('infoClose');
+    const openInfoItem = document.getElementById('openInfoMenuItem');
+    const openInfoTopBtn = document.getElementById('openInfoTopBtn');
+    const menuModal = document.getElementById('menuModal');
+    const tabs = document.querySelectorAll('#infoTabs button');
+    const tabSections = document.querySelectorAll('.tab');
+    
+    function openInfo(targetId) {
+      if (menuModal) menuModal.classList.remove('show');
+      if (infoModal) infoModal.classList.add('show');
+      if (targetId) switchTabById(targetId);
+    }
+    function closeInfo() { infoModal && infoModal.classList.remove('show'); }
+    function switchTabById(id) {
+      const btn = Array.from(tabs).find(b => b.dataset.tab === id || b.dataset.tab === `#${id}`);
+      if (btn) btn.click();
+      if (id.startsWith('#')) { const el = document.querySelector(id); el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      else { const el = document.getElementById(id); el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }
+    
+    openInfoItem && openInfoItem.addEventListener('click', () => openInfo('#about'));
+    openInfoTopBtn && openInfoTopBtn.addEventListener('click', () => openInfo('#about'));
+    infoClose && infoClose.addEventListener('click', closeInfo);
+    infoModal && infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeInfo(); });
+    
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        tabSections.forEach(s => s.classList.remove('active'));
+        const id = btn.dataset.tab;
+        const sec = document.querySelector(id);
+        if (sec) sec.classList.add('active');
+      });
+    });
+    
+    // Глобальный хук для тостов/подсказок: window.openInstruction('#audio')
+    window.openInstruction = (anchor = '#quick-start') => openInfo(anchor);
+    
+    // === СВОРАЧИВАНИЕ INFO-PANEL НА МОБИЛКАХ (КНОПКА СО СТРЕЛКОЙ) ===
+    const infoPanel = document.getElementById('infoPanel');
+    const infoPanelToggleBtn = document.getElementById('infoPanelToggleBtn');
+    
+    if (infoPanel && infoPanelToggleBtn) {
+      // Обработчик клика на кнопку сворачивания/разворачивания
+      infoPanelToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Предотвращаем всплытие события
+        infoPanel.classList.toggle('collapsed');
+      });
+      
+      // Предотвращаем закрытие панели при клике на кнопку
+      infoPanelToggleBtn.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      });
+    }
+    
+    // === СЛАЙДЕР ПРОМО ===
+    const sliderTrack = document.getElementById('sliderTrack');
+    const sliderPrev = document.getElementById('sliderPrev');
+    const sliderNext = document.getElementById('sliderNext');
+    const sliderDots = document.querySelectorAll('.slider-dot');
+    let currentSlide = 0;
+    const totalSlides = 4;
+    
+    function updateSlider() {
+      if (sliderTrack) {
+        sliderTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+      }
+      sliderDots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentSlide);
+      });
+    }
+    
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % totalSlides;
+      updateSlider();
+    }
+    
+    function prevSlide() {
+      currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+      updateSlider();
+    }
+    
+    function goToSlide(idx) {
+      currentSlide = idx;
+      updateSlider();
+    }
+    
+    sliderPrev && sliderPrev.addEventListener('click', prevSlide);
+    sliderNext && sliderNext.addEventListener('click', nextSlide);
+    sliderDots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => goToSlide(idx));
+    });
+    
+    // Swipe на мобильном
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const sliderContainer = document.getElementById('promoSlider');
+    
+    if (sliderContainer) {
+      sliderContainer.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+      
+      sliderContainer.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      }, { passive: true });
+    }
+    
+    function handleSwipe() {
+      const diff = touchStartX - touchEndX;
+      const minSwipeDistance = 50;
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0) {
+          nextSlide();
+        } else {
+          prevSlide();
+        }
+      }
+    }
+    
+    // === СЛАЙДЕР БЫСТРЫЙ СТАРТ ===
+    const quickStartTrack = document.getElementById('quickStartTrack');
+    const quickStartPrev = document.getElementById('quickStartPrev');
+    const quickStartNext = document.getElementById('quickStartNext');
+    const quickStartDots = document.querySelectorAll('#quickStartNav .slider-dot');
+    let currentQuickSlide = 0;
+    const totalQuickSlides = 5;
+    
+    function updateQuickSlider() {
+      if (quickStartTrack) {
+        quickStartTrack.style.transform = `translateX(-${currentQuickSlide * 100}%)`;
+      }
+      quickStartDots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentQuickSlide);
+      });
+    }
+    
+    function nextQuickSlide() {
+      currentQuickSlide = (currentQuickSlide + 1) % totalQuickSlides;
+      updateQuickSlider();
+    }
+    
+    function prevQuickSlide() {
+      currentQuickSlide = (currentQuickSlide - 1 + totalQuickSlides) % totalQuickSlides;
+      updateQuickSlider();
+    }
+    
+    function goToQuickSlide(idx) {
+      currentQuickSlide = idx;
+      updateQuickSlider();
+    }
+    
+    quickStartPrev && quickStartPrev.addEventListener('click', prevQuickSlide);
+    quickStartNext && quickStartNext.addEventListener('click', nextQuickSlide);
+    quickStartDots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => goToQuickSlide(idx));
+    });
+    
+    // Swipe для быстрого старта
+    let quickTouchStartX = 0;
+    let quickTouchEndX = 0;
+    const quickStartContainer = document.getElementById('quickStartSlider');
+    
+    if (quickStartContainer) {
+      quickStartContainer.addEventListener('touchstart', (e) => {
+        quickTouchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+      
+      quickStartContainer.addEventListener('touchend', (e) => {
+        quickTouchEndX = e.changedTouches[0].screenX;
+        handleQuickSwipe();
+      }, { passive: true });
+    }
+    
+    function handleQuickSwipe() {
+      const diff = quickTouchStartX - quickTouchEndX;
+      const minSwipeDistance = 50;
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0) {
+          nextQuickSlide();
+        } else {
+          prevQuickSlide();
+        }
+      }
+    }
+
+    // === Аудио превью (Web Audio API, независимый от навигации) ===
+    let demoCtx, demoGain;
+    function ensureDemoCtx(){
+      if (!demoCtx) {
+        demoCtx = new (window.AudioContext || window.webkitAudioContext)();
+        demoGain = demoCtx.createGain();
+        demoGain.gain.value = 0.6; // громче превью
+        demoGain.connect(demoCtx.destination);
+      }
+      if (demoCtx.state === 'suspended') demoCtx.resume();
+    }
+    function playToneOnce(freq, dur=0.3, type='sine', vol=0.5){
+      ensureDemoCtx();
+      const osc = demoCtx.createOscillator();
+      const g = demoCtx.createGain();
+      osc.type = type; osc.frequency.value = freq; g.gain.value = vol;
+      osc.connect(g); g.connect(demoGain);
+      const now = demoCtx.currentTime, fade = Math.min(dur*0.1, 0.05);
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(vol, now + fade);
+      g.gain.linearRampToValueAtTime(0, now + dur);
+      osc.start(now); osc.stop(now + dur);
+      setTimeout(() => { try { osc.disconnect(); g.disconnect(); } catch(_){} }, dur*1000+100);
+    }
+    function playMajorChord(baseFreq, dur=0.35){
+      ensureDemoCtx();
+      const third = baseFreq*Math.pow(2,4/12);
+      const osc1 = demoCtx.createOscillator();
+      const g1 = demoCtx.createGain(); g1.gain.value=0.35; osc1.type='triangle'; osc1.frequency.value=baseFreq; osc1.connect(g1); g1.connect(demoGain);
+      const osc2 = demoCtx.createOscillator();
+      const g2 = demoCtx.createGain(); g2.gain.value=0.35; osc2.type='triangle'; osc2.frequency.value=third; osc2.connect(g2); g2.connect(demoGain);
+      const now = demoCtx.currentTime, fade=Math.min(dur*0.1,0.05);
+      g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.25, now+fade); g1.gain.linearRampToValueAtTime(0, now+dur);
+      g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.25, now+fade); g2.gain.linearRampToValueAtTime(0, now+dur);
+      osc1.start(now); osc2.start(now); osc1.stop(now+dur); osc2.stop(now+dur);
+      setTimeout(()=>{ try{osc1.disconnect();osc2.disconnect();g1.disconnect();g2.disconnect();}catch(_){}} , dur*1000+100);
+    }
+    function playPulse(freq=800, pulseDur=0.12, pulses=3){
+      ensureDemoCtx();
+      let count=0; const playOne=()=>{
+        if(count++>=pulses) return; const osc=demoCtx.createOscillator(); const g=demoCtx.createGain();
+        osc.frequency.value=freq; osc.type='sine'; osc.connect(g); g.connect(demoGain);
+        const now=demoCtx.currentTime, fade=pulseDur*0.2;
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.6, now+fade); g.gain.linearRampToValueAtTime(0, now+pulseDur);
+        osc.start(now); osc.stop(now+pulseDur);
+        setTimeout(()=>{ try{osc.disconnect();g.disconnect();}catch(_){}; if(count<pulses) setTimeout(playOne, 50); }, pulseDur*1000);
+      }; playOne();
+    }
+
+    const bApp = document.getElementById('audioDemoApproach');
+    const bAway = document.getElementById('audioDemoAway');
+    const bNeutral = document.getElementById('audioDemoNeutral');
+    const bCrit = document.getElementById('audioDemoCritical');
+    const bVictory = document.getElementById('audioDemoVictory');
+    bApp && bApp.addEventListener('click', ()=> playMajorChord(520, 0.35));
+    bAway && bAway.addEventListener('click', ()=> playToneOnce(360, 0.28, 'sine', 0.55));
+    bNeutral && bNeutral.addEventListener('click', ()=> playToneOnce(500, 0.22, 'triangle', 0.5));
+    bCrit && bCrit.addEventListener('click', ()=> playPulse(800, 0.12, 3));
+    bVictory && bVictory.addEventListener('click', ()=> {
+      // Используем встроенную мелодию из навигации, если модуль инициализирован; иначе — локально проигрываем ноты
+      try { if (window.openInstruction) {} } catch(_){ }
+      // Локальная простая версия победной мелодии
+      const notes = [ {f:523,d:0.15}, {f:659,d:0.15}, {f:784,d:0.15}, {f:1047,d:0.4} ];
+      let i=0; const playNext=()=>{ if(i>=notes.length) return; const n=notes[i++]; playToneOnce(n.f, n.d, 'sine', 0.65); setTimeout(playNext, n.d*1000+60); }; playNext();
+    });
+  </script>
+  
+  <!-- Footer with copyright and legal info -->
+  <footer>
+    <div class="copyright">
+      © 2025 <strong>TrailSpot</strong>. All rights reserved.
+    </div>
+    <div class="legal-links">
+      <a href="#" id="termsLink">Terms of Use</a>
+      <a href="#" id="privacyLink">Privacy Policy</a>
+      <a href="https://t.me/TrailSpot" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.61 7.59c-.12.54-.44.68-.9.42l-2.49-1.84-1.2 1.16c-.13.13-.24.24-.49.24l.18-2.56 4.64-4.19c.2-.18-.04-.28-.31-.1l-5.74 3.61-2.47-.77c-.54-.17-.55-.54.11-.8l9.68-3.73c.45-.17.84.1.7.8z"/>
+        </svg>
+        Telegram
+      </a>
+    </div>
+    <div style="margin-top: 4px; font-size: 10px; color: #999;" id="versionFooter">
+      Made with 💚 for outdoor enthusiasts | v<span id="appVersionDisplay"></span>
+    </div>
+  </footer>
+</body>
+</html> 
