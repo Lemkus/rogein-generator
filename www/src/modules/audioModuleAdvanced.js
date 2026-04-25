@@ -37,6 +37,29 @@ let audioContext = null;
 let gainNode = null;
 let oscillator = null;
 
+// Очередь звуков, запрошенных пока контекст был suspended
+let _pendingSound = null;
+
+// Возобновляем AudioContext при возврате приложения на передний план
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && audioContext?.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+    }
+});
+
+// На Android (Capacitor) WebView сигнализирует через этот кастомный event
+window.addEventListener('capacitorResume', () => {
+    if (audioContext?.state === 'suspended') {
+        audioContext.resume().then(() => {
+            if (_pendingSound) {
+                const { frequency, duration, type, volume } = _pendingSound;
+                _pendingSound = null;
+                playTone(frequency, duration, type, volume);
+            }
+        }).catch(() => {});
+    }
+});
+
 // Инициализация Web Audio API
 function initAudioContext() {
     if (!audioContext) {
@@ -50,13 +73,14 @@ function initAudioContext() {
             return false;
         }
     }
-    
-    // Возобновляем контекст если приостановлен
+
     if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        // Пытаемся возобновить асинхронно; playTone повторит попытку после resume
+        audioContext.resume().catch(() => {});
+        return false;
     }
-    
-    return true;
+
+    return audioContext.state === 'running';
 }
 
 // Остановка текущего звука
@@ -75,9 +99,15 @@ function stopCurrentSound() {
 
 // Воспроизведение простого тона
 function playTone(frequency, duration = 0.3, type = 'sine', volume = 0.3) {
-    if (!initAudioContext() || !isAudioEnabled || isPlaying) {
+    if (!isAudioEnabled) return;
+
+    if (!initAudioContext()) {
+        // Контекст suspended — запомним звук, воспроизведём после resume
+        _pendingSound = { frequency, duration, type, volume };
         return;
     }
+
+    if (isPlaying) return;
     
     stopCurrentSound();
     
