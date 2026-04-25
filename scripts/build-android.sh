@@ -20,11 +20,18 @@ echo "Тип сборки: $BUILD_TYPE"
 echo "Корень проекта: $ROOT"
 echo ""
 
+# 0. Авто-setup при первом запуске (после клона репо)
+if [ ! -d "$ROOT/node_modules" ] || [ ! -f "$ROOT/android/capacitor-cordova-android-plugins/cordova.variables.gradle" ]; then
+    echo "[0/4] Первый запуск — выполняю setup..."
+    "$ROOT/scripts/setup.sh"
+fi
+
 # 1. Синхронизируем исходники в www/
 echo "[1/4] Синхронизация веб-ресурсов..."
 "$ROOT/scripts/sync-www.sh"
 
-# 2. Синхронизируем Capacitor плагины в Android-проект
+# 2. Синхронизируем Capacitor плагины в Android-проект (генерирует
+#    capacitor-cordova-android-plugins/ — обязательно для Gradle)
 echo "[2/4] Capacitor sync..."
 cd "$ROOT"
 npx cap sync android

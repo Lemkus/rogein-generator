@@ -40,18 +40,27 @@ TrailSpot использует **Capacitor** для запуска сущест�
 - **Android SDK** (API 24–36)
 - **Java 17+** (`JAVA_HOME` должен быть задан)
 
-### Установка зависимостей
+### ⚠️ Первый запуск после клонирования репо
+
+**Обязательный шаг.** Папка `android/capacitor-cordova-android-plugins/` исключена из git (так делает сам Capacitor) — её нужно сгенерировать локально:
 
 ```bash
-npm install
+./scripts/setup.sh
 ```
+
+Этот скрипт делает:
+1. `npm install` — ставит Capacitor и плагины
+2. `./scripts/sync-www.sh` — копирует исходники в `www/`
+3. `npx cap sync android` — генерирует `capacitor-cordova-android-plugins/`
+   и копирует `www/` в `android/app/src/main/assets/public/`
+
+**Без этого шага сборка упадёт с ошибкой:**
+> Could not read script `.../capacitor-cordova-android-plugins/cordova.variables.gradle`
 
 ### Открыть в Android Studio
 
 ```bash
-./scripts/sync-www.sh   # синхронизирует src/ → www/
-npx cap sync android    # обновляет Android-проект
-npx cap open android    # открывает Android Studio
+npx cap open android
 ```
 
 После открытия в Android Studio нажмите **▶ Run** для запуска на устройстве или эмуляторе.
