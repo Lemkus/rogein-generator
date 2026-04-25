@@ -21,8 +21,8 @@
     window.APP_VERSION = '1.12.71';
     window.CACHE_BUST = `?v=${window.APP_VERSION}&t=${Date.now()}`;
   </script>
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.css?v=1.12.71" />
-  <link rel="stylesheet" href="/libs/leaflet/leaflet.draw.css?v=1.12.71" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" crossorigin="" />
   <style>
     /* ========== БАЗОВЫЕ СТИЛИ ========== */
     html {
@@ -1768,8 +1768,8 @@
   <!-- Скрытый input для загрузки GPX -->
   <input type="file" id="gpxFileInput" accept=".gpx" style="display: none;">
   
-  <script src="/libs/leaflet/leaflet.js"></script>
-  <script src="/libs/leaflet/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" crossorigin=""></script>
   <!-- Tone.js удален - используем простой Web Audio API -->
   
   <script>

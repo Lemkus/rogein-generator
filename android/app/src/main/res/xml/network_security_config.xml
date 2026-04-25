@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- OSM tile servers — HTTPS only, always OK -->
+        <domain includeSubdomains="true">tile.openstreetmap.org</domain>
+        <domain includeSubdomains="true">unpkg.com</domain>
+        <domain includeSubdomains="true">cdnjs.cloudflare.com</domain>
+        <domain includeSubdomains="true">overpass-api.de</domain>
+        <domain includeSubdomains="true">trailspot.app</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
