@@ -1,0 +1,23 @@
+{
+  "appId": "com.trailspot.app",
+  "appName": "TrailSpot",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "BackgroundGeolocation": {
+      "backgroundPermissionRationale": {
+        "title": "Allow TrailSpot to access this device's location in the background?",
+        "message": "Navigation requires location access while the screen is off so you can hear audio directions.",
+        "positiveAction": "Allow",
+        "negativeAction": "Cancel"
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Deep link: открывает приложение по ссылке вида
+                https://trailspot.app/r/<route_id>
+                autoVerify=true включает Android App Links (нужно
+                разместить .well-known/assetlinks.json на trailspot.app
+                для бесшовного открытия без диалога выбора).
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="trailspot.app" android:pathPrefix="/r/" />
+                <data android:scheme="http"  android:host="trailspot.app" android:pathPrefix="/r/" />
+            </intent-filter>
+
+        </activity>
+
+        <!--
+            BackgroundGeolocation Foreground Service.
+            Показывает постоянное уведомление "Навигация активна" пока
+            приложение работает в фоне — это обязательное требование Android 8+
+            для фоновой работы GPS.
+        -->
+        <service
+            android:name="com.equimaps.capacitorbackgroundgeolocation.BackgroundGeolocationService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Сеть -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- GPS — точная и приблизительная локация -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+        ACCESS_BACKGROUND_LOCATION нужен для Android 10+ чтобы получать GPS
+        когда приложение в фоне или экран заблокирован.
+        Google Play требует обоснование — укажите в описании приложения.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Foreground Service для фонового GPS -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Предотвращение засыпания CPU (не экрана) — нужно для фоновых вычислений -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Вибрация для навигационных подсказок -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+</manifest>

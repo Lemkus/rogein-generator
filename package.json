@@ -1,0 +1,20 @@
+{
+  "name": "trailspot",
+  "version": "1.0.0",
+  "description": "TrailSpot - orienteering navigation with hot-cold audio guidance",
+  "private": true,
+  "scripts": {
+    "sync": "npx cap sync android",
+    "open": "npx cap open android",
+    "build:android": "npx cap sync android && npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor-community/keep-awake": "^8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.1"
+  }
+}

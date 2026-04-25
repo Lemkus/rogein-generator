@@ -55,3 +55,16 @@ deploy_config.json
 
 # Временные документация
 SEQUENCE_OPTIMIZATION_FIX.md
+
+# Android — сборочные артефакты (не нужны в репо)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# www/ генерируется скриптом sync-www.sh — можно исключить при желании,
+# но оставлено в репо для удобства (Capacitor нужен webDir при cap add)
